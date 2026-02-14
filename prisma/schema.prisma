@@ -1,0 +1,303 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  }
+
+enum UserRole {
+  OWNER
+  PM
+  EDITOR
+  CLIENT_VIEWER
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  CLIENT_REVIEW
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum FeedbackStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum FeedbackCategory {
+  CONTENT
+  DESIGN
+  SOUND
+  LEGAL
+  OTHER
+}
+
+enum AuthorType {
+  USER
+  CLIENT
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskState {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum ScopeLabel {
+  IN_SCOPE
+  POTENTIAL_OUT_OF_SCOPE
+  OUT_OF_SCOPE
+}
+
+enum PMDecision {
+  APPROVED_IN_SCOPE
+  APPROVED_CHANGE_REQUEST
+  REJECTED
+}
+
+enum WorkflowStageName {
+  DRAFT
+  INTERNAL_QA
+  CLIENT_REVIEW
+  FINAL
+}
+
+enum NotificationChannel {
+  EMAIL
+  SLACK
+  SMS
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum SubscriptionPlan {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELLED
+}
+
+model Tenant {
+  id            String         @id @default(cuid())
+  name          String
+  plan          SubscriptionPlan @default(STARTER)
+  timezone      String         @default("UTC")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  users         User[]
+  clients       ClientAccount[]
+  projects      Project[]
+  notifications Notification[]
+  subscriptions Subscription[]
+  auditLogs     AuditLog[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  role         UserRole
+  name         String
+  email        String
+  passwordHash String?
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projectLinks ProjectMember[]
+
+  @@unique([tenantId, email])
+}
+
+model ClientAccount {
+  id          String   @id @default(cuid())
+  tenantId    String
+  companyName String
+  contactName String
+  email       String
+  phone       String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projects    Project[]
+}
+
+model Project {
+  id                   String        @id @default(cuid())
+  tenantId             String
+  clientAccountId      String
+  name                 String
+  description          String?
+  status               ProjectStatus @default(DRAFT)
+  dueDate              DateTime?
+  budget               Decimal?
+  scopeDocUrl          String?
+  maxRevisions         Int           @default(2)
+  currentRevisionCount Int           @default(0)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  tenant               Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client               ClientAccount @relation(fields: [clientAccountId], references: [id], onDelete: Restrict)
+  versions             AssetVersion[]
+  members              ProjectMember[]
+  tasks                AITask[]
+  scopeDecisions       ScopeDecision[]
+  workflowStages       WorkflowStage[]
+}
+
+model ProjectMember {
+  id            String   @id @default(cuid())
+  projectId      String
+  userId         String
+  roleOnProject  String
+  createdAt      DateTime @default(now())
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model AssetVersion {
+  id           String       @id @default(cuid())
+  projectId    String
+  versionNo    Int
+  fileUrl      String
+  fileName     String
+  fileSize     Int
+  durationSec  Int?
+  thumbnailUrl String?
+  uploadedBy   String
+  notes        String?
+  createdAt    DateTime     @default(now())
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  feedbackItems FeedbackItem[]
+
+  @@unique([projectId, versionNo])
+}
+
+model FeedbackItem {
+  id            String         @id @default(cuid())
+  assetVersionId String
+  authorType    AuthorType
+  authorId      String?
+  authorEmail   String?
+  authorName    String?
+  timecodeSec   Int?
+  text          String
+  status        FeedbackStatus @default(NEW)
+  category      FeedbackCategory?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  assetVersion  AssetVersion   @relation(fields: [assetVersionId], references: [id], onDelete: Cascade)
+  scopeDecisions ScopeDecision[]
+}
+
+model AITask {
+  id               String       @id @default(cuid())
+  projectId        String
+  sourceFeedbackIds String[]
+  summary          String
+  priority         TaskPriority @default(MEDIUM)
+  assigneeUserId   String?
+  dueDate          DateTime?
+  state            TaskState    @default(TODO)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  project          Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ScopeDecision {
+  id                  String      @id @default(cuid())
+  projectId            String
+  feedbackItemId       String
+  aiLabel              ScopeLabel
+  aiConfidence         Float
+  aiReasoning          String?
+  pmDecision           PMDecision?
+  pmReason             String?
+  changeRequestAmount  Decimal?
+  decidedBy            String?
+  decidedAt            DateTime?
+  createdAt            DateTime    @default(now())
+  project              Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  feedbackItem         FeedbackItem @relation(fields: [feedbackItemId], references: [id], onDelete: Cascade)
+}
+
+model WorkflowStage {
+  id          String            @id @default(cuid())
+  projectId   String
+  stageName   WorkflowStageName
+  slaHours    Int
+  startedAt   DateTime?
+  completedAt DateTime?
+  ownerUserId String?
+  createdAt   DateTime          @default(now())
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id             String              @id @default(cuid())
+  tenantId       String
+  channel        NotificationChannel
+  recipient      String
+  templateKey    String
+  payload        Json
+  sentAt         DateTime?
+  deliveryStatus DeliveryStatus      @default(PENDING)
+  errorMessage   String?
+  createdAt      DateTime            @default(now())
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id                  String             @id @default(cuid())
+  tenantId            String
+  stripeCustomerId    String
+  stripeSubscriptionId String
+  plan                SubscriptionPlan
+  seats               Int
+  status              SubscriptionStatus
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  cancelAtPeriodEnd   Boolean            @default(false)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, stripeSubscriptionId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  actorUserId String?
+  entityType  String
+  entityId    String
+  action      String
+  metaJson    Json
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
