@@ -1,0 +1,438 @@
+project_info:
+  name: "video-crm-mvp"
+  analyzed_at: "2026-02-16"
+  tech_stack:
+    framework: "Next.js 16.1.6, App Router (/app)"
+    ui: "Tailwind CSS v4 + custom shadcn-style components + Radix UI primitives + Sonner"
+    database: "Prisma 6 + PostgreSQL"
+    auth: "Custom JWT auth (bcryptjs + jsonwebtoken), no Clerk/NextAuth"
+    ai: "OpenAI SDK (openai package, chat.completions with model gpt-4o)"
+    data_fetching: "SWR on dashboard/client pages"
+    background_jobs: "BullMQ + ioredis"
+
+file_structure:
+  app_dirs:
+    - "(auth)"
+    - "(dashboard)"
+    - "api"
+    - "client-portal"
+    - "public"
+  app_router_hint: "App Router is used (no /pages directory)"
+  components_dirs:
+    - "components/auth"
+    - "components/clients"
+    - "components/feedback"
+    - "components/layout"
+    - "components/projects"
+    - "components/scope"
+    - "components/tasks"
+    - "components/ui"
+    - "components/video"
+  app_api_routes:
+    - "POST /api/ai/analyze-scope"
+    - "POST /api/ai/generate-summary"
+    - "POST /api/ai/parse-feedback"
+    - "POST /api/auth/login"
+    - "GET /api/auth/me"
+    - "GET /api/auth/session"
+    - "POST /api/auth/signup"
+    - "GET,POST /api/clients"
+    - "GET,PATCH,DELETE /api/clients/[id]"
+    - "POST /api/feedback"
+    - "PATCH,DELETE /api/feedback/[id]"
+    - "GET /api/health"
+    - "GET,POST /api/projects"
+    - "GET,PATCH,DELETE /api/projects/[id]"
+    - "GET /api/projects/[id]/feedback"
+    - "GET,POST /api/projects/[id]/versions"
+    - "GET /api/projects/[id]/workflow"
+    - "GET /api/projects/[id]/workflow/metrics"
+    - "POST /api/projects/[id]/workflow/transition"
+    - "POST /api/public/feedback"
+    - "POST /api/scope/analyze"
+    - "GET /api/scope/decisions"
+    - "POST /api/scope/decisions/[id]/decide"
+    - "GET,POST /api/tasks"
+    - "POST /api/tasks/from-feedback"
+    - "GET,PATCH,DELETE /api/tasks/[id]"
+    - "POST /api/upload"
+    - "POST /api/upload/confirm"
+    - "POST /api/webhooks/stripe"
+  hooks_in_lib_hooks:
+    - "use-auth-guard.ts (useAuthGuard)"
+  utils_in_lib_utils:
+    - "api-error.ts"
+    - "auth.ts"
+    - "client-api.ts"
+    - "cn.ts"
+    - "db.ts"
+    - "errors.ts"
+    - "http.ts"
+    - "redis.ts"
+    - "validation.ts"
+
+database_schema:
+  orm_file: "prisma/schema.prisma"
+  models:
+    User:
+      fields:
+        - "id, tenantId, role(OWNER|PM|EDITOR|CLIENT_VIEWER), firstName, lastName, email, passwordHash, isActive, createdAt, updatedAt"
+      relations:
+        - "N-1 Tenant via tenantId"
+        - "M-N Project through ProjectMember"
+        - "1-N AssetVersion (uploadedBy)"
+        - "1-N FeedbackItem (author)"
+        - "1-N AITask (assignedTo)"
+        - "1-N ScopeDecision (pmUser)"
+        - "1-N WorkflowStage (owner)"
+    Project:
+      fields:
+        - "id, tenantId, clientAccountId, name, description, status, dueDate, budget, scopeDocUrl, maxRevisions, currentRevisionCount, createdAt, updatedAt"
+      relations:
+        - "N-1 Tenant"
+        - "N-1 ClientAccount"
+        - "1-N AssetVersion"
+        - "M-N User through ProjectMember"
+        - "1-N AITask"
+        - "1-N ScopeDecision"
+        - "1-N WorkflowStage"
+    Asset:
+      status: "Model Asset отсутствует; используется AssetVersion как хранилище версий"
+    AssetVersion:
+      fields:
+        - "id, projectId, versionNo, fileUrl, fileKey, fileName, fileSize, durationSec, thumbnailUrl, uploadedByUserId, notes, createdAt"
+      relations:
+        - "N-1 Project"
+        - "N-1 User (uploadedBy)"
+        - "1-N FeedbackItem"
+    Feedback:
+      status: "Модель называется FeedbackItem (не Feedback)"
+      fields:
+        - "id(uuid), assetVersionId, authorType(USER|CLIENT), authorId, authorEmail, authorName, timecodeSec, text, status, category, createdAt, updatedAt"
+      relations:
+        - "N-1 AssetVersion"
+        - "N-1 User (optional author)"
+        - "1-1 ScopeDecision (optional)"
+    Comment:
+      status: "Отдельной модели Comment нет"
+  relations_summary:
+    - "Tenant 1-N User"
+    - "Tenant 1-N ClientAccount"
+    - "Tenant 1-N Project"
+    - "ClientAccount 1-N Project"
+    - "Project 1-N AssetVersion"
+    - "AssetVersion 1-N FeedbackItem"
+    - "Project 1-N AITask"
+    - "Project 1-N ScopeDecision"
+    - "Project 1-N WorkflowStage"
+    - "User N-N Project через ProjectMember"
+  foreign_keys:
+    - "User.tenantId -> Tenant.id"
+    - "ClientAccount.tenantId -> Tenant.id"
+    - "Project.tenantId -> Tenant.id"
+    - "Project.clientAccountId -> ClientAccount.id"
+    - "ProjectMember.projectId -> Project.id"
+    - "ProjectMember.userId -> User.id"
+    - "AssetVersion.projectId -> Project.id"
+    - "AssetVersion.uploadedByUserId -> User.id"
+    - "FeedbackItem.assetVersionId -> AssetVersion.id"
+    - "FeedbackItem.authorId -> User.id"
+    - "AITask.projectId -> Project.id"
+    - "AITask.assignedToUserId -> User.id"
+    - "ScopeDecision.projectId -> Project.id"
+    - "ScopeDecision.feedbackItemId -> FeedbackItem.id"
+    - "ScopeDecision.decidedBy -> User.id"
+    - "WorkflowStage.projectId -> Project.id"
+    - "WorkflowStage.ownerUserId -> User.id"
+    - "Notification.tenantId -> Tenant.id"
+    - "Subscription.tenantId -> Tenant.id"
+    - "AuditLog.tenantId -> Tenant.id"
+  indexes_and_unique:
+    - "User unique: (tenantId, email)"
+    - "ProjectMember unique: (projectId, userId)"
+    - "AssetVersion unique: (projectId, versionNo); index: uploadedByUserId"
+    - "FeedbackItem indexes: assetVersionId, authorId, status"
+    - "AITask indexes: projectId, assignedToUserId, status, priority"
+    - "ScopeDecision unique: feedbackItemId; indexes: projectId, aiLabel, pmDecision"
+    - "WorkflowStage unique: (projectId, stageName); indexes: projectId, stageName, startedAt"
+    - "Notification indexes: tenantId, deliveryStatus, createdAt"
+    - "Subscription unique: (tenantId, stripeSubscriptionId)"
+
+existing_api:
+  requested_endpoints:
+    "GET /api/projects/[id]":
+      exists: true
+      auth: "Bearer token required via withAuth"
+      returns: "ProjectResponse object from projectService.getProjectById(...)"
+      response_shape: "raw JSON object (no {data} wrapper)"
+    "POST /api/projects":
+      exists: true
+      auth: "Bearer token required"
+      accepts:
+        - "name: string(1..200)"
+        - "clientId: string"
+        - "description?: string"
+        - "brief?: string"
+        - "revisionsLimit?: int(1..10, default 3)"
+      returns: "created project (201)"
+    "GET /api/videos/[id]":
+      exists: false
+      note: "В app/api нет папки videos"
+    "POST /api/feedback":
+      exists: true
+      auth: "Bearer token required"
+      accepts:
+        - "assetVersionId"
+        - "authorType(USER|CLIENT)"
+        - "authorId? / authorEmail? / authorName?"
+        - "timecodeSec?"
+        - "text"
+        - "category?"
+      returns: "created feedback item (201); also enqueues AI parse job"
+  other_relevant_endpoints:
+    - "GET /api/projects"
+    - "PATCH,DELETE /api/projects/[id]"
+    - "GET /api/projects/[id]/feedback"
+    - "GET,POST /api/projects/[id]/versions"
+    - "POST /api/upload + POST /api/upload/confirm"
+    - "POST /api/ai/parse-feedback"
+    - "POST /api/ai/generate-summary"
+    - "POST /api/ai/analyze-scope"
+    - "POST /api/tasks/from-feedback"
+    - "POST /api/scope/analyze"
+    - "GET /api/scope/decisions"
+    - "POST /api/scope/decisions/[id]/decide"
+  json_format:
+    success_pattern: "В большинстве route: Response.json(payload) без обертки"
+    alternative_pattern: "lib/utils/http.ts поддерживает формат { data } и { error }, используется точечно (например /api/health, stripe webhook)"
+    error_pattern:
+      - "Основной путь: handleAPIError() -> { error, code? } или zod { error: 'Validation failed', issues }"
+      - "Часть route через fail()/toApiError -> { error: { code, message, details? } }"
+    note: "Единый строгий контракт API-обертки пока не унифицирован"
+
+existing_components:
+  ui:
+    location: "components/ui"
+    list:
+      - "app-toaster"
+      - "badge"
+      - "button"
+      - "card"
+      - "dialog"
+      - "input"
+      - "label"
+      - "select"
+      - "textarea"
+    patterns:
+      - "Radix composition exports (Dialog, Select primitives)"
+      - "class-variance-authority variants (Button)"
+      - "asChild pattern via @radix-ui/react-slot"
+  business:
+    list:
+      - "projects/ProjectCard"
+      - "projects/ProjectForm"
+      - "projects/WorkflowStages"
+      - "feedback/FeedbackList"
+      - "feedback/FeedbackForm (stub)"
+      - "feedback/feedback-form (form implementation)"
+      - "video/VideoPlayer (stub)"
+      - "video/TimecodeComments (stub)"
+      - "tasks/task-list"
+      - "tasks/task-filters"
+      - "tasks/task-card"
+      - "scope/scope-decision-card"
+  missing_for_video_feedback:
+    - "Готовый production VideoPlayer с timeline/seek API (текущий VideoPlayer.tsx stub)"
+    - "Выделенный CommentsList/Timeline компонент (есть только TimecodeComments stub)"
+    - "Единый feedback UI слой без дублирования файлов FeedbackForm.tsx и feedback-form.tsx"
+
+existing_hooks:
+  custom_hooks:
+    - "useAuthGuard (lib/hooks/use-auth-guard.ts)"
+  missing_requested_hooks:
+    - "useUser: отсутствует"
+    - "useAuth (отдельный): отсутствует"
+    - "useProjects: отсутствует как custom hook"
+    - "useFeedback: отсутствует как custom hook"
+  patterns:
+    data_fetching: "SWR используется напрямую на страницах, без выделенных data hooks"
+    state_management: "Локальный React state + SWR cache, без zustand/redux"
+    context: "Кастомный глобальный React Context для auth/data не найден"
+
+auth_system:
+  provider: "Custom JWT (jsonwebtoken), login/signup endpoints в /api/auth"
+  user_check:
+    api: "withAuth middleware проверяет Authorization Bearer token и валидирует через authService.verifyToken"
+    pages: "Dashboard layout обернут в client-side AuthGuard/useAuthGuard, который ходит в /api/auth/me"
+  roles:
+    source_enum: "Prisma UserRole"
+    values:
+      - "OWNER"
+      - "PM"
+      - "EDITOR"
+      - "CLIENT_VIEWER"
+  route_protection:
+    protected: "Почти все internal API через withAuth"
+    public:
+      - "POST /api/auth/signup"
+      - "POST /api/auth/login"
+      - "POST /api/public/feedback"
+      - "GET /api/health"
+      - "POST /api/webhooks/stripe"
+  authorization_notes:
+    - "Явная role-проверка обнаружена в POST /api/scope/decisions/[id]/decide (только OWNER|PM)"
+    - "Глобального Next middleware.ts нет"
+
+ai_integration:
+  existing:
+    - "lib/services/ai.service.ts"
+    - "parseFeedback()"
+    - "extractActionItems()"
+    - "generateClientUpdate()"
+    - "analyzeScopeCompliance()"
+    - "generateChangeRequestTemplate()"
+  not_implemented_methods:
+    - "transcribeAudioFeedback()"
+    - "categorizeFeedback()"
+    - "estimateTaskPriority()"
+    - "dedupeActionItems()"
+  provider: "OpenAI API (openai chat.completions.create, model gpt-4o, response_format json_object)"
+  rate_limiting: "Явного rate limiting не найдено"
+  error_handling:
+    - "normalizeOpenAIError маппит quota/auth/network случаи"
+    - "Ошибки пробрасываются в route и обрабатываются handleAPIError"
+  integration_points:
+    - "/api/ai/* routes"
+    - "/api/tasks/from-feedback"
+    - "/api/scope/analyze"
+    - "background queue parse-feedback job"
+
+file_storage:
+  provider: "AWS S3 через @aws-sdk/client-s3 + presigned URL"
+  main_service: "lib/services/storage.service.ts"
+  utility_file:
+    lib_utils_upload_ts: "Отсутствует (MISSING: lib/utils/upload.ts)"
+  upload_flow:
+    - "POST /api/upload -> getUploadUrl"
+    - "client uploads directly to S3 via signed URL"
+    - "POST /api/upload/confirm -> HeadObject validation"
+  constraints:
+    allowed_mime_types:
+      - "video/mp4"
+      - "video/quicktime"
+      - "video/webm"
+      - "video/avi"
+    max_size_bytes: 5368709120
+  env_keys:
+    - "AWS_REGION"
+    - "AWS_ACCESS_KEY_ID"
+    - "AWS_SECRET_ACCESS_KEY"
+    - "AWS_S3_BUCKET"
+
+configuration:
+  env_example_file: ".env.example"
+  keys:
+    database:
+      - "DATABASE_URL"
+      - "TEST_DATABASE_URL"
+    auth:
+      - "JWT_SECRET"
+    ai:
+      - "OPENAI_API_KEY"
+    storage:
+      - "AWS_REGION"
+      - "AWS_ACCESS_KEY_ID"
+      - "AWS_SECRET_ACCESS_KEY"
+      - "AWS_S3_BUCKET"
+    notifications:
+      - "RESEND_API_KEY"
+      - "NOTIFICATION_FROM_EMAIL"
+    background_jobs:
+      - "REDIS_HOST"
+      - "REDIS_PORT"
+      - "REDIS_PASSWORD"
+
+testing:
+  framework: "Vitest + supertest"
+  config:
+    environment: "node"
+    include:
+      - "tests/**/*.test.ts"
+      - "lib/**/__tests__/**/*.test.ts"
+  existing_tests:
+    - "API tests: auth, clients, feedback, projects, tasks"
+    - "Smoke tests: health/infrastructure"
+    - "Service unit tests in lib/services/__tests__"
+    - "Job handler tests in lib/jobs/__tests__"
+  integration_level: "Есть API integration-like тесты через supertest"
+  test_containers: "Не обнаружены"
+
+gaps_for_video_feedback_scope:
+  missing_endpoints:
+    - "GET /api/videos/[id]"
+  missing_domain_models:
+    - "Comment model"
+    - "Asset base model (вместо этого AssetVersion)"
+  missing_hooks:
+    - "useProjects/useFeedback/useUser abstraction"
+  missing_ai_features:
+    - "audio transcription flow"
+    - "feedback categorization helper method implementation"
+  ui_gaps:
+    - "VideoPlayer and TimecodeComments are stubs"
+
+lessons_learned:
+  - date: "2026-02-16"
+    component: "useVoiceRecording"
+    issue: "Speech API �� �������������� � iOS Safari"
+    solution: "�������������� fallback �� MediaRecorder + Whisper API"
+    code_snippet: |
+      const hasSpeechAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+      if (!hasSpeechAPI) {
+        await initMediaRecorder()
+      }
+    impact: "�������� ��� iOS �������������"
+
+  - date: "2026-02-16"
+    component: "useVoiceRecording"
+    issue: "Memory leak ��� unmount �� ����� ������"
+    solution: "Cleanup � useEffect ��� recognition/recorder/timers"
+    code_snippet: |
+      useEffect(() => {
+        return () => {
+          recognitionRef.current?.stop()
+          mediaRecorderRef.current?.stop()
+          clearTimeout(autoStopTimerRef.current)
+        }
+      }, [])
+
+  - date: "2026-02-16"
+    component: "useVoiceRecording"
+    issue: "Auto-stop ����������� ��� ������ � ����"
+    solution: "���������� ������ ��� ������ ����������"
+    tuning: "autoStopTimeout = 3000ms"
+
+common_bugs:
+  - bug: "MediaRecorder audio chunks �� ���������"
+    fix: "chunks.length = 0 ����� ��������"
+
+  - bug: "Permission denied �� ��������������"
+    fix: "try/catch ��� getUserMedia + error state"
+
+  - bug: "Speech Recognition ����� unmount"
+    fix: "Cleanup � useEffect"
+
+abstractions:
+  voice_recording:
+    file: "lib/hooks/useVoiceRecording.ts"
+    primary: "Web Speech API (Chrome/Edge)"
+    fallback: "MediaRecorder + Whisper (iOS/Firefox)"
+    key_methods: ["startRecording", "stopRecording", "handleSpeechResult"]
+    dependencies: ["/api/ai/transcribe-audio"]
+
+coding_patterns:
+  audio_recording:
+    - "��������� ��������� API (checkSupport)"
+    - "useRef ��� SpeechRecognition/MediaRecorder"
+    - "Cleanup: stop recognition/recorder + clear timers"
+    - "Fallback strategy: Speech API -> MediaRecorder -> Manual"
