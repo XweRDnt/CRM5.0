@@ -1,8 +1,6 @@
-export default function Page(): JSX.Element {
-  return (
-    <main className="p-6">
-      <h1 className="text-2xl font-semibold">[id]</h1>
-      <p className="text-sm text-neutral-500">Skeleton page.</p>
-    </main>
-  );
+import { redirect } from "next/navigation";
+
+export default async function ClientPage({ params }: { params: Promise<{ id: string }> }): Promise<never> {
+  const { id } = await params;
+  redirect(`/clients/${id}/edit`);
 }

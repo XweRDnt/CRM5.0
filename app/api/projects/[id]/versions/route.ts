@@ -1,13 +1,50 @@
-import { NextRequest } from "next/server";
+import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
 import { assetService } from "@/lib/services/asset.service";
-import { ok, fail } from "@/lib/utils/http";
+import { z } from "zod";
+import { handleAPIError } from "@/lib/utils/api-error";
 
-export async function GET(request: NextRequest) {
+const paramsSchema = z.object({
+  id: z.string().min(1),
+});
+
+const createVersionSchema = z.object({
+  versionNo: z.number().int().min(1),
+  fileUrl: z.string().url(),
+  fileName: z.string().min(1).max(255),
+  fileSize: z.number().int().positive(),
+  durationSec: z.number().int().nonnegative().optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
-    const payload = await request.json().catch(() => ({}));
-    const data = await assetService.listVersionsByProject({ tenantId: "stub-tenant" }, payload);
-    return ok(data);
+    const { id } = paramsSchema.parse(await context.params);
+    const versions = await assetService.listVersionsByProject(id, req.user.tenantId);
+    return Response.json(versions, { status: 200 });
   } catch (error) {
-    return fail(error);
+    return handleAPIError(error);
   }
-}
+});
+
+export const POST = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
+  try {
+    const { id } = paramsSchema.parse(await context.params);
+    const payload = createVersionSchema.parse(await req.json());
+
+    const version = await assetService.createVersion({
+      projectId: id,
+      tenantId: req.user.tenantId,
+      versionNo: payload.versionNo,
+      fileUrl: payload.fileUrl,
+      fileName: payload.fileName,
+      fileSize: payload.fileSize,
+      durationSec: payload.durationSec,
+      uploadedByUserId: req.user.userId,
+      notes: payload.notes,
+    });
+
+    return Response.json(version, { status: 201 });
+  } catch (error) {
+    return handleAPIError(error);
+  }
+});

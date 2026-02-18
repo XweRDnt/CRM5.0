@@ -1,2 +1,15 @@
-﻿process.env.NODE_ENV = "test";
-process.env.JWT_SECRET = process.env.JWT_SECRET ?? "test-secret";
+Object.assign(process.env, {
+  NODE_ENV: "test",
+  E2E_API_PORT: process.env.E2E_API_PORT ?? "3100",
+  E2E_API_URL: process.env.E2E_API_URL ?? "http://127.0.0.1:3100",
+  DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/video_crm?schema=public",
+  JWT_SECRET: process.env.JWT_SECRET ?? "test-secret",
+  REDIS_DISABLED: process.env.REDIS_DISABLED ?? "true",
+  AWS_REGION: process.env.AWS_REGION ?? "us-east-1",
+  AWS_S3_BUCKET: process.env.AWS_S3_BUCKET ?? "test-bucket",
+  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? "test-access-key",
+  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ?? "test-secret-key",
+  RESEND_API_KEY: process.env.RESEND_API_KEY ?? "re_test_key",
+  NOTIFICATION_FROM_EMAIL: process.env.NOTIFICATION_FROM_EMAIL ?? "noreply@test.local",
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? "http://127.0.0.1:3000",
+});

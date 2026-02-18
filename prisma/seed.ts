@@ -1,12 +1,6 @@
 ﻿import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 
-const connectionString =
-  process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/video_crm_mvp?schema=public";
-
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
-});
+const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   // Seed script intentionally minimal for skeleton stage.

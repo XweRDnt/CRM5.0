@@ -20,6 +20,13 @@ export function toApiError(error: unknown): ApiError {
     };
   }
 
+  if (process.env.NODE_ENV !== "production" && error instanceof Error) {
+    return {
+      code: "INTERNAL_ERROR",
+      message: error.message,
+    };
+  }
+
   return {
     code: "INTERNAL_ERROR",
     message: "Unexpected server error",

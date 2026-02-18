@@ -1,0 +1,16 @@
+ALTER TYPE "ScopeLabel" RENAME VALUE 'POTENTIAL_OUT_OF_SCOPE' TO 'UNCLEAR';
+
+CREATE TYPE "PMDecision_new" AS ENUM ('APPROVED', 'REJECTED', 'NEEDS_INFO');
+
+ALTER TABLE "ScopeDecision"
+ALTER COLUMN "pmDecision" TYPE "PMDecision_new"
+USING (
+  CASE
+    WHEN "pmDecision" IN ('APPROVED_IN_SCOPE', 'APPROVED_CHANGE_REQUEST') THEN 'APPROVED'::text
+    WHEN "pmDecision" = 'REJECTED' THEN 'REJECTED'::text
+    ELSE NULL
+  END
+)::"PMDecision_new";
+
+DROP TYPE "PMDecision";
+ALTER TYPE "PMDecision_new" RENAME TO "PMDecision";

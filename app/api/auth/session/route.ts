@@ -1,13 +1,13 @@
-import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/middleware/auth";
 import { authService } from "@/lib/services/auth.service";
-import { ok, fail } from "@/lib/utils/http";
+import { handleAPIError } from "@/lib/utils/api-error";
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request) => {
   try {
-    const payload = await request.json().catch(() => ({}));
-    const data = await authService.getSession({ tenantId: "stub-tenant" }, payload);
-    return ok(data);
+    const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+    const data = await authService.getCurrentUser(token);
+    return Response.json(data, { status: 200 });
   } catch (error) {
-    return fail(error);
+    return handleAPIError(error);
   }
-}
+});

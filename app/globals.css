@@ -1,8 +1,12 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f4f6;
+  --foreground: #111827;
+  --primary: #3b82f6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
 }
 
 @theme inline {
@@ -12,15 +16,272 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+html[data-app-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-app-theme="dark"] body {
+  background: #090b12;
+  color: #e2e8f0;
+}
+
+.app-ios-shell {
+  --app-bg: radial-gradient(120% 100% at 20% 0%, #d7ecff 0%, #eef4ff 45%, #f6f8ff 100%);
+  --app-surface: rgba(255, 255, 255, 0.74);
+  --app-surface-strong: rgba(255, 255, 255, 0.86);
+  --app-surface-soft: rgba(255, 255, 255, 0.62);
+  --app-border: rgba(148, 163, 184, 0.32);
+  --app-text: #0f172a;
+  --app-text-muted: #475569;
+  --app-shadow: 0 16px 50px rgba(23, 45, 84, 0.14);
+  min-height: 100vh;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+html[data-app-theme="dark"] .app-ios-shell {
+  --app-bg: radial-gradient(120% 100% at 20% 0%, #1b2840 0%, #111827 45%, #090b12 100%);
+  --app-surface: rgba(15, 23, 42, 0.5);
+  --app-surface-strong: rgba(15, 23, 42, 0.65);
+  --app-surface-soft: rgba(15, 23, 42, 0.42);
+  --app-border: rgba(100, 116, 139, 0.52);
+  --app-text: #e2e8f0;
+  --app-text-muted: #b8c4d6;
+  --app-shadow: 0 16px 50px rgba(0, 0, 0, 0.35);
+}
+
+.app-ios-shell-content {
+  min-height: 100vh;
+}
+
+.app-theme-toggle {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: fixed;
+  right: 8.5rem;
+  top: 0.875rem;
+  z-index: 60;
+  border-radius: 999px;
+  border: 1px solid rgba(100, 116, 139, 0.42);
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.app-theme-toggle:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+}
+
+.app-theme-toggle:focus,
+.app-theme-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+}
+
+@media (max-width: 640px) {
+  .app-theme-toggle {
+    top: auto;
+    bottom: 0.75rem;
+    right: 0.75rem;
+  }
+}
+
+[data-app-shell="ios"] .ui-card {
+  border-color: var(--app-border) !important;
+  background: var(--app-surface) !important;
+  box-shadow: var(--app-shadow) !important;
+  backdrop-filter: blur(20px);
+}
+
+[data-app-shell="ios"] .ui-card-description {
+  color: var(--app-text-muted) !important;
+}
+
+[data-app-shell="ios"] .ui-input,
+[data-app-shell="ios"] .ui-textarea,
+[data-app-shell="ios"] .ui-select-trigger {
+  border-color: var(--app-border) !important;
+  background: var(--app-surface-soft) !important;
+  color: var(--app-text) !important;
+}
+
+[data-app-shell="ios"] .ui-input::placeholder,
+[data-app-shell="ios"] .ui-textarea::placeholder {
+  color: var(--app-text-muted) !important;
+}
+
+[data-app-shell="ios"] .ui-input:focus,
+[data-app-shell="ios"] .ui-textarea:focus,
+[data-app-shell="ios"] .ui-select-trigger:focus {
+  border-color: color-mix(in srgb, var(--app-border) 70%, white 30%) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-border) 70%, white 30%) !important;
+}
+
+[data-app-shell="ios"] .ui-select-content {
+  border-color: var(--app-border) !important;
+  background: var(--app-surface-strong) !important;
+  color: var(--app-text) !important;
+  backdrop-filter: blur(16px);
+}
+
+[data-app-shell="ios"] .ui-select-item:focus {
+  background: var(--app-surface-soft) !important;
+}
+
+[data-app-shell="ios"] .ui-btn[data-variant="default"] {
+  background: #007aff !important;
+  color: #fff !important;
+}
+
+[data-app-shell="ios"] .ui-btn[data-variant="outline"] {
+  border-color: var(--app-border) !important;
+  background: var(--app-surface-strong) !important;
+  color: var(--app-text) !important;
+}
+
+[data-app-shell="ios"] .ui-btn[data-variant="ghost"] {
+  color: var(--app-text) !important;
+}
+
+[data-app-shell="ios"] .ui-btn[data-variant="ghost"]:hover {
+  background: var(--app-surface-soft) !important;
+}
+
+[data-app-shell="ios"] .ui-badge[data-variant="secondary"] {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+}
+
+[data-app-shell="ios"] .bg-neutral-50,
+[data-app-shell="ios"] .bg-neutral-100 {
+  background-color: var(--app-surface-soft) !important;
+}
+
+[data-app-shell="ios"] .bg-white {
+  background-color: var(--app-surface) !important;
+}
+
+[data-app-shell="ios"] .bg-white\/90 {
+  background-color: var(--app-surface-strong) !important;
+}
+
+[data-app-shell="ios"] .bg-neutral-50 {
+  background-color: var(--app-surface-soft) !important;
+}
+
+[data-app-shell="ios"] .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--app-border) !important;
+}
+
+[data-app-shell="ios"] .border-neutral-200,
+[data-app-shell="ios"] .border-neutral-300 {
+  border-color: var(--app-border) !important;
+}
+
+[data-app-shell="ios"] .text-neutral-900 {
+  color: var(--app-text) !important;
+}
+
+[data-app-shell="ios"] .text-neutral-700,
+[data-app-shell="ios"] .text-neutral-600,
+[data-app-shell="ios"] .text-neutral-500 {
+  color: var(--app-text-muted) !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell .app-theme-toggle {
+  background: #0f172a;
+  border-color: rgba(148, 163, 184, 0.56);
+  color: #f1f5f9;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
+}
+
+[data-app-shell="ios"] .sidebar-nav-item {
+  color: var(--app-text-muted) !important;
+}
+
+[data-app-shell="ios"] .sidebar-nav-group {
+  border-radius: 0.75rem !important;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent 12%) !important;
+}
+
+[data-app-shell="ios"] .sidebar-nav-item:hover {
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent 12%) !important;
+  color: var(--app-text) !important;
+}
+
+[data-app-shell="ios"] .sidebar-nav-item-active {
+  background: rgba(37, 99, 235, 0.16) !important;
+  color: #1d4ed8 !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell .sidebar-nav-item {
+  color: #c9d5e5 !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell .sidebar-nav-group {
+  background: rgba(2, 6, 23, 0.45) !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell .sidebar-nav-item:hover {
+  background: rgba(30, 41, 59, 0.68) !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell .sidebar-nav-item-active {
+  background: rgba(37, 99, 235, 0.28) !important;
+  color: #bfdbfe !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell .bg-blue-100 {
+  background-color: rgba(37, 99, 235, 0.22) !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell .text-blue-700 {
+  color: #93c5fd !important;
+}
+
+/* fallback selectors with higher scope for nav links */
+[data-app-shell="ios"] aside nav a {
+  color: var(--app-text-muted) !important;
+}
+
+[data-app-shell="ios"] aside nav a:hover {
+  color: var(--app-text) !important;
+}
+
+[data-app-shell="ios"] aside nav a.sidebar-nav-item-active {
+  color: #1d4ed8 !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell aside nav a {
+  color: #c9d5e5 !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell aside nav a:hover {
+  color: #e2e8f0 !important;
+}
+
+html[data-app-theme="dark"] .app-ios-shell aside nav a.sidebar-nav-item-active {
+  color: #bfdbfe !important;
+}
+

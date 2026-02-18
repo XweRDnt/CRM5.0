@@ -4,7 +4,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  }
+  url      = env("DATABASE_URL")
+}
 
 enum UserRole {
   OWNER
@@ -49,7 +50,7 @@ enum TaskPriority {
   URGENT
 }
 
-enum TaskState {
+enum TaskStatus {
   TODO
   IN_PROGRESS
   DONE
@@ -58,21 +59,24 @@ enum TaskState {
 
 enum ScopeLabel {
   IN_SCOPE
-  POTENTIAL_OUT_OF_SCOPE
   OUT_OF_SCOPE
+  UNCLEAR
 }
 
 enum PMDecision {
-  APPROVED_IN_SCOPE
-  APPROVED_CHANGE_REQUEST
+  APPROVED
   REJECTED
+  NEEDS_INFO
 }
 
 enum WorkflowStageName {
-  DRAFT
-  INTERNAL_QA
+  BRIEFING
+  PRODUCTION
   CLIENT_REVIEW
-  FINAL
+  REVISIONS
+  APPROVAL
+  DELIVERY
+  COMPLETED
 }
 
 enum NotificationChannel {
@@ -100,13 +104,22 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+enum VersionStatus {
+  DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  FINAL
+}
+
 model Tenant {
-  id            String         @id @default(cuid())
+  id            String           @id @default(cuid())
   name          String
+  slug          String           @unique
   plan          SubscriptionPlan @default(STARTER)
-  timezone      String         @default("UTC")
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  timezone      String           @default("UTC")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   users         User[]
   clients       ClientAccount[]
   projects      Project[]
@@ -116,17 +129,23 @@ model Tenant {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String
-  role         UserRole
-  name         String
-  email        String
-  passwordHash String?
-  status       String   @default("active")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  projectLinks ProjectMember[]
+  id               String          @id @default(cuid())
+  tenantId         String
+  role             UserRole
+  firstName        String
+  lastName         String
+  email            String
+  passwordHash     String?
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projectLinks     ProjectMember[]
+  uploadedVersions AssetVersion[]  @relation("UserUploadedVersions")
+  feedbackItems    FeedbackItem[]  @relation("UserFeedback")
+  assignedTasks    AITask[]        @relation("UserAssignedTasks")
+  pmScopeDecisions ScopeDecision[] @relation("PMScopeDecisions")
+  ownedStages      WorkflowStage[] @relation("UserOwnedStages")
 
   @@unique([tenantId, email])
 }
@@ -146,21 +165,21 @@ model ClientAccount {
 }
 
 model Project {
-  id                   String        @id @default(cuid())
+  id                   String         @id @default(cuid())
   tenantId             String
   clientAccountId      String
   name                 String
   description          String?
-  status               ProjectStatus @default(DRAFT)
+  status               ProjectStatus  @default(DRAFT)
   dueDate              DateTime?
   budget               Decimal?
   scopeDocUrl          String?
-  maxRevisions         Int           @default(2)
-  currentRevisionCount Int           @default(0)
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  tenant               Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client               ClientAccount @relation(fields: [clientAccountId], references: [id], onDelete: Restrict)
+  maxRevisions         Int            @default(3)
+  currentRevisionCount Int            @default(0)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  tenant               Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client               ClientAccount  @relation(fields: [clientAccountId], references: [id], onDelete: Restrict)
   versions             AssetVersion[]
   members              ProjectMember[]
   tasks                AITask[]
@@ -169,85 +188,115 @@ model Project {
 }
 
 model ProjectMember {
-  id            String   @id @default(cuid())
-  projectId      String
-  userId         String
-  roleOnProject  String
-  createdAt      DateTime @default(now())
-  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  projectId     String
+  userId        String
+  roleOnProject String
+  createdAt     DateTime @default(now())
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
 }
 
 model AssetVersion {
-  id           String       @id @default(cuid())
-  projectId    String
-  versionNo    Int
-  fileUrl      String
-  fileName     String
-  fileSize     Int
-  durationSec  Int?
-  thumbnailUrl String?
-  uploadedBy   String
-  notes        String?
-  createdAt    DateTime     @default(now())
-  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  feedbackItems FeedbackItem[]
+  id               String         @id @default(cuid())
+  projectId        String
+  versionNo        Int
+  fileUrl          String
+  fileKey          String
+  fileName         String
+  fileSize         Int
+  durationSec      Int?
+  thumbnailUrl     String?
+  uploadedByUserId String
+  uploadedByLegacy String?        @map("uploadedBy")
+  notes            String?
+  changeLog        String?        @db.Text
+  status           VersionStatus  @default(DRAFT)
+  approvedBy       String?
+  approvedAt       DateTime?
+  createdAt        DateTime       @default(now())
+  project          Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy       User           @relation("UserUploadedVersions", fields: [uploadedByUserId], references: [id], onDelete: Cascade)
+  feedbackItems    FeedbackItem[]
 
   @@unique([projectId, versionNo])
+  @@index([uploadedByUserId])
 }
 
 model FeedbackItem {
-  id            String         @id @default(cuid())
+  id             String           @id @default(uuid())
   assetVersionId String
-  authorType    AuthorType
-  authorId      String?
-  authorEmail   String?
-  authorName    String?
-  timecodeSec   Int?
-  text          String
-  status        FeedbackStatus @default(NEW)
-  category      FeedbackCategory?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  assetVersion  AssetVersion   @relation(fields: [assetVersionId], references: [id], onDelete: Cascade)
-  scopeDecisions ScopeDecision[]
+  authorType     AuthorType
+  authorId       String?
+  authorEmail    String?
+  authorName     String?
+  timecodeSec    Int?
+  text           String
+  status         FeedbackStatus   @default(NEW)
+  category       FeedbackCategory?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  assetVersion   AssetVersion     @relation(fields: [assetVersionId], references: [id], onDelete: Cascade)
+  author         User?            @relation("UserFeedback", fields: [authorId], references: [id])
+  scopeDecision  ScopeDecision?
+
+  @@index([assetVersionId])
+  @@index([authorId])
+  @@index([status])
 }
 
 model AITask {
-  id               String       @id @default(cuid())
-  projectId        String
+  id               String           @id @default(uuid())
+  projectId         String
+  title             String
+  description       String?
+  status            TaskStatus      @default(TODO)
+  priority          TaskPriority    @default(MEDIUM)
+  category          FeedbackCategory
+  assignedToUserId  String?
+  estimatedMinutes  Int?
+  dueDate           DateTime?
+  completedAt       DateTime?
   sourceFeedbackIds String[]
-  summary          String
-  priority         TaskPriority @default(MEDIUM)
-  assigneeUserId   String?
-  dueDate          DateTime?
-  state            TaskState    @default(TODO)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  project          Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  aiGenerated       Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedTo        User?           @relation("UserAssignedTasks", fields: [assignedToUserId], references: [id])
+
+  @@index([projectId])
+  @@index([assignedToUserId])
+  @@index([status])
+  @@index([priority])
 }
 
 model ScopeDecision {
-  id                  String      @id @default(cuid())
-  projectId            String
-  feedbackItemId       String
-  aiLabel              ScopeLabel
-  aiConfidence         Float
-  aiReasoning          String?
-  pmDecision           PMDecision?
-  pmReason             String?
-  changeRequestAmount  Decimal?
-  decidedBy            String?
-  decidedAt            DateTime?
-  createdAt            DateTime    @default(now())
-  project              Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  feedbackItem         FeedbackItem @relation(fields: [feedbackItemId], references: [id], onDelete: Cascade)
+  id                 String       @id @default(cuid())
+  projectId           String
+  feedbackItemId      String       @unique
+  aiLabel             ScopeLabel
+  aiConfidence        Float
+  aiReasoning         String?
+  pmDecision          PMDecision?
+  pmReason            String?
+  changeRequestAmount Decimal?
+  decidedBy           String?
+  decidedAt           DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  project             Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  feedbackItem        FeedbackItem @relation(fields: [feedbackItemId], references: [id], onDelete: Cascade)
+  pmUser              User?        @relation("PMScopeDecisions", fields: [decidedBy], references: [id])
+
+  @@index([projectId])
+  @@index([aiLabel])
+  @@index([pmDecision])
 }
 
 model WorkflowStage {
-  id          String            @id @default(cuid())
+  id          String            @id @default(uuid())
   projectId   String
   stageName   WorkflowStageName
   slaHours    Int
@@ -255,37 +304,50 @@ model WorkflowStage {
   completedAt DateTime?
   ownerUserId String?
   createdAt   DateTime          @default(now())
-  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  updatedAt   DateTime          @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner   User?   @relation("UserOwnedStages", fields: [ownerUserId], references: [id])
+
+  @@unique([projectId, stageName])
+  @@index([projectId])
+  @@index([stageName])
+  @@index([startedAt])
 }
 
 model Notification {
-  id             String              @id @default(cuid())
+  id             String            @id @default(cuid())
   tenantId       String
   channel        NotificationChannel
   recipient      String
   templateKey    String
   payload        Json
   sentAt         DateTime?
-  deliveryStatus DeliveryStatus      @default(PENDING)
+  deliveryStatus DeliveryStatus    @default(PENDING)
   errorMessage   String?
-  createdAt      DateTime            @default(now())
-  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([deliveryStatus])
+  @@index([createdAt])
 }
 
 model Subscription {
-  id                  String             @id @default(cuid())
-  tenantId            String
-  stripeCustomerId    String
+  id                   String             @id @default(cuid())
+  tenantId             String
+  stripeCustomerId     String
   stripeSubscriptionId String
-  plan                SubscriptionPlan
-  seats               Int
-  status              SubscriptionStatus
-  currentPeriodStart  DateTime
-  currentPeriodEnd    DateTime
-  cancelAtPeriodEnd   Boolean            @default(false)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan                 SubscriptionPlan
+  seats                Int
+  status               SubscriptionStatus
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  tenant               Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, stripeSubscriptionId])
 }

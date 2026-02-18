@@ -436,3 +436,34 @@ coding_patterns:
     - "useRef для SpeechRecognition/MediaRecorder"
     - "Cleanup: stop recognition/recorder + clear timers"
     - "Fallback strategy: Speech API -> MediaRecorder -> Manual"
+
+use_comments_stab_2026_02_16:
+  lessons_learned:
+    - issue: "SWR cache leakage made hook tests flaky across cases"
+      solution: "Wrap each renderHook with SWRConfig provider: () => new Map()"
+      impact: "High"
+    - issue: "Immediate revalidate after optimistic success can override local state"
+      solution: "Keep optimistic state on success and use manual refresh for server sync"
+      impact: "Critical UX"
+    - issue: "Abort on unmount can surface as unhandled promise in fire-and-forget calls"
+      solution: "Treat cancellation as silent when component is already unmounted"
+      impact: "Medium"
+  common_bugs:
+    - bug: "Shared SWR cache between tests"
+      fix: "Isolated provider map per test"
+    - bug: "Optimistic CRUD auto-rollback right after success"
+      fix: "Avoid forced revalidate on mutation success"
+    - bug: "AbortError after unmount"
+      fix: "Handle cancellation branch without throwing"
+  abstractions:
+    file: "lib/hooks/useComments.ts"
+    responsibilities:
+      - "SWR fetch + cache"
+      - "Optimistic add/update/delete with rollback"
+      - "filter/sort pipeline"
+      - "request timeout/retry + abort cleanup"
+  coding_patterns:
+    - "useCallback for all public operations"
+    - "useMemo for processed comments"
+    - "inflight mutation dedup by key"
+    - "input validation before network"

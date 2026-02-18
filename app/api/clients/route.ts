@@ -1,13 +1,33 @@
-import { NextRequest } from "next/server";
 import { clientService } from "@/lib/services/client.service";
-import { ok, fail } from "@/lib/utils/http";
+import { withAuth } from "@/lib/middleware/auth";
+import { z } from "zod";
+import { handleAPIError } from "@/lib/utils/api-error";
 
-export async function GET(request: NextRequest) {
+const createClientSchema = z.object({
+  name: z.string().min(1).max(200),
+  email: z.string().email(),
+  phone: z.string().max(40).optional(),
+  companyName: z.string().max(200).optional(),
+});
+
+export const GET = withAuth(async (req) => {
   try {
-    const payload = await request.json().catch(() => ({}));
-    const data = await clientService.listClients({ tenantId: "stub-tenant" }, payload);
-    return ok(data);
+    const clients = await clientService.listClients(req.user.tenantId);
+    return Response.json(clients);
   } catch (error) {
-    return fail(error);
+    return handleAPIError(error);
   }
-}
+});
+
+export const POST = withAuth(async (req) => {
+  try {
+    const body = createClientSchema.parse(await req.json());
+    const client = await clientService.createClient({
+      tenantId: req.user.tenantId,
+      ...body,
+    });
+    return Response.json(client, { status: 201 });
+  } catch (error) {
+    return handleAPIError(error);
+  }
+});

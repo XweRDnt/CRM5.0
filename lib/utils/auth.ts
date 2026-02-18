@@ -1,11 +1,15 @@
-﻿import jwt from "jsonwebtoken";
+import jwt, { type Secret, type SignOptions } from "jsonwebtoken";
 import type { ServiceContext } from "@/types";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-me";
+const JWT_SECRET = (process.env.JWT_SECRET ?? "dev-secret-change-me") as Secret;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "7d";
 
 export function signAccessToken(context: ServiceContext): string {
-  return jwt.sign(context, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  const options: SignOptions = {
+    expiresIn: JWT_EXPIRES_IN as SignOptions["expiresIn"],
+  };
+
+  return jwt.sign(context, JWT_SECRET, options);
 }
 
 export function verifyAccessToken(token: string): ServiceContext {

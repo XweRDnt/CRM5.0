@@ -1,13 +1,21 @@
-import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/middleware/auth";
 import { storageService } from "@/lib/services/storage.service";
-import { ok, fail } from "@/lib/utils/http";
+import { z } from "zod";
+import { handleAPIError } from "@/lib/utils/api-error";
 
-export async function POST(request: NextRequest) {
+const getUploadUrlSchema = z.object({
+  projectId: z.string().min(1),
+  fileName: z.string().min(1).max(255),
+  fileType: z.string().min(1),
+  fileSize: z.number().int().positive(),
+});
+
+export const POST = withAuth(async (req) => {
   try {
-    const payload = await request.json().catch(() => ({}));
-    const data = await storageService.getUploadUrl({ tenantId: "stub-tenant" }, payload);
-    return ok(data);
+    const payload = getUploadUrlSchema.parse(await req.json());
+    const upload = await storageService.getUploadUrl({ tenantId: req.user.tenantId }, payload);
+    return Response.json(upload, { status: 200 });
   } catch (error) {
-    return fail(error);
+    return handleAPIError(error);
   }
-}
+});

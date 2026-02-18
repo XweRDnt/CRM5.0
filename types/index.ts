@@ -1,39 +1,38 @@
-﻿export enum UserRole {
-  OWNER = "owner",
-  PM = "pm",
-  EDITOR = "editor",
-  CLIENT_VIEWER = "client_viewer",
-}
+import {
+  UserRole,
+  ProjectStatus,
+  AuthorType,
+  FeedbackCategory,
+  FeedbackStatus,
+  TaskStatus,
+  TaskPriority,
+  ScopeLabel,
+  PMDecision,
+  WorkflowStageName,
+  SubscriptionPlan,
+  SubscriptionStatus,
+  NotificationChannel,
+  DeliveryStatus,
+  VersionStatus,
+} from "@prisma/client";
 
-export enum ProjectStatus {
-  DRAFT = "draft",
-  IN_PROGRESS = "in_progress",
-  CLIENT_REVIEW = "client_review",
-  COMPLETED = "completed",
-  ON_HOLD = "on_hold",
-  CANCELLED = "cancelled",
-}
-
-export enum FeedbackStatus {
-  NEW = "new",
-  IN_PROGRESS = "in_progress",
-  RESOLVED = "resolved",
-  REJECTED = "rejected",
-}
-
-export enum TaskPriority {
-  LOW = "low",
-  MEDIUM = "medium",
-  HIGH = "high",
-  URGENT = "urgent",
-}
-
-export enum TaskState {
-  TODO = "todo",
-  IN_PROGRESS = "in_progress",
-  DONE = "done",
-  CANCELLED = "cancelled",
-}
+export {
+  UserRole,
+  ProjectStatus,
+  AuthorType,
+  FeedbackCategory,
+  FeedbackStatus,
+  TaskStatus,
+  TaskPriority,
+  ScopeLabel,
+  PMDecision,
+  WorkflowStageName,
+  SubscriptionPlan,
+  SubscriptionStatus,
+  NotificationChannel,
+  DeliveryStatus,
+  VersionStatus,
+};
 
 export type ServiceContext = {
   tenantId: string;
@@ -55,25 +54,33 @@ export type ApiError = {
   details?: Record<string, unknown>;
 };
 
-export type Tenant = {
+export interface Tenant {
   id: string;
   name: string;
+  slug: string;
   plan: string;
   timezone: string;
   createdAt: Date;
   updatedAt: Date;
-};
+}
 
-export type User = {
+export interface User {
   id: string;
   tenantId: string;
   role: UserRole;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  status: string;
+  passwordHash: string | null;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-};
+  tenant?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+}
 
 export type ClientAccount = {
   id: string;
@@ -105,15 +112,24 @@ export type AssetVersion = {
   fileUrl: string;
   fileName: string;
   fileSize: number;
+  changeLog: string | null;
+  status: VersionStatus;
+  approvedBy: string | null;
+  approvedAt: Date | null;
   createdAt: Date;
 };
 
 export type FeedbackItem = {
   id: string;
   assetVersionId: string;
+  authorType: AuthorType;
+  authorId?: string | null;
+  authorEmail?: string | null;
+  authorName?: string | null;
   text: string;
   status: FeedbackStatus;
-  timecodeSec?: number;
+  timecodeSec?: number | null;
+  category?: FeedbackCategory | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -121,11 +137,69 @@ export type FeedbackItem = {
 export type AITask = {
   id: string;
   projectId: string;
-  summary: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
   priority: TaskPriority;
-  state: TaskState;
+  category: FeedbackCategory;
+  assignedToUserId: string | null;
+  estimatedMinutes: number | null;
+  dueDate: Date | null;
+  completedAt: Date | null;
+  sourceFeedbackIds: string[];
+  aiGenerated: boolean;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export interface SignupInput {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  tenantName: string;
+  tenantSlug: string;
+}
+
+export type SignupResult = {
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+  };
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  token: string;
+};
+
+export type LoginResult = {
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+    tenantId: string;
+  };
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  token: string;
+};
+
+export type JWTPayload = {
+  userId: string;
+  tenantId: string;
+  role: UserRole;
+  iat?: number;
+  exp?: number;
 };
 
 export type LoginInput = {
@@ -133,33 +207,148 @@ export type LoginInput = {
   password: string;
 };
 
-export type LoginOutput = {
-  token: string;
-  user: User;
-  tenant: Tenant;
-};
-
-export type SignupInput = {
-  tenantName: string;
-  ownerName: string;
-  email: string;
-  password: string;
-};
-
-export type CreateClientInput = {
-  companyName: string;
-  contactName: string;
+export interface CreateClientInput {
+  tenantId: string;
+  name: string;
   email: string;
   phone?: string;
-  notes?: string;
-};
+  companyName?: string;
+}
 
-export type CreateProjectInput = {
-  clientAccountId: string;
+export interface ClientResponse {
+  id: string;
+  tenantId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  companyName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateProjectInput {
+  tenantId: string;
   name: string;
   description?: string;
-  dueDate?: string;
-};
+  clientId: string;
+  brief?: string;
+  revisionsLimit?: number;
+}
+
+export interface ProjectFilters {
+  clientId?: string;
+  status?: ProjectStatus;
+}
+
+export interface ProjectResponse {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  clientId: string;
+  client: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  brief: string | null;
+  revisionsLimit: number;
+  revisionsUsed: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateDefaultStagesInput {
+  projectId: string;
+  tenantId: string;
+}
+
+export interface WorkflowStageResponse {
+  id: string;
+  projectId: string;
+  stageName: WorkflowStageName;
+  slaHours: number;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  owner: {
+    id: string;
+    name: string;
+  } | null;
+  isActive: boolean;
+  isOverdue: boolean;
+  remainingHours: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TransitionToStageInput {
+  projectId: string;
+  tenantId: string;
+  stageName: WorkflowStageName;
+  ownerUserId?: string;
+}
+
+export interface CompleteProjectInput {
+  projectId: string;
+  tenantId: string;
+}
+
+export interface StageMetrics {
+  totalStages: number;
+  completedStages: number;
+  activeStage: WorkflowStageName | null;
+  overdueStages: number;
+  averageCompletionHours: number;
+}
+
+export interface GetUploadUrlInput {
+  tenantId: string;
+  projectId: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+}
+
+export interface UploadUrlResponse {
+  uploadUrl: string;
+  fileKey: string;
+  fileUrl: string;
+  expiresIn: number;
+}
+
+export interface CreateVersionInput {
+  projectId: string;
+  tenantId: string;
+  versionNo?: number;
+  fileUrl: string;
+  fileKey?: string;
+  fileName: string;
+  fileSize: number;
+  durationSec?: number;
+  uploadedByUserId: string;
+  notes?: string;
+}
+
+export interface AssetVersionResponse {
+  id: string;
+  projectId: string;
+  versionNumber: number;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  durationSec: number | null;
+  uploadedBy: {
+    id: string;
+    name: string;
+  };
+  notes: string | null;
+  changeLog: string | null;
+  status: VersionStatus;
+  approvedBy: string | null;
+  approvedAt: Date | null;
+  createdAt: Date;
+}
 
 export type CreateAssetVersionInput = {
   projectId: string;
@@ -169,25 +358,247 @@ export type CreateAssetVersionInput = {
   fileSize: number;
 };
 
-export type CreateFeedbackInput = {
+export interface CreateFeedbackInput {
   assetVersionId: string;
-  text: string;
+  tenantId: string;
+  authorType: AuthorType;
+  authorId?: string;
+  authorEmail?: string;
+  authorName?: string;
   timecodeSec?: number;
-};
+  text: string;
+  category?: FeedbackCategory;
+}
 
-export type ParsedActionItem = {
-  summary: string;
+export interface FeedbackResponse {
+  id: string;
+  assetVersionId: string;
+  authorType: AuthorType;
+  author: {
+    id?: string;
+    name: string;
+    email?: string;
+  };
+  timecodeSec: number | null;
+  text: string;
+  category: FeedbackCategory | null;
+  status: FeedbackStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UpdateFeedbackStatusInput {
+  feedbackId: string;
+  tenantId: string;
+  status: FeedbackStatus;
+}
+
+export interface ParseFeedbackInput {
+  feedbackItems: Array<{
+    id: string;
+    text: string;
+    timecodeSec?: number;
+    category?: FeedbackCategory;
+    authorName: string;
+  }>;
+  projectContext?: {
+    name: string;
+    brief?: string;
+  };
+}
+
+export interface ActionItem {
+  text: string;
   priority: TaskPriority;
-  sourceFeedbackId: string;
-};
+  category: FeedbackCategory;
+  suggestedAssignee?: string;
+  estimatedMinutes?: number;
+  sourceFeedbackIds: string[];
+}
 
-export type ParseFeedbackInput = {
-  feedbackIds: string[];
-};
+export interface CreateTaskInput {
+  projectId: string;
+  tenantId: string;
+  title: string;
+  description?: string;
+  priority: TaskPriority;
+  category: FeedbackCategory;
+  assignedToUserId?: string;
+  estimatedMinutes?: number;
+  dueDate?: Date;
+  sourceFeedbackIds?: string[];
+  aiGenerated?: boolean;
+}
 
-export type ParseFeedbackOutput = {
-  items: ParsedActionItem[];
-};
+export interface CreateTasksFromActionItemsInput {
+  projectId: string;
+  tenantId: string;
+  actionItems: ActionItem[];
+  autoAssign?: boolean;
+}
+
+export interface TaskResponse {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  category: FeedbackCategory;
+  assignedTo: {
+    id: string;
+    name: string;
+  } | null;
+  estimatedMinutes: number | null;
+  dueDate: Date | null;
+  completedAt: Date | null;
+  sourceFeedbackIds: string[];
+  aiGenerated: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UpdateTaskInput {
+  taskId: string;
+  tenantId: string;
+  status?: TaskStatus;
+  assignedToUserId?: string;
+  dueDate?: Date;
+  completedAt?: Date;
+}
+
+export interface TaskFilters {
+  projectId?: string;
+  assignedToUserId?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  category?: FeedbackCategory;
+}
+
+export interface SendEmailInput {
+  tenantId: string;
+  to: string;
+  subject: string;
+  body: string;
+  templateKey?: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface NotificationResponse {
+  id: string;
+  tenantId: string;
+  channel: NotificationChannel;
+  recipient: string;
+  templateKey: string;
+  sentAt: Date | null;
+  deliveryStatus: DeliveryStatus;
+  errorMessage: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface NotifyPMAboutNewFeedbackInput {
+  tenantId: string;
+  projectId: string;
+  feedbackId: string;
+  pmEmail: string;
+}
+
+export interface NotifyClientAboutNewVersionInput {
+  tenantId: string;
+  projectId: string;
+  versionId: string;
+  clientEmail: string;
+  clientName: string;
+}
+
+export interface NotifyAboutOverdueStageInput {
+  tenantId: string;
+  projectId: string;
+  stageName: string;
+  pmEmail: string;
+}
+
+export interface ParsedFeedbackResult {
+  summary: string;
+  actionItems: ActionItem[];
+  dedupedCount: number;
+  totalFeedbackProcessed: number;
+}
+
+export interface GenerateClientUpdateInput {
+  projectName: string;
+  completedTasks: Array<{
+    title: string;
+    category: FeedbackCategory;
+  }>;
+  nextSteps?: string;
+}
+
+export interface ClientUpdateResult {
+  subject: string;
+  body: string;
+  tone: "professional" | "friendly" | "formal";
+}
+
+export interface AnalyzeScopeInput {
+  feedbackText: string;
+  feedbackId: string;
+  projectScope: string;
+  projectName: string;
+}
+
+export interface ScopeAnalysisResult {
+  label: ScopeLabel;
+  confidence: number;
+  reasoning: string;
+  suggestedAction: string;
+  estimatedCost?: number;
+}
+
+export interface CreateScopeDecisionInput {
+  projectId: string;
+  feedbackItemId: string;
+  tenantId: string;
+  aiLabel: ScopeLabel;
+  aiConfidence: number;
+  aiReasoning?: string;
+}
+
+export interface ScopeDecisionResponse {
+  id: string;
+  projectId: string;
+  feedbackItemId: string;
+  aiLabel: ScopeLabel;
+  aiConfidence: number;
+  aiReasoning: string | null;
+  pmDecision: PMDecision | null;
+  pmReason: string | null;
+  changeRequestAmount: number | null;
+  decidedBy: {
+    id: string;
+    name: string;
+  } | null;
+  decidedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MakePMDecisionInput {
+  scopeDecisionId: string;
+  tenantId: string;
+  pmUserId: string;
+  decision: PMDecision;
+  reason?: string;
+  changeRequestAmount?: number;
+}
+
+export interface ChangeRequestTemplate {
+  subject: string;
+  body: string;
+  estimatedCost: number;
+  estimatedDays: number;
+}
 
 export type P1MethodCard = {
   id: string;
@@ -199,3 +610,4 @@ export type P1MethodCard = {
   edgeCases: string[];
   definitionOfDone: string[];
 };
+

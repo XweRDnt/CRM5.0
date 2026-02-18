@@ -1,13 +1,28 @@
-import { NextRequest } from "next/server";
+import { z } from "zod";
+import { FeedbackCategory } from "@prisma/client";
+import { withAuth } from "@/lib/middleware/auth";
 import { aiService } from "@/lib/services/ai.service";
-import { ok, fail } from "@/lib/utils/http";
+import { handleAPIError } from "@/lib/utils/api-error";
 
-export async function POST(request: NextRequest) {
+const generateSummarySchema = z.object({
+  projectName: z.string().min(1),
+  completedTasks: z
+    .array(
+      z.object({
+        title: z.string().min(1).max(200),
+        category: z.nativeEnum(FeedbackCategory),
+      }),
+    )
+    .min(1),
+  nextSteps: z.string().optional(),
+});
+
+export const POST = withAuth(async (request) => {
   try {
-    const payload = await request.json().catch(() => ({}));
-    const data = await aiService.generateClientUpdate({ tenantId: "stub-tenant" }, payload);
-    return ok(data);
+    const payload = generateSummarySchema.parse(await request.json());
+    const summary = await aiService.generateClientUpdate(payload);
+    return Response.json(summary, { status: 200 });
   } catch (error) {
-    return fail(error);
+    return handleAPIError(error);
   }
-}
+});

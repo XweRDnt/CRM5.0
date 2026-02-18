@@ -1,13 +1,21 @@
-import { NextRequest } from "next/server";
+import { z } from "zod";
+import { withAuth } from "@/lib/middleware/auth";
 import { aiService } from "@/lib/services/ai.service";
-import { ok, fail } from "@/lib/utils/http";
+import { handleAPIError } from "@/lib/utils/api-error";
 
-export async function POST(request: NextRequest) {
+const analyzeScopeSchema = z.object({
+  feedbackText: z.string().min(1),
+  feedbackId: z.string().min(1),
+  projectScope: z.string().min(1),
+  projectName: z.string().min(1),
+});
+
+export const POST = withAuth(async (request) => {
   try {
-    const payload = await request.json().catch(() => ({}));
-    const data = await aiService.analyzeScopeCompliance({ tenantId: "stub-tenant" }, payload);
-    return ok(data);
+    const payload = analyzeScopeSchema.parse(await request.json());
+    const analysis = await aiService.analyzeScopeCompliance(payload);
+    return Response.json(analysis, { status: 200 });
   } catch (error) {
-    return fail(error);
+    return handleAPIError(error);
   }
-}
+});

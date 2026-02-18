@@ -1,13 +1,23 @@
-import { NextRequest } from "next/server";
+import { z } from "zod";
 import { authService } from "@/lib/services/auth.service";
-import { ok, fail } from "@/lib/utils/http";
+import { handleAPIError } from "@/lib/utils/api-error";
 
-export async function POST(request: NextRequest) {
+const signupSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  tenantName: z.string().min(1).max(120),
+  tenantSlug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/),
+});
+
+export async function POST(request: Request) {
   try {
-    const payload = await request.json().catch(() => ({}));
-    const data = await authService.signup({ tenantId: "stub-tenant" }, payload);
-    return ok(data);
+    const body = await request.json();
+    const validated = signupSchema.parse(body);
+    const data = await authService.signup(validated);
+    return Response.json(data, { status: 201 });
   } catch (error) {
-    return fail(error);
+    return handleAPIError(error);
   }
 }

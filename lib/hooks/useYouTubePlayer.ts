@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 export interface UseYouTubePlayerReturn {
   player: YT.Player | null
@@ -22,10 +22,41 @@ export interface UseYouTubePlayerOptions {
   onError?: (error: YT.PlayerError) => void
 }
 
+type PlayerMethodHost = {
+  playVideo?: () => void
+  pauseVideo?: () => void
+  seekTo?: (seconds: number, allowSeekAhead: boolean) => void
+  getCurrentTime?: () => number
+  getDuration?: () => number
+  destroy?: () => void
+}
+
+function hasTimeApi(player: unknown): player is { getCurrentTime: () => number } {
+  if (!player || typeof player !== 'object') {
+    return false
+  }
+
+  const candidate = player as { getCurrentTime?: unknown }
+  return typeof candidate.getCurrentTime === 'function'
+}
+
+function toFiniteOrZero(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function asPlayerMethodHost(player: unknown): PlayerMethodHost {
+  if (!player || typeof player !== 'object') {
+    return {}
+  }
+
+  return player as PlayerMethodHost
+}
+
 export function useYouTubePlayer(
   options: UseYouTubePlayerOptions = {}
 ): UseYouTubePlayerReturn {
   const playerRef = useRef<YT.Player | null>(null)
+  const initSeqRef = useRef(0)
   const apiLoadPromiseRef = useRef<Promise<void> | null>(null)
   const optionsRef = useRef(options)
 
@@ -38,6 +69,24 @@ export function useYouTubePlayer(
   useEffect(() => {
     optionsRef.current = options
   }, [options])
+
+  const safeGetCurrentTime = useCallback((value: unknown): number => {
+    const host = asPlayerMethodHost(value)
+    if (typeof host.getCurrentTime !== 'function') {
+      return 0
+    }
+
+    return toFiniteOrZero(host.getCurrentTime())
+  }, [])
+
+  const safeGetDuration = useCallback((value: unknown): number => {
+    const host = asPlayerMethodHost(value)
+    if (typeof host.getDuration !== 'function') {
+      return 0
+    }
+
+    return toFiniteOrZero(host.getDuration())
+  }, [])
 
   const loadYouTubeAPI = useCallback((): Promise<void> => {
     if (typeof window === 'undefined') {
@@ -78,8 +127,13 @@ export function useYouTubePlayer(
   }, [])
 
   const destroy = useCallback((): void => {
+    initSeqRef.current += 1
+
     if (playerRef.current) {
-      playerRef.current.destroy()
+      const host = asPlayerMethodHost(playerRef.current)
+      if (typeof host.destroy === 'function') {
+        host.destroy()
+      }
       playerRef.current = null
     }
 
@@ -104,7 +158,14 @@ export function useYouTubePlayer(
           destroy()
         }
 
+        initSeqRef.current += 1
+        const initId = initSeqRef.current
+
         await loadYouTubeAPI()
+
+        if (initId !== initSeqRef.current) {
+          return
+        }
 
         if (!window.YT?.Player) {
           throw new Error('YouTube API is unavailable')
@@ -114,15 +175,29 @@ export function useYouTubePlayer(
           videoId,
           events: {
             onReady: (event) => {
+              if (initId !== initSeqRef.current) {
+                return
+              }
+
+              // In some runtimes constructor return value is not a full API object.
+              // Use the ready event target as the canonical player instance.
+              playerRef.current = event.target
+              setPlayer(event.target)
               setIsReady(true)
-              setDuration(event.target.getDuration())
+              setDuration(safeGetDuration(event.target))
               optionsRef.current.onReady?.()
             },
             onStateChange: (event) => {
+              if (initId !== initSeqRef.current) {
+                return
+              }
               setIsPlaying(event.data === window.YT.PlayerState.PLAYING)
               optionsRef.current.onStateChange?.(event.data)
             },
             onError: (event) => {
+              if (initId !== initSeqRef.current) {
+                return
+              }
               optionsRef.current.onError?.({
                 code: event.data,
                 message: `YouTube player error code: ${event.data}`,
@@ -137,14 +212,18 @@ export function useYouTubePlayer(
           },
         })
 
-        playerRef.current = newPlayer
-        setPlayer(newPlayer)
+        // Keep a temporary reference only if constructor returns full API object.
+        // Do not overwrite canonical event.target from onReady.
+        if (initId === initSeqRef.current && (!playerRef.current || !hasTimeApi(playerRef.current))) {
+          playerRef.current = newPlayer
+          setPlayer(newPlayer)
+        }
       })().catch((error: unknown) => {
         const message = error instanceof Error ? error.message : 'Failed to initialize player'
         optionsRef.current.onError?.({ code: -1, message })
       })
     },
-    [destroy, loadYouTubeAPI]
+    [destroy, loadYouTubeAPI, safeGetDuration]
   )
 
   const getRequiredPlayer = useCallback((): YT.Player => {
@@ -156,22 +235,35 @@ export function useYouTubePlayer(
 
   const play = useCallback((): void => {
     const readyPlayer = getRequiredPlayer()
-    readyPlayer.playVideo()
+    const host = asPlayerMethodHost(readyPlayer)
 
-    const time = readyPlayer.getCurrentTime()
+    if (typeof host.playVideo === 'function') {
+      host.playVideo()
+    }
+
+    const time = safeGetCurrentTime(readyPlayer)
     setCurrentTime(time)
     optionsRef.current.onTimeUpdate?.(time)
-  }, [getRequiredPlayer])
+  }, [getRequiredPlayer, safeGetCurrentTime])
 
   const pause = useCallback((): void => {
     const readyPlayer = getRequiredPlayer()
-    readyPlayer.pauseVideo()
+    const host = asPlayerMethodHost(readyPlayer)
+
+    if (typeof host.pauseVideo === 'function') {
+      host.pauseVideo()
+    }
   }, [getRequiredPlayer])
 
   const seekTo = useCallback(
     (seconds: number): void => {
       const readyPlayer = getRequiredPlayer()
-      readyPlayer.seekTo(seconds, true)
+      const host = asPlayerMethodHost(readyPlayer)
+
+      if (typeof host.seekTo === 'function') {
+        host.seekTo(seconds, true)
+      }
+
       setCurrentTime(seconds)
       optionsRef.current.onTimeUpdate?.(seconds)
     },
@@ -180,13 +272,13 @@ export function useYouTubePlayer(
 
   const getCurrentTime = useCallback((): number => {
     const readyPlayer = getRequiredPlayer()
-    return readyPlayer.getCurrentTime()
-  }, [getRequiredPlayer])
+    return safeGetCurrentTime(readyPlayer)
+  }, [getRequiredPlayer, safeGetCurrentTime])
 
   const getDuration = useCallback((): number => {
     const readyPlayer = getRequiredPlayer()
-    return readyPlayer.getDuration()
-  }, [getRequiredPlayer])
+    return safeGetDuration(readyPlayer)
+  }, [getRequiredPlayer, safeGetDuration])
 
   useEffect(() => {
     if (!playerRef.current || !isReady) {
@@ -198,7 +290,7 @@ export function useYouTubePlayer(
         return
       }
 
-      const time = playerRef.current.getCurrentTime()
+      const time = safeGetCurrentTime(playerRef.current)
       setCurrentTime(time)
       optionsRef.current.onTimeUpdate?.(time)
     }, 1000)
@@ -206,7 +298,7 @@ export function useYouTubePlayer(
     return () => {
       clearInterval(interval)
     }
-  }, [isReady])
+  }, [isReady, safeGetCurrentTime])
 
   useEffect(() => {
     return () => {
