@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Controller, useForm } from "react-hook-form";
@@ -48,7 +48,24 @@ const clientsFetcher = (url: string) => apiFetch<ClientResponse[]>(url);
 export default function NewProjectPage(): JSX.Element {
   const router = useRouter();
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
+  const [appTheme, setAppTheme] = useState<"light" | "dark">("light");
   const { data: clients, mutate: mutateClients, isLoading: clientsLoading } = useSWR("/api/clients", clientsFetcher);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const root = document.documentElement;
+    const readTheme = (): void => {
+      setAppTheme(root.getAttribute("data-app-theme") === "dark" ? "dark" : "light");
+    };
+
+    readTheme();
+    const observer = new MutationObserver(readTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-app-theme"] });
+    return () => observer.disconnect();
+  }, []);
 
   const projectForm = useForm<z.input<typeof projectSchema>, undefined, ProjectFormValues>({
     resolver: zodResolver(projectSchema),
@@ -180,30 +197,80 @@ export default function NewProjectPage(): JSX.Element {
       </Card>
 
       <Dialog open={isClientDialogOpen} onOpenChange={setIsClientDialogOpen}>
-        <DialogContent>
+        <DialogContent
+          className={
+            appTheme === "dark"
+              ? "!border-slate-700 !bg-slate-900/95 !text-neutral-100"
+              : "!border-neutral-200 !bg-white !text-neutral-900"
+          }
+        >
           <DialogHeader>
-            <DialogTitle>Создать клиента</DialogTitle>
-            <DialogDescription>Добавьте клиента перед созданием проекта.</DialogDescription>
+            <DialogTitle className={appTheme === "dark" ? "text-neutral-100" : "text-neutral-900"}>Создать клиента</DialogTitle>
+            <DialogDescription className={appTheme === "dark" ? "text-neutral-400" : "text-neutral-600"}>
+              Добавьте клиента перед созданием проекта.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={clientForm.handleSubmit(createClient)} className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="client-name">Имя</Label>
-              <Input id="client-name" {...clientForm.register("name")} />
+              <Label htmlFor="client-name" className={appTheme === "dark" ? "text-neutral-300" : "text-neutral-700"}>Имя</Label>
+              <Input
+                id="client-name"
+                className={
+                  appTheme === "dark"
+                    ? "!border-slate-700 !bg-slate-900/90 !text-slate-100 !placeholder:text-slate-500 focus:ring-blue-500"
+                    : "!border-neutral-300 !bg-white !text-neutral-900 !placeholder:text-neutral-400 focus:ring-blue-500"
+                }
+                {...clientForm.register("name")}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="client-email">Email</Label>
-              <Input id="client-email" type="email" {...clientForm.register("email")} />
+              <Label htmlFor="client-email" className={appTheme === "dark" ? "text-neutral-300" : "text-neutral-700"}>Email</Label>
+              <Input
+                id="client-email"
+                type="email"
+                className={
+                  appTheme === "dark"
+                    ? "!border-slate-700 !bg-slate-900/90 !text-slate-100 !placeholder:text-slate-500 focus:ring-blue-500"
+                    : "!border-neutral-300 !bg-white !text-neutral-900 !placeholder:text-neutral-400 focus:ring-blue-500"
+                }
+                {...clientForm.register("email")}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="client-company">Компания</Label>
-              <Input id="client-company" {...clientForm.register("companyName")} />
+              <Label htmlFor="client-company" className={appTheme === "dark" ? "text-neutral-300" : "text-neutral-700"}>Компания</Label>
+              <Input
+                id="client-company"
+                className={
+                  appTheme === "dark"
+                    ? "!border-slate-700 !bg-slate-900/90 !text-slate-100 !placeholder:text-slate-500 focus:ring-blue-500"
+                    : "!border-neutral-300 !bg-white !text-neutral-900 !placeholder:text-neutral-400 focus:ring-blue-500"
+                }
+                {...clientForm.register("companyName")}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="client-phone">Телефон</Label>
-              <Input id="client-phone" {...clientForm.register("phone")} />
+              <Label htmlFor="client-phone" className={appTheme === "dark" ? "text-neutral-300" : "text-neutral-700"}>Телефон</Label>
+              <Input
+                id="client-phone"
+                className={
+                  appTheme === "dark"
+                    ? "!border-slate-700 !bg-slate-900/90 !text-slate-100 !placeholder:text-slate-500 focus:ring-blue-500"
+                    : "!border-neutral-300 !bg-white !text-neutral-900 !placeholder:text-neutral-400 focus:ring-blue-500"
+                }
+                {...clientForm.register("phone")}
+              />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsClientDialogOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                className={
+                  appTheme === "dark"
+                    ? "!border-slate-700 !bg-slate-900/90 !text-slate-200 hover:!bg-slate-800"
+                    : "!border-neutral-300 !bg-white !text-neutral-700 hover:!bg-neutral-100"
+                }
+                onClick={() => setIsClientDialogOpen(false)}
+              >
                 Отмена
               </Button>
               <Button type="submit" disabled={clientForm.formState.isSubmitting}>

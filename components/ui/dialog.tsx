@@ -16,16 +16,16 @@ export function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content>): JSX.Element {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/30" />
+      <DialogPrimitive.Overlay className="app-dialog-overlay fixed inset-0 z-[80] bg-black/40" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 w-[95vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-neutral-200 bg-white p-6 shadow-lg",
+          "app-dialog-content fixed left-1/2 top-1/2 z-[90] w-[95vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-neutral-200 bg-white p-6 text-neutral-900 shadow-lg dark:border-slate-700 dark:bg-slate-900/90 dark:text-neutral-100 dark:backdrop-blur",
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-neutral-500 hover:text-neutral-900">
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
@@ -46,7 +46,7 @@ export function DialogDescription({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Description>): JSX.Element {
-  return <DialogPrimitive.Description className={cn("text-sm text-neutral-500", className)} {...props} />;
+  return <DialogPrimitive.Description className={cn("text-sm text-neutral-600 dark:text-neutral-400", className)} {...props} />;
 }
 
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>): JSX.Element {

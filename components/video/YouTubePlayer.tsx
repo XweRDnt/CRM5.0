@@ -167,7 +167,7 @@ export const YouTubePlayer = forwardRef<YouTubePlayerRef, YouTubePlayerProps>(
     return (
       <div className={cn('w-full', className)}>
         <div className="relative aspect-video w-full overflow-hidden rounded-md bg-black">
-          <div id={playerId} className="h-full w-full" />
+          <div id={playerId} className="h-full w-full [&>iframe]:h-full [&>iframe]:w-full" />
 
           {isLoading && !error ? (
             <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/70 text-sm text-white">

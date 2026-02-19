@@ -36,9 +36,9 @@ export function Header({ user, onOpenSidebar }: HeaderProps): JSX.Element {
           </p>
         </div>
       </div>
-      <Button variant="outline" onClick={() => void logout()}>
-        <LogOut className="mr-2 h-4 w-4" />
-        {m.header.logout}
+      <Button variant="outline" onClick={() => void logout()} className="shrink-0">
+        <LogOut className="h-4 w-4 sm:mr-2" />
+        <span className="hidden sm:inline">{m.header.logout}</span>
       </Button>
     </header>
   );
