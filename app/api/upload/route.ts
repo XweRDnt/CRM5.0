@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/middleware/auth";
-import { storageService } from "@/lib/services/storage.service";
+import { getStorageService } from "@/lib/services/storage.service";
 import { z } from "zod";
 import { handleAPIError } from "@/lib/utils/api-error";
 
@@ -13,6 +13,7 @@ const getUploadUrlSchema = z.object({
 export const POST = withAuth(async (req) => {
   try {
     const payload = getUploadUrlSchema.parse(await req.json());
+    const storageService = getStorageService();
     const upload = await storageService.getUploadUrl({ tenantId: req.user.tenantId }, payload);
     return Response.json(upload, { status: 200 });
   } catch (error) {

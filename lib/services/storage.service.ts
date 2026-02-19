@@ -23,10 +23,6 @@ export class StorageService {
     this.region = process.env.AWS_REGION || "us-east-1";
     this.bucket = process.env.AWS_S3_BUCKET || "";
 
-    if (!this.bucket) {
-      throw new Error("AWS_S3_BUCKET environment variable is required");
-    }
-
     this.s3Client = new S3Client({
       region: this.region,
       credentials: {
@@ -42,6 +38,7 @@ export class StorageService {
     inputOrContext: GetUploadUrlInput | UploadContextInput,
     maybeInput?: Omit<GetUploadUrlInput, "tenantId">,
   ): Promise<UploadUrlResponse> {
+    this.ensureS3Configured();
     const input = this.resolveUploadInput(inputOrContext, maybeInput);
     this.validateUploadInput(input);
 
@@ -90,6 +87,7 @@ export class StorageService {
   }
 
   async confirmUpload(fileKey: string, tenantId: string): Promise<void> {
+    this.ensureS3Configured();
     if (!fileKey.startsWith(`tenants/${tenantId}/`)) {
       throw new Error("File key does not belong to this tenant");
     }
@@ -161,6 +159,19 @@ export class StorageService {
       throw new Error("File size exceeds maximum of 5GB");
     }
   }
+
+  private ensureS3Configured(): void {
+    if (!this.bucket) {
+      throw new Error("AWS_S3_BUCKET environment variable is required");
+    }
+  }
 }
 
-export const storageService = new StorageService();
+let storageServiceInstance: StorageService | undefined;
+
+export function getStorageService(): StorageService {
+  if (!storageServiceInstance) {
+    storageServiceInstance = new StorageService();
+  }
+  return storageServiceInstance;
+}
