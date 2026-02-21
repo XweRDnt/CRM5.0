@@ -17,6 +17,18 @@ type CreateUploadSessionInput = {
 type KinescopeUploadApiResponse = {
   id?: string;
   video_id?: string;
+  file_request_id?: string;
+  url?: string;
+  upload_url?: string;
+  link?: string;
+  data?: {
+    id?: string;
+    video_id?: string;
+    file_request_id?: string;
+    url?: string;
+    upload_url?: string;
+    link?: string;
+  };
   expires_in?: number;
   expires_at?: string;
   upload?: {
@@ -98,52 +110,31 @@ export class KinescopeService {
 
     await this.assertProjectInTenant(context.tenantId, input.projectId);
 
-    const projectId = this.resolveOptionalUuid(this.projectId);
-    const makeBody = (withProjectId: boolean): string =>
-      JSON.stringify({
-        ...(withProjectId && projectId ? { project_id: projectId } : {}),
-        title: input.fileName,
-      });
+    const response = await this.request<KinescopeUploadApiResponse>("/file-requests", {
+      method: "POST",
+      body: JSON.stringify({
+        name: input.fileName,
+        type: "one-time",
+        auto_start: false,
+        save_stream: true,
+      }),
+    });
 
-    let response: KinescopeUploadApiResponse;
-    try {
-      response = await this.request<KinescopeUploadApiResponse>("/videos/upload", {
-        method: "POST",
-        body: makeBody(true),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message.toLowerCase() : "";
-      const isInvalidUuid = message.includes("invalid uuid format");
-      const shouldRetryWithoutProject = isInvalidUuid || Boolean(projectId);
-
-      if (!shouldRetryWithoutProject) {
-        throw error;
-      }
-
-      try {
-        response = await this.request<KinescopeUploadApiResponse>("/videos/upload", {
-          method: "POST",
-          body: makeBody(false),
-        });
-      } catch (retryError) {
-        const retryMessage = retryError instanceof Error ? retryError.message.toLowerCase() : "";
-        const shouldTryLegacyCreateEndpoint =
-          retryMessage.includes("invalid uuid format") ||
-          retryMessage.includes("(404)");
-
-        if (!shouldTryLegacyCreateEndpoint) {
-          throw retryError;
-        }
-
-        response = await this.request<KinescopeUploadApiResponse>("/videos", {
-          method: "POST",
-          body: makeBody(false),
-        });
-      }
-    }
-
-    const uploadUrl = response.upload?.url;
-    const kinescopeVideoId = response.video_id ?? response.id;
+    const uploadUrl =
+      response.upload?.url ??
+      response.upload_url ??
+      response.url ??
+      response.link ??
+      response.data?.upload_url ??
+      response.data?.url ??
+      response.data?.link;
+    const kinescopeVideoId =
+      response.video_id ??
+      response.file_request_id ??
+      response.id ??
+      response.data?.video_id ??
+      response.data?.file_request_id ??
+      response.data?.id;
     if (!uploadUrl || !kinescopeVideoId) {
       throw new Error("Kinescope upload session response is invalid");
     }
@@ -175,7 +166,7 @@ export class KinescopeService {
 
     return {
       uploadUrl,
-      uploadMethod: response.upload?.method ?? "PUT",
+      uploadMethod: response.upload?.method ?? "POST",
       uploadHeaders: response.upload?.headers,
       uploadFields: response.upload?.fields,
       kinescopeVideoId,
@@ -201,18 +192,57 @@ export class KinescopeService {
       throw new Error("Kinescope upload session not found for this tenant/project");
     }
 
-    const video = await this.request<KinescopeVideoApiResponse>(`/videos/${input.kinescopeVideoId}`, {
-      method: "GET",
-    });
+    let resolvedVideoId = input.kinescopeVideoId;
+    let processingStatus: VideoProcessingStatus = VideoProcessingStatus.PROCESSING;
+    let streamUrl: string | null = null;
+    let durationSec: number | null = null;
+    let processingError: string | null = null;
 
-    const processingStatus = resolveStatus(video.status ?? video.state);
-    const streamUrl = video.playback?.url ?? video.player?.url ?? this.buildEmbedUrl(input.kinescopeVideoId);
-    const durationSec = toDuration(video.duration_sec ?? video.duration);
-    const processingError = video.error ?? null;
+    try {
+      const video = await this.request<KinescopeVideoApiResponse>(`/videos/${input.kinescopeVideoId}`, {
+        method: "GET",
+      });
+
+      processingStatus = resolveStatus(video.status ?? video.state);
+      streamUrl = video.playback?.url ?? video.player?.url ?? this.buildEmbedUrl(input.kinescopeVideoId);
+      durationSec = toDuration(video.duration_sec ?? video.duration);
+      processingError = video.error ?? null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      const canFallbackToFileRequest =
+        message.includes("invalid uuid format") || message.includes("(404)") || message.includes("not found");
+
+      if (!canFallbackToFileRequest) {
+        throw error;
+      }
+
+      const fileRequest = await this.request<Record<string, unknown>>(`/file-requests/${input.kinescopeVideoId}`, {
+        method: "GET",
+      });
+
+      const rawStatus =
+        (fileRequest.status as string | undefined) ??
+        (fileRequest.state as string | undefined) ??
+        (((fileRequest.video as Record<string, unknown> | undefined)?.status as string | undefined) ?? undefined);
+      processingStatus = resolveStatus(rawStatus);
+
+      const discoveredVideoId =
+        (fileRequest.video_id as string | undefined) ??
+        ((fileRequest.video as Record<string, unknown> | undefined)?.id as string | undefined) ??
+        ((fileRequest.data as Record<string, unknown> | undefined)?.video_id as string | undefined);
+
+      if (discoveredVideoId) {
+        resolvedVideoId = discoveredVideoId;
+        streamUrl = this.buildEmbedUrl(discoveredVideoId);
+      } else {
+        streamUrl = this.buildEmbedUrl(input.kinescopeVideoId);
+      }
+    }
 
     await this.prismaClient.videoUploadSession.update({
       where: { kinescopeVideoId: input.kinescopeVideoId },
       data: {
+        kinescopeVideoId: resolvedVideoId,
         status: processingStatus,
         streamUrl,
         durationSec,
@@ -221,7 +251,7 @@ export class KinescopeService {
     });
 
     return {
-      kinescopeVideoId: input.kinescopeVideoId,
+      kinescopeVideoId: resolvedVideoId,
       processingStatus,
       streamUrl,
       durationSec,
