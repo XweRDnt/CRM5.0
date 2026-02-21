@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
 import { YouTubePlayer, type YouTubePlayerRef } from "@/components/video/YouTubePlayer";
 import { apiFetch } from "@/lib/utils/client-api";
@@ -124,6 +125,7 @@ export default function VersionDetailPage(): JSX.Element {
   const { id: projectId, versionId } = params;
   const htmlVideoRef = useRef<HTMLVideoElement>(null);
   const youtubeRef = useRef<YouTubePlayerRef>(null);
+  const kinescopeRef = useRef<KinescopePlayerRef>(null);
 
   const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
   const { data: versionsResponse, isLoading: versionsLoading } = useSWR(
@@ -200,6 +202,12 @@ export default function VersionDetailPage(): JSX.Element {
 
   const seekToTimecode = (timecodeSec: number | null): void => {
     const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
+
+    if (activeVersion?.videoProvider === "KINESCOPE") {
+      kinescopeRef.current?.seekTo(target);
+      kinescopeRef.current?.play();
+      return;
+    }
 
     if (activeVersion && isYouTubeUrl(activeVersion.fileUrl)) {
       youtubeRef.current?.seekTo(target);
@@ -335,7 +343,23 @@ export default function VersionDetailPage(): JSX.Element {
           <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
             <CardContent className="p-2 sm:p-4">
               {isYouTubeUrl(activeVersion.fileUrl) ? (
-                <YouTubePlayer ref={youtubeRef} videoUrl={activeVersion.fileUrl} className="w-full" />
+                activeVersion.videoProvider === "KINESCOPE" ? (
+                  <KinescopePlayer
+                    ref={kinescopeRef}
+                    className="w-full"
+                    videoId={activeVersion.kinescopeVideoId}
+                    videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
+                  />
+                ) : (
+                  <YouTubePlayer ref={youtubeRef} videoUrl={activeVersion.fileUrl} className="w-full" />
+                )
+              ) : activeVersion.videoProvider === "KINESCOPE" ? (
+                <KinescopePlayer
+                  ref={kinescopeRef}
+                  className="w-full"
+                  videoId={activeVersion.kinescopeVideoId}
+                  videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
+                />
               ) : (
                 <video
                   ref={htmlVideoRef}
@@ -395,7 +419,7 @@ export default function VersionDetailPage(): JSX.Element {
                           <span className="break-words text-neutral-700 dark:text-neutral-300">{item.author.name}</span>
                         </div>
 
-                        <p className="mb-3 break-words text-sm text-neutral-900 dark:text-neutral-100">"{item.text}"</p>
+                        <p className="mb-3 break-words text-sm text-neutral-900 dark:text-neutral-100">&quot;{item.text}&quot;</p>
 
                         <div className="flex flex-wrap gap-2">
                           {EDITOR_FEEDBACK_STATUSES.map((status) => {

@@ -88,8 +88,9 @@ describe("StorageService.getUploadUrl", () => {
 
     expect(result.uploadUrl).toContain("https://signed.example/");
     expect(result.uploadUrl).toContain("X-Amz-Signature");
-    expect(result.fileKey).toContain(`tenants/${tenant.id}/projects/${project.id}/versions/`);
-    expect(result.fileKey.endsWith(".mp4")).toBe(true);
+    expect(result.fileKey).toBeTruthy();
+    expect(result.fileKey!).toContain(`tenants/${tenant.id}/projects/${project.id}/versions/`);
+    expect(result.fileKey!.endsWith(".mp4")).toBe(true);
     expect(result.fileUrl).toBe(`https://test-bucket.s3.us-east-1.amazonaws.com/${result.fileKey}`);
     expect(result.expiresIn).toBe(3600);
     expect(signedUrlMock).toHaveBeenCalledTimes(1);
@@ -234,7 +235,8 @@ describe("StorageService.getUploadUrl", () => {
       fileSize: 1000,
     });
 
-    expect(result.fileKey.endsWith(".mov")).toBe(true);
+    expect(result.fileKey).toBeTruthy();
+    expect(result.fileKey!.endsWith(".mov")).toBe(true);
   });
 });
 

@@ -80,6 +80,9 @@ export class StorageService {
 
     return {
       uploadUrl,
+      uploadMethod: "PUT",
+      kinescopeVideoId: fileKey,
+      expiresAt: new Date(Date.now() + UPLOAD_URL_EXPIRATION_SECONDS * 1000).toISOString(),
       fileKey,
       fileUrl: `https://${this.bucket}.s3.${this.region}.amazonaws.com/${fileKey}`,
       expiresIn: UPLOAD_URL_EXPIRATION_SECONDS,

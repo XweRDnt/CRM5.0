@@ -208,7 +208,7 @@ describe("AssetService.createVersion", () => {
         fileSize: 1000,
         uploadedByUserId: user.id,
       }),
-    ).rejects.toThrow("File URL, key, and name are required");
+    ).rejects.toThrow("File URL is required for non-Kinescope providers");
   });
 
   it("should fail if fileSize is not positive", async () => {

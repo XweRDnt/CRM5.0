@@ -1,4 +1,4 @@
-import { VersionStatus, type PrismaClient } from "@prisma/client";
+import { VersionStatus, VideoProcessingStatus, VideoProvider, type PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
 import type { AssetVersionResponse, CreateVersionInput, ServiceContext } from "@/types";
 
@@ -11,9 +11,17 @@ type AssetVersionWithUploader = {
   projectId: string;
   versionNo: number;
   fileUrl: string;
+  fileKey: string;
   fileName: string;
   fileSize: number;
   durationSec: number | null;
+  videoProvider: VideoProvider;
+  kinescopeVideoId: string | null;
+  kinescopeAssetId: string | null;
+  kinescopeProjectId: string | null;
+  streamUrl: string | null;
+  processingStatus: VideoProcessingStatus;
+  processingError: string | null;
   notes: string | null;
   changeLog: string | null;
   status: VersionStatus;
@@ -50,10 +58,25 @@ export class AssetService {
       durationSec,
       uploadedByUserId,
       notes,
+      videoProvider = VideoProvider.EXTERNAL_URL,
+      kinescopeVideoId,
+      kinescopeAssetId,
+      kinescopeProjectId,
+      streamUrl,
+      processingStatus = VideoProcessingStatus.READY,
+      processingError,
     } = input;
 
-    if (!fileUrl || !fileName) {
-      throw new Error("File URL, key, and name are required");
+    if (!fileName) {
+      throw new Error("File name is required");
+    }
+
+    if (videoProvider === VideoProvider.KINESCOPE && !kinescopeVideoId) {
+      throw new Error("kinescopeVideoId is required for Kinescope provider");
+    }
+
+    if (videoProvider !== VideoProvider.KINESCOPE && !fileUrl) {
+      throw new Error("File URL is required for non-Kinescope providers");
     }
 
     if (fileSize <= 0) {
@@ -112,13 +135,31 @@ export class AssetService {
       throw new Error("Version already exists");
     }
 
-    const resolvedFileKey = fileKey ?? `manual/${tenantId}/${projectId}/v${versionNo}/${fileName}`;
+    if (videoProvider === VideoProvider.KINESCOPE) {
+      const uploadSession = await this.prismaClient.videoUploadSession.findFirst({
+        where: {
+          tenantId,
+          projectId,
+          kinescopeVideoId: kinescopeVideoId!,
+        },
+        select: { id: true, streamUrl: true, durationSec: true, status: true, errorMessage: true },
+      });
+
+      if (!uploadSession) {
+        throw new Error("Kinescope upload session not found in this tenant/project");
+      }
+    }
+
+    const resolvedFileKey =
+      fileKey ?? (videoProvider === VideoProvider.KINESCOPE ? `kinescope/${tenantId}/${projectId}/${kinescopeVideoId}` : `manual/${tenantId}/${projectId}/v${versionNo}/${fileName}`);
+    const resolvedFileUrl =
+      videoProvider === VideoProvider.KINESCOPE ? (streamUrl ?? `https://kinescope.io/${kinescopeVideoId}`) : (fileUrl as string);
 
     const version = await this.prismaClient.assetVersion.create({
       data: {
         projectId,
         versionNo,
-        fileUrl,
+        fileUrl: resolvedFileUrl,
         fileKey: resolvedFileKey,
         fileName,
         fileSize,
@@ -126,6 +167,13 @@ export class AssetService {
         uploadedByUserId,
         uploadedByLegacy: uploadedByUserId,
         notes: notes ?? null,
+        videoProvider,
+        kinescopeVideoId: kinescopeVideoId ?? null,
+        kinescopeAssetId: kinescopeAssetId ?? null,
+        kinescopeProjectId: kinescopeProjectId ?? null,
+        streamUrl: streamUrl ?? null,
+        processingStatus,
+        processingError: processingError ?? null,
       },
       include: {
         uploadedBy: {
@@ -367,6 +415,13 @@ export class AssetService {
       fileName: version.fileName,
       fileSize: version.fileSize,
       durationSec: version.durationSec,
+      videoProvider: version.videoProvider,
+      kinescopeVideoId: version.kinescopeVideoId,
+      kinescopeAssetId: version.kinescopeAssetId,
+      kinescopeProjectId: version.kinescopeProjectId,
+      streamUrl: version.streamUrl,
+      processingStatus: version.processingStatus,
+      processingError: version.processingError,
       uploadedBy: {
         id: version.uploadedBy.id,
         name: `${version.uploadedBy.firstName} ${version.uploadedBy.lastName}`.trim(),

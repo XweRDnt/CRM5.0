@@ -81,16 +81,56 @@ Delete client.
 ## Assets
 
 ### `POST /upload`
-Generate S3 pre-signed upload URL.
+Generate Kinescope upload session.
+
+Body:
+```json
+{
+  "projectId": "project-id",
+  "fileName": "video.mp4",
+  "fileType": "video/mp4",
+  "fileSize": 10485760
+}
+```
+
+Response:
+```json
+{
+  "uploadUrl": "https://...",
+  "uploadMethod": "PUT",
+  "kinescopeVideoId": "video_123",
+  "expiresAt": "2026-02-21T12:00:00.000Z",
+  "expiresIn": 3600
+}
+```
 
 ### `POST /upload/confirm`
-Confirm uploaded file exists in storage.
+Confirm uploaded file processing state in Kinescope.
+
+Body:
+```json
+{
+  "projectId": "project-id",
+  "kinescopeVideoId": "video_123"
+}
+```
+
+Response includes:
+- `processingStatus` (`UPLOADING|PROCESSING|READY|FAILED`)
+- `streamUrl`
+- `durationSec`
 
 ### `GET /projects/:id/versions`
 List project asset versions.
 
 ### `POST /projects/:id/versions`
 Create a new version after upload confirmation.
+
+For Kinescope uploads include:
+- `videoProvider: "KINESCOPE"`
+- `kinescopeVideoId`
+- optional `streamUrl`
+- optional `processingStatus`
 
 ## Feedback
 

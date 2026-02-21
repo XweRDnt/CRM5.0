@@ -112,6 +112,19 @@ enum VersionStatus {
   FINAL
 }
 
+enum VideoProvider {
+  KINESCOPE
+  EXTERNAL_URL
+  YOUTUBE_LEGACY
+}
+
+enum VideoProcessingStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+}
+
 model Tenant {
   id            String           @id @default(cuid())
   name          String
@@ -126,6 +139,7 @@ model Tenant {
   notifications Notification[]
   subscriptions Subscription[]
   auditLogs     AuditLog[]
+  videoUploads  VideoUploadSession[]
 }
 
 model User {
@@ -185,6 +199,7 @@ model Project {
   tasks                AITask[]
   scopeDecisions       ScopeDecision[]
   workflowStages       WorkflowStage[]
+  videoUploads         VideoUploadSession[]
 }
 
 model ProjectMember {
@@ -216,6 +231,13 @@ model AssetVersion {
   status           VersionStatus  @default(DRAFT)
   approvedBy       String?
   approvedAt       DateTime?
+  videoProvider    VideoProvider        @default(EXTERNAL_URL)
+  kinescopeVideoId String?
+  kinescopeAssetId String?
+  kinescopeProjectId String?
+  streamUrl        String?
+  processingStatus VideoProcessingStatus @default(READY)
+  processingError  String?              @db.Text
   createdAt        DateTime       @default(now())
   project          Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   uploadedBy       User           @relation("UserUploadedVersions", fields: [uploadedByUserId], references: [id], onDelete: Cascade)
@@ -223,6 +245,27 @@ model AssetVersion {
 
   @@unique([projectId, versionNo])
   @@index([uploadedByUserId])
+  @@index([kinescopeVideoId])
+}
+
+model VideoUploadSession {
+  id               String              @id @default(cuid())
+  tenantId         String
+  projectId        String
+  kinescopeVideoId String              @unique
+  fileName         String
+  fileType         String
+  fileSize         Int
+  status           VideoProcessingStatus @default(UPLOADING)
+  streamUrl        String?
+  durationSec      Int?
+  errorMessage     String?             @db.Text
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project          Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, projectId])
 }
 
 model FeedbackItem {

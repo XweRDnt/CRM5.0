@@ -7,53 +7,140 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch } from "@/lib/utils/client-api";
+import type { ConfirmUploadResponse, UploadUrlResponse } from "@/types";
 
-type SourceMode = "file" | "youtube";
+type UploadStage = "idle" | "preparing" | "uploading" | "processing" | "done";
+
+const POLL_INTERVAL_MS = 3000;
+const MAX_CONFIRM_ATTEMPTS = 20;
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function uploadToKinescope(session: UploadUrlResponse, file: File): Promise<void> {
+  if (session.uploadMethod === "POST") {
+    const formData = new FormData();
+    Object.entries(session.uploadFields ?? {}).forEach(([key, value]) => formData.append(key, value));
+    formData.append("file", file);
+
+    const response = await fetch(session.uploadUrl, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with code ${response.status}`);
+    }
+    return;
+  }
+
+  const response = await fetch(session.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type,
+      ...(session.uploadHeaders ?? {}),
+    },
+    body: file,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Upload failed with code ${response.status}`);
+  }
+}
 
 export default function CreateVersionPage(): JSX.Element {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const projectId = params.id;
 
-  const [sourceMode, setSourceMode] = useState<SourceMode>("file");
   const [versionNo, setVersionNo] = useState(1);
-  const [fileUrl, setFileUrl] = useState("");
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [fileName, setFileName] = useState("");
-  const [fileSize, setFileSize] = useState(10_485_760);
-  const [durationSec, setDurationSec] = useState<string>("120");
+  const [file, setFile] = useState<File | null>(null);
+  const [durationSec, setDurationSec] = useState<string>("");
   const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState<UploadStage>("idle");
   const [error, setError] = useState("");
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    if (!file) {
+      setError("Выберите видеофайл для загрузки");
+      return;
+    }
+
     setError("");
-    setLoading(true);
 
     try {
-      const resolvedUrl = sourceMode === "youtube" ? youtubeUrl.trim() : fileUrl.trim();
-      const resolvedFileName = fileName.trim() || (sourceMode === "youtube" ? `youtube-v${versionNo}` : `version-v${versionNo}`);
-      const resolvedFileSize = sourceMode === "youtube" ? 1 : fileSize;
+      setStage("preparing");
+      const uploadSession = await apiFetch<UploadUrlResponse>("/api/upload", {
+        method: "POST",
+        body: JSON.stringify({
+          projectId,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        }),
+      });
+
+      setStage("uploading");
+      await uploadToKinescope(uploadSession, file);
+
+      setStage("processing");
+      let confirm: ConfirmUploadResponse | null = null;
+      for (let attempt = 0; attempt < MAX_CONFIRM_ATTEMPTS; attempt += 1) {
+        confirm = await apiFetch<ConfirmUploadResponse>("/api/upload/confirm", {
+          method: "POST",
+          body: JSON.stringify({
+            projectId,
+            kinescopeVideoId: uploadSession.kinescopeVideoId,
+          }),
+        });
+
+        if (confirm.processingStatus === "READY" || confirm.processingStatus === "FAILED") {
+          break;
+        }
+        await sleep(POLL_INTERVAL_MS);
+      }
+
+      if (!confirm) {
+        throw new Error("Не удалось подтвердить загрузку");
+      }
+
+      if (confirm.processingStatus === "FAILED") {
+        throw new Error(confirm.processingError ?? "Обработка видео завершилась с ошибкой");
+      }
 
       await apiFetch(`/api/projects/${projectId}/versions`, {
         method: "POST",
         body: JSON.stringify({
           versionNo,
-          fileUrl: resolvedUrl,
-          fileName: resolvedFileName,
-          fileSize: resolvedFileSize,
-          durationSec: durationSec.trim() ? Number(durationSec) : undefined,
+          fileName: file.name,
+          fileSize: file.size,
+          durationSec: durationSec.trim() ? Number(durationSec) : confirm.durationSec ?? undefined,
           notes: notes.trim() || undefined,
+          videoProvider: "KINESCOPE",
+          kinescopeVideoId: uploadSession.kinescopeVideoId,
+          streamUrl: confirm.streamUrl ?? undefined,
+          fileUrl: confirm.streamUrl ?? `https://kinescope.io/${uploadSession.kinescopeVideoId}`,
+          processingStatus: confirm.processingStatus,
+          processingError: confirm.processingError ?? undefined,
         }),
       });
 
+      setStage("done");
       router.push(`/projects/${projectId}/versions`);
     } catch (submitError) {
+      setStage("idle");
       setError(submitError instanceof Error ? submitError.message : "Не удалось создать версию");
-    } finally {
-      setLoading(false);
     }
+  };
+
+  const stageLabel: Record<UploadStage, string> = {
+    idle: "Готово к загрузке",
+    preparing: "Подготовка загрузки",
+    uploading: "Загрузка файла",
+    processing: "Обработка видео",
+    done: "Готово",
   };
 
   return (
@@ -64,67 +151,21 @@ export default function CreateVersionPage(): JSX.Element {
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant={sourceMode === "file" ? "default" : "outline"} onClick={() => setSourceMode("file")}>
-                Загрузить файл
-              </Button>
-              <Button
-                type="button"
-                variant={sourceMode === "youtube" ? "default" : "outline"}
-                onClick={() => setSourceMode("youtube")}
-              >
-                Вставить ссылку YouTube
-              </Button>
-            </div>
-
             <div>
               <label className="mb-1 block text-sm font-medium">Номер версии</label>
               <Input min={1} required type="number" value={versionNo} onChange={(event) => setVersionNo(Number(event.target.value))} />
             </div>
 
-            {sourceMode === "file" ? (
-              <div>
-                <label className="mb-1 block text-sm font-medium">Ссылка на видеофайл</label>
-                <Input
-                  required
-                  type="url"
-                  placeholder="https://cdn.example.com/video-v2.mp4"
-                  value={fileUrl}
-                  onChange={(event) => setFileUrl(event.target.value)}
-                />
-                <p className="mt-1 text-xs text-neutral-500">Для MVP укажите доступный URL файла.</p>
-              </div>
-            ) : (
-              <div>
-                <label className="mb-1 block text-sm font-medium">Ссылка YouTube</label>
-                <Input
-                  required
-                  type="url"
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  value={youtubeUrl}
-                  onChange={(event) => setYoutubeUrl(event.target.value)}
-                />
-              </div>
-            )}
-
             <div>
-              <label className="mb-1 block text-sm font-medium">Название версии</label>
+              <label className="mb-1 block text-sm font-medium">Видео-файл</label>
               <Input
                 required
-                type="text"
-                placeholder={sourceMode === "youtube" ? "youtube-v2" : "promo-v2.mp4"}
-                value={fileName}
-                onChange={(event) => setFileName(event.target.value)}
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm,video/avi"
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
+              <p className="mt-1 text-xs text-neutral-500">Поддерживаемые форматы: MP4, MOV, WEBM, AVI. Максимум 5GB.</p>
             </div>
-
-            {sourceMode === "file" && (
-              <div>
-                <label className="mb-1 block text-sm font-medium">Размер файла (байт)</label>
-                <Input required type="number" value={fileSize} onChange={(event) => setFileSize(Number(event.target.value))} />
-                <p className="mt-1 text-xs text-neutral-500">Пример: 10485760 = 10MB</p>
-              </div>
-            )}
 
             <div>
               <label className="mb-1 block text-sm font-medium">Длительность (сек, опционально)</label>
@@ -136,10 +177,14 @@ export default function CreateVersionPage(): JSX.Element {
               <Textarea rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
             </div>
 
+            <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+              Статус: {stageLabel[stage]}
+            </div>
+
             {error && <p className="text-sm text-red-600">{error}</p>}
 
-            <Button className="w-full" disabled={loading} type="submit">
-              {loading ? "Создание..." : "Создать версию"}
+            <Button className="w-full" disabled={stage !== "idle"} type="submit">
+              {stage === "idle" ? "Загрузить и создать версию" : "Выполняется..."}
             </Button>
           </form>
         </CardContent>
@@ -147,4 +192,3 @@ export default function CreateVersionPage(): JSX.Element {
     </div>
   );
 }
-

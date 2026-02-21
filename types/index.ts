@@ -14,6 +14,8 @@ import {
   NotificationChannel,
   DeliveryStatus,
   VersionStatus,
+  VideoProvider,
+  VideoProcessingStatus,
 } from "@prisma/client";
 
 export {
@@ -32,6 +34,8 @@ export {
   NotificationChannel,
   DeliveryStatus,
   VersionStatus,
+  VideoProvider,
+  VideoProcessingStatus,
 };
 
 export type ServiceContext = {
@@ -112,6 +116,10 @@ export type AssetVersion = {
   fileUrl: string;
   fileName: string;
   fileSize: number;
+  videoProvider: VideoProvider;
+  kinescopeVideoId: string | null;
+  streamUrl: string | null;
+  processingStatus: VideoProcessingStatus;
   changeLog: string | null;
   status: VersionStatus;
   approvedBy: string | null;
@@ -312,22 +320,48 @@ export interface GetUploadUrlInput {
 
 export interface UploadUrlResponse {
   uploadUrl: string;
-  fileKey: string;
-  fileUrl: string;
+  uploadMethod: "PUT" | "POST";
+  uploadHeaders?: Record<string, string>;
+  uploadFields?: Record<string, string>;
+  kinescopeVideoId: string;
+  expiresAt: string;
   expiresIn: number;
+  fileKey?: string;
+  fileUrl?: string;
+}
+
+export interface ConfirmUploadInput {
+  tenantId: string;
+  projectId: string;
+  kinescopeVideoId: string;
+}
+
+export interface ConfirmUploadResponse {
+  kinescopeVideoId: string;
+  processingStatus: VideoProcessingStatus;
+  streamUrl: string | null;
+  durationSec: number | null;
+  processingError: string | null;
 }
 
 export interface CreateVersionInput {
   projectId: string;
   tenantId: string;
   versionNo?: number;
-  fileUrl: string;
+  fileUrl?: string;
   fileKey?: string;
   fileName: string;
   fileSize: number;
   durationSec?: number;
   uploadedByUserId: string;
   notes?: string;
+  videoProvider?: VideoProvider;
+  kinescopeVideoId?: string;
+  kinescopeAssetId?: string;
+  kinescopeProjectId?: string;
+  streamUrl?: string;
+  processingStatus?: VideoProcessingStatus;
+  processingError?: string;
 }
 
 export interface AssetVersionResponse {
@@ -338,6 +372,13 @@ export interface AssetVersionResponse {
   fileName: string;
   fileSize: number;
   durationSec: number | null;
+  videoProvider: VideoProvider;
+  kinescopeVideoId: string | null;
+  kinescopeAssetId: string | null;
+  kinescopeProjectId: string | null;
+  streamUrl: string | null;
+  processingStatus: VideoProcessingStatus;
+  processingError: string | null;
   uploadedBy: {
     id: string;
     name: string;

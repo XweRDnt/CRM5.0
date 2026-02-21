@@ -1,3 +1,4 @@
+import { VideoProcessingStatus, VideoProvider } from "@prisma/client";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
 import { assetService } from "@/lib/services/asset.service";
 import { z } from "zod";
@@ -9,11 +10,19 @@ const paramsSchema = z.object({
 
 const createVersionSchema = z.object({
   versionNo: z.number().int().min(1),
-  fileUrl: z.string().url(),
+  fileUrl: z.string().url().optional(),
+  fileKey: z.string().min(1).optional(),
   fileName: z.string().min(1).max(255),
   fileSize: z.number().int().positive(),
   durationSec: z.number().int().nonnegative().optional(),
   notes: z.string().max(2000).optional(),
+  videoProvider: z.nativeEnum(VideoProvider).optional(),
+  kinescopeVideoId: z.string().min(1).optional(),
+  kinescopeAssetId: z.string().min(1).optional(),
+  kinescopeProjectId: z.string().min(1).optional(),
+  streamUrl: z.string().url().optional(),
+  processingStatus: z.nativeEnum(VideoProcessingStatus).optional(),
+  processingError: z.string().max(2000).optional(),
 });
 
 export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
@@ -36,11 +45,19 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context: { params
       tenantId: req.user.tenantId,
       versionNo: payload.versionNo,
       fileUrl: payload.fileUrl,
+      fileKey: payload.fileKey,
       fileName: payload.fileName,
       fileSize: payload.fileSize,
       durationSec: payload.durationSec,
       uploadedByUserId: req.user.userId,
       notes: payload.notes,
+      videoProvider: payload.videoProvider,
+      kinescopeVideoId: payload.kinescopeVideoId,
+      kinescopeAssetId: payload.kinescopeAssetId,
+      kinescopeProjectId: payload.kinescopeProjectId,
+      streamUrl: payload.streamUrl,
+      processingStatus: payload.processingStatus,
+      processingError: payload.processingError,
     });
 
     return Response.json(version, { status: 201 });
