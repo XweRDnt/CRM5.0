@@ -99,18 +99,37 @@ export class KinescopeService {
     await this.assertProjectInTenant(context.tenantId, input.projectId);
 
     const projectId = this.resolveOptionalUuid(this.projectId);
-    const response = await this.request<KinescopeUploadApiResponse>("/videos/upload", {
-      method: "POST",
-      body: JSON.stringify({
-        ...(projectId ? { project_id: projectId } : {}),
+    const makeBody = (withProjectId: boolean): string =>
+      JSON.stringify({
+        ...(withProjectId && projectId ? { project_id: projectId } : {}),
         title: input.fileName,
         metadata: {
           tenantId: context.tenantId,
           projectId: input.projectId,
           source: "video-crm-mvp",
         },
-      }),
-    });
+      });
+
+    let response: KinescopeUploadApiResponse;
+    try {
+      response = await this.request<KinescopeUploadApiResponse>("/videos/upload", {
+        method: "POST",
+        body: makeBody(true),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      const shouldRetryWithoutProject =
+        Boolean(projectId) && message.includes("invalid uuid format");
+
+      if (!shouldRetryWithoutProject) {
+        throw error;
+      }
+
+      response = await this.request<KinescopeUploadApiResponse>("/videos/upload", {
+        method: "POST",
+        body: makeBody(false),
+      });
+    }
 
     const uploadUrl = response.upload?.url;
     const kinescopeVideoId = response.video_id ?? response.id;
