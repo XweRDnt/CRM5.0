@@ -209,3 +209,9 @@ Manual parse of feedback items into summary + action items.
 
 ### `POST /ai/generate-summary`
 Generate client-facing progress summary.
+
+## Debug
+
+### `GET /debug/kinescope/uploading-locations`
+Requires auth (`OWNER` or `PM`).
+Returns available Kinescope uploading locations (`id`, `title`, `isDefault`).

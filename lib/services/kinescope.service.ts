@@ -66,6 +66,12 @@ type WebhookVideoPayload = {
   player_url?: string;
 };
 
+type KinescopeUploadingLocation = {
+  id: string;
+  title: string;
+  isDefault: boolean;
+};
+
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm", "video/avi"];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024 * 1024;
 const DEFAULT_EXPIRES_IN = 3600;
@@ -315,6 +321,25 @@ export class KinescopeService {
         fileUrl: streamUrl,
       },
     });
+  }
+
+  async listUploadingLocations(): Promise<KinescopeUploadingLocation[]> {
+    this.ensureConfigured();
+    const payload = await this.request<{
+      data?: Array<{ id?: string; title?: string; name?: string; is_default?: boolean }>;
+      items?: Array<{ id?: string; title?: string; name?: string; is_default?: boolean }>;
+    }>("/uploading-locations", {
+      method: "GET",
+    });
+
+    const items = payload.data ?? payload.items ?? [];
+    return items
+      .filter((item) => Boolean(item.id))
+      .map((item) => ({
+        id: item.id as string,
+        title: item.title ?? item.name ?? "Untitled location",
+        isDefault: Boolean(item.is_default),
+      }));
   }
 
   buildEmbedUrl(videoId: string): string {
