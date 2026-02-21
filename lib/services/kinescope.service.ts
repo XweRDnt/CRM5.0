@@ -98,10 +98,11 @@ export class KinescopeService {
 
     await this.assertProjectInTenant(context.tenantId, input.projectId);
 
+    const projectId = this.resolveOptionalUuid(this.projectId);
     const response = await this.request<KinescopeUploadApiResponse>("/videos/upload", {
       method: "POST",
       body: JSON.stringify({
-        project_id: this.projectId,
+        ...(projectId ? { project_id: projectId } : {}),
         title: input.fileName,
         metadata: {
           tenantId: context.tenantId,
@@ -280,9 +281,18 @@ export class KinescopeService {
   }
 
   private ensureConfigured(): void {
-    if (!this.apiToken || !this.projectId) {
-      throw new Error("Kinescope is not configured");
+    if (!this.apiToken) {
+      throw new Error("Kinescope is not configured: KINESCOPE_API_TOKEN is required");
     }
+  }
+
+  private resolveOptionalUuid(value: string): string | null {
+    const normalized = value.trim();
+    if (!normalized) {
+      return null;
+    }
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidPattern.test(normalized) ? normalized : null;
   }
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
