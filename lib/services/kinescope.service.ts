@@ -103,11 +103,6 @@ export class KinescopeService {
       JSON.stringify({
         ...(withProjectId && projectId ? { project_id: projectId } : {}),
         title: input.fileName,
-        metadata: {
-          tenantId: context.tenantId,
-          projectId: input.projectId,
-          source: "video-crm-mvp",
-        },
       });
 
     let response: KinescopeUploadApiResponse;
@@ -118,17 +113,33 @@ export class KinescopeService {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : "";
-      const shouldRetryWithoutProject =
-        Boolean(projectId) && message.includes("invalid uuid format");
+      const isInvalidUuid = message.includes("invalid uuid format");
+      const shouldRetryWithoutProject = isInvalidUuid || Boolean(projectId);
 
       if (!shouldRetryWithoutProject) {
         throw error;
       }
 
-      response = await this.request<KinescopeUploadApiResponse>("/videos/upload", {
-        method: "POST",
-        body: makeBody(false),
-      });
+      try {
+        response = await this.request<KinescopeUploadApiResponse>("/videos/upload", {
+          method: "POST",
+          body: makeBody(false),
+        });
+      } catch (retryError) {
+        const retryMessage = retryError instanceof Error ? retryError.message.toLowerCase() : "";
+        const shouldTryLegacyCreateEndpoint =
+          retryMessage.includes("invalid uuid format") ||
+          retryMessage.includes("(404)");
+
+        if (!shouldTryLegacyCreateEndpoint) {
+          throw retryError;
+        }
+
+        response = await this.request<KinescopeUploadApiResponse>("/videos", {
+          method: "POST",
+          body: makeBody(false),
+        });
+      }
     }
 
     const uploadUrl = response.upload?.url;
