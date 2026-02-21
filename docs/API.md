@@ -82,6 +82,9 @@ Delete client.
 
 ### `POST /upload`
 Generate Kinescope upload session.
+Requires env:
+- `KINESCOPE_API_TOKEN`
+- `KINESCOPE_UPLOADING_LOCATION_ID`
 
 Body:
 ```json

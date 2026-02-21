@@ -94,12 +94,14 @@ function toDuration(value: number | undefined): number | null {
 export class KinescopeService {
   private readonly apiToken: string;
   private readonly projectId: string;
+  private readonly uploadingLocationId: string;
   private readonly baseUrl: string;
   private readonly webhookSecret: string;
 
   constructor(private prismaClient: PrismaClient = prisma as PrismaClient) {
     this.apiToken = process.env.KINESCOPE_API_TOKEN ?? "";
     this.projectId = process.env.KINESCOPE_PROJECT_ID ?? "";
+    this.uploadingLocationId = process.env.KINESCOPE_UPLOADING_LOCATION_ID ?? "";
     this.baseUrl = (process.env.KINESCOPE_BASE_URL ?? "https://api.kinescope.io/v1").replace(/\/+$/, "");
     this.webhookSecret = process.env.KINESCOPE_WEBHOOK_SECRET ?? "";
   }
@@ -113,7 +115,9 @@ export class KinescopeService {
     const response = await this.request<KinescopeUploadApiResponse>("/file-requests", {
       method: "POST",
       body: JSON.stringify({
+        title: input.fileName,
         name: input.fileName,
+        uploading_location_id: this.uploadingLocationId,
         type: "one-time",
         auto_start: false,
         save_stream: true,
@@ -343,6 +347,9 @@ export class KinescopeService {
   private ensureConfigured(): void {
     if (!this.apiToken) {
       throw new Error("Kinescope is not configured: KINESCOPE_API_TOKEN is required");
+    }
+    if (!this.uploadingLocationId) {
+      throw new Error("Kinescope is not configured: KINESCOPE_UPLOADING_LOCATION_ID is required");
     }
   }
 
