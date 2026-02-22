@@ -66,6 +66,7 @@ function resolveVideoId(videoId?: string | null, videoUrl?: string): string | nu
 export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerProps>(
   ({ videoId, videoUrl, onTimeUpdate, onPause, onPlay, onReady, onError, autoplay, className }, ref) => {
     const playerRef = useRef<InstanceType<typeof KinescopeSdkPlayer> | null>(null);
+    const readyNotifiedRef = useRef(false);
     const [isReady, setIsReady] = useState(false);
     const [playerError, setPlayerError] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
@@ -76,7 +77,22 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
       if (!resolvedVideoId) {
         onError?.("Kinescope video is not configured");
       }
+      readyNotifiedRef.current = false;
     }, [onError, resolvedVideoId]);
+
+    useEffect(() => {
+      if (!resolvedVideoId || isReady || playerError) {
+        return;
+      }
+
+      const timeout = window.setTimeout(() => {
+        const message = "Kinescope player is taking too long to load";
+        setPlayerError(message);
+        onError?.(message);
+      }, 12000);
+
+      return () => window.clearTimeout(timeout);
+    }, [isReady, onError, playerError, resolvedVideoId]);
 
     useImperativeHandle(
       ref,
@@ -128,15 +144,22 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
             height="100%"
             className="h-full w-full"
             onInit={() => {
-              setIsReady(false);
               setPlayerError(null);
               setCurrentTime(0);
               setDuration(0);
+              setIsReady(true);
+              if (!readyNotifiedRef.current) {
+                readyNotifiedRef.current = true;
+                onReady?.();
+              }
             }}
             onReady={() => {
               setPlayerError(null);
               setIsReady(true);
-              onReady?.();
+              if (!readyNotifiedRef.current) {
+                readyNotifiedRef.current = true;
+                onReady?.();
+              }
             }}
             onTimeUpdate={(event: KinescopeTimeUpdateEvent) => {
               const normalized = normalizeSeconds(event?.currentTime);
@@ -160,7 +183,7 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
           />
 
           {!isReady && !playerError ? (
-            <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/70 text-sm text-white">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-black/70 text-sm text-white">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               <span>Loading video player...</span>
             </div>

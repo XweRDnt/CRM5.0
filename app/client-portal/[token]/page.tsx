@@ -117,13 +117,21 @@ export default function ClientPortalPage(): JSX.Element {
     }
 
     const interval = window.setInterval(() => {
+      if (videoIsKinescope) {
+        void (async () => {
+          const next = kinescopeRef.current ? await kinescopeRef.current.getCurrentTimeAsync().catch(() => 0) : 0;
+          updatePlayerTime(next);
+        })();
+        return;
+      }
+
       updatePlayerTime(readCurrentPlayerTime());
     }, 250);
 
     return () => {
       window.clearInterval(interval);
     };
-  }, [playerReady, readCurrentPlayerTime]);
+  }, [playerReady, readCurrentPlayerTime, videoIsKinescope]);
 
   if (isLoading) {
     return (
