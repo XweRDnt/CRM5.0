@@ -162,8 +162,11 @@ export default function ClientPortalPage(): JSX.Element {
       nativeVideoRef.current?.pause();
     }
 
-    window.setTimeout(() => {
-      const rawTime = readCurrentPlayerTime();
+    window.setTimeout(async () => {
+      const kinescopeTime = kinescopeRef.current
+        ? await kinescopeRef.current.getCurrentTimeAsync().catch(() => 0)
+        : 0;
+      const rawTime = videoIsKinescope ? kinescopeTime : readCurrentPlayerTime();
       const directTime = Math.max(0, Math.floor(Number.isFinite(rawTime) ? rawTime : 0));
       const normalized = Math.max(directTime, lastKnownTimeRef.current, playerCurrentTimeSec);
       if (normalized === 0) {

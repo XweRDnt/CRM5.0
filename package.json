@@ -24,6 +24,7 @@
     "@aws-sdk/client-s3": "^3.990.0",
     "@aws-sdk/s3-request-presigner": "^3.990.0",
     "@hookform/resolvers": "^5.2.2",
+    "@kinescope/react-kinescope-player": "^0.5.4",
     "@prisma/adapter-pg": "^7.4.0",
     "@prisma/client": "^6.16.0",
     "@radix-ui/react-dialog": "^1.1.15",
