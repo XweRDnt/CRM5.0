@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -19,7 +19,12 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function uploadViaTus(uploadUrl: string, file: File, headers?: Record<string, string>): Promise<void> {
+async function uploadViaTus(
+  uploadUrl: string,
+  file: File,
+  headers?: Record<string, string>,
+  onProgress?: (percent: number) => void,
+): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const upload = new tus.Upload(file, {
       uploadUrl,
@@ -33,7 +38,13 @@ async function uploadViaTus(uploadUrl: string, file: File, headers?: Record<stri
         reject(error);
       },
       onSuccess() {
+        onProgress?.(100);
         resolve();
+      },
+      onProgress(bytesUploaded, bytesTotal) {
+        if (bytesTotal > 0) {
+          onProgress?.(Math.min(100, Math.round((bytesUploaded / bytesTotal) * 100)));
+        }
       },
     });
 
@@ -41,10 +52,10 @@ async function uploadViaTus(uploadUrl: string, file: File, headers?: Record<stri
   });
 }
 
-async function uploadToKinescope(session: UploadUrlResponse, file: File): Promise<void> {
+async function uploadToKinescope(session: UploadUrlResponse, file: File, onProgress?: (percent: number) => void): Promise<void> {
   if (session.uploadMethod === "POST") {
     try {
-      await uploadViaTus(session.uploadUrl, file, session.uploadHeaders);
+      await uploadViaTus(session.uploadUrl, file, session.uploadHeaders, onProgress);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown error";
       throw new Error(`Upload failed with Tus: ${message}`);
@@ -64,6 +75,7 @@ async function uploadToKinescope(session: UploadUrlResponse, file: File): Promis
   if (!response.ok) {
     throw new Error(`Upload failed with code ${response.status}`);
   }
+  onProgress?.(100);
 }
 
 export default function CreateVersionPage(): JSX.Element {
@@ -76,6 +88,8 @@ export default function CreateVersionPage(): JSX.Element {
   const [durationSec, setDurationSec] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [stage, setStage] = useState<UploadStage>("idle");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingAttempt, setProcessingAttempt] = useState(0);
   const [error, setError] = useState("");
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
@@ -86,6 +100,8 @@ export default function CreateVersionPage(): JSX.Element {
     }
 
     setError("");
+    setUploadProgress(0);
+    setProcessingAttempt(0);
 
     try {
       setStage("preparing");
@@ -100,11 +116,12 @@ export default function CreateVersionPage(): JSX.Element {
       });
 
       setStage("uploading");
-      await uploadToKinescope(uploadSession, file);
+      await uploadToKinescope(uploadSession, file, setUploadProgress);
 
       setStage("processing");
       let confirm: ConfirmUploadResponse | null = null;
       for (let attempt = 0; attempt < MAX_CONFIRM_ATTEMPTS; attempt += 1) {
+        setProcessingAttempt(attempt + 1);
         confirm = await apiFetch<ConfirmUploadResponse>("/api/upload/confirm", {
           method: "POST",
           body: JSON.stringify({
@@ -127,25 +144,45 @@ export default function CreateVersionPage(): JSX.Element {
         throw new Error(confirm.processingError ?? "Обработка видео завершилась с ошибкой");
       }
 
-      await apiFetch(`/api/projects/${projectId}/versions`, {
-        method: "POST",
-        body: JSON.stringify({
-          versionNo,
-          fileName: file.name,
-          fileSize: file.size,
-          durationSec: durationSec.trim() ? Number(durationSec) : confirm.durationSec ?? undefined,
-          notes: notes.trim() || undefined,
-          videoProvider: "KINESCOPE",
-          kinescopeVideoId: confirm.kinescopeVideoId,
-          streamUrl: confirm.streamUrl ?? undefined,
-          fileUrl: confirm.streamUrl ?? `https://kinescope.io/${confirm.kinescopeVideoId}`,
-          processingStatus: confirm.processingStatus,
-          processingError: confirm.processingError ?? undefined,
-        }),
-      });
+      let targetVersionNo = versionNo;
+      let created = false;
+      for (let retry = 0; retry < 3; retry += 1) {
+        try {
+          await apiFetch(`/api/projects/${projectId}/versions`, {
+            method: "POST",
+            body: JSON.stringify({
+              versionNo: targetVersionNo,
+              fileName: file.name,
+              fileSize: file.size,
+              durationSec: durationSec.trim() ? Number(durationSec) : confirm.durationSec ?? undefined,
+              notes: notes.trim() || undefined,
+              videoProvider: "KINESCOPE",
+              kinescopeVideoId: confirm.kinescopeVideoId,
+              streamUrl: confirm.streamUrl ?? undefined,
+              fileUrl: confirm.streamUrl ?? `https://kinescope.io/${confirm.kinescopeVideoId}`,
+              processingStatus: confirm.processingStatus,
+              processingError: confirm.processingError ?? undefined,
+            }),
+          });
+          created = true;
+          break;
+        } catch (createError) {
+          const message = createError instanceof Error ? createError.message.toLowerCase() : "";
+          if (!message.includes("version already exists")) {
+            throw createError;
+          }
+          targetVersionNo += 1;
+          setVersionNo(targetVersionNo);
+        }
+      }
+
+      if (!created) {
+        throw new Error("Не удалось создать новую версию: конфликт номера версии");
+      }
 
       setStage("done");
-      router.push(`/projects/${projectId}/versions`);
+      router.replace(`/projects/${projectId}/versions`);
+      router.refresh();
     } catch (submitError) {
       setStage("idle");
       setError(submitError instanceof Error ? submitError.message : "Не удалось создать версию");
@@ -155,8 +192,8 @@ export default function CreateVersionPage(): JSX.Element {
   const stageLabel: Record<UploadStage, string> = {
     idle: "Готово к загрузке",
     preparing: "Подготовка загрузки",
-    uploading: "Загрузка файла",
-    processing: "Обработка видео",
+    uploading: `Загрузка файла ${uploadProgress}%`,
+    processing: `Обработка видео ${processingAttempt}/${MAX_CONFIRM_ATTEMPTS}`,
     done: "Готово",
   };
 
@@ -174,7 +211,7 @@ export default function CreateVersionPage(): JSX.Element {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Видео-файл</label>
+              <label className="mb-1 block text-sm font-medium">Видеофайл</label>
               <Input
                 required
                 type="file"
