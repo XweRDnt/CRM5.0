@@ -324,7 +324,7 @@ export class KinescopeService {
   }
 
   async listUploadingLocations(): Promise<KinescopeUploadingLocation[]> {
-    this.ensureConfigured();
+    this.ensureApiTokenConfigured();
     const payload = await this.request<{
       data?: Array<{ id?: string; title?: string; name?: string; is_default?: boolean }>;
       items?: Array<{ id?: string; title?: string; name?: string; is_default?: boolean }>;
@@ -370,11 +370,15 @@ export class KinescopeService {
   }
 
   private ensureConfigured(): void {
-    if (!this.apiToken) {
-      throw new Error("Kinescope is not configured: KINESCOPE_API_TOKEN is required");
-    }
+    this.ensureApiTokenConfigured();
     if (!this.uploadingLocationId) {
       throw new Error("Kinescope is not configured: KINESCOPE_UPLOADING_LOCATION_ID is required");
+    }
+  }
+
+  private ensureApiTokenConfigured(): void {
+    if (!this.apiToken) {
+      throw new Error("Kinescope is not configured: KINESCOPE_API_TOKEN is required");
     }
   }
 
