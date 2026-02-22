@@ -3,6 +3,7 @@ import Script from "next/script";
 import { cookies } from "next/headers";
 import { AppToaster } from "@/components/ui/app-toaster";
 import { AppThemeShell } from "@/components/theme/AppThemeShell";
+import { DomMutationGuard } from "@/components/system/DomMutationGuard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default async function RootLayout({
         </Script>
       </head>
       <body className="antialiased">
+        <DomMutationGuard />
         <AppThemeShell>{children}</AppThemeShell>
         <AppToaster />
       </body>
