@@ -75,7 +75,6 @@ export default function ClientPortalPage(): JSX.Element {
   const videoProvider = data?.version.videoProvider ?? "EXTERNAL_URL";
   const videoIsKinescope = videoProvider === "KINESCOPE";
   const videoIsYouTube = !videoIsKinescope && isYouTubeUrl(safeVideoUrl);
-  const kinescopeReady = !videoIsKinescope || data?.version.processingStatus === "READY";
 
   const pageBackground = "bg-[var(--app-bg)]";
   const shellCardClass =
@@ -113,7 +112,7 @@ export default function ClientPortalPage(): JSX.Element {
   }, [data?.version.id, videoProvider, safeVideoUrl, data?.version.kinescopeVideoId]);
 
   useEffect(() => {
-    if (!playerReady || !kinescopeReady) {
+    if (!playerReady) {
       return;
     }
 
@@ -124,7 +123,7 @@ export default function ClientPortalPage(): JSX.Element {
     return () => {
       window.clearInterval(interval);
     };
-  }, [kinescopeReady, playerReady, readCurrentPlayerTime]);
+  }, [playerReady, readCurrentPlayerTime]);
 
   if (isLoading) {
     return (
@@ -150,7 +149,7 @@ export default function ClientPortalPage(): JSX.Element {
   }
 
   const captureCurrentTimecode = (): void => {
-    if (!playerReady || !kinescopeReady) {
+    if (!playerReady) {
       toast.error(m.portal.playerNotReady);
       return;
     }
@@ -208,13 +207,7 @@ export default function ClientPortalPage(): JSX.Element {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
-              {videoIsKinescope && data.version.processingStatus !== "READY" ? (
-                <div className="flex aspect-video items-center justify-center rounded-[20px] bg-black/90 p-6 text-center text-sm text-white/85">
-                  {data.version.processingStatus === "FAILED"
-                    ? "Video processing failed. Try re-uploading this version."
-                    : "Video is processing in Kinescope. Player will be available when processing is complete."}
-                </div>
-              ) : videoIsKinescope ? (
+              {videoIsKinescope ? (
                 <KinescopePlayer
                   ref={kinescopeRef}
                   className="w-full"
@@ -258,7 +251,7 @@ export default function ClientPortalPage(): JSX.Element {
                 <Button
                   onClick={captureCurrentTimecode}
                   type="button"
-                  disabled={!playerReady || !kinescopeReady || isVersionLocked}
+                  disabled={!playerReady || isVersionLocked}
                   className="h-11 rounded-full bg-[#007AFF] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(0,122,255,0.35)] hover:bg-[#0A84FF]"
                 >
                   {m.portal.addFeedbackAtCurrentTime}
@@ -274,6 +267,13 @@ export default function ClientPortalPage(): JSX.Element {
                 </Button>
               </div>
             </div>
+            {videoIsKinescope && data.version.processingStatus !== "READY" ? (
+              <p className={`text-xs ${mutedTextClass}`}>
+                {data.version.processingStatus === "FAILED"
+                  ? "Kinescope processing failed for this version."
+                  : "Kinescope is still processing this video. Playback may be temporarily unavailable."}
+              </p>
+            ) : null}
             {isVersionLocked && <p className={`text-sm ${mutedTextClass}`}>{m.portal.approvalLocked}</p>}
           </CardContent>
         </Card>

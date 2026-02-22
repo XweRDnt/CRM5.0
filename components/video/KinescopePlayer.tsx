@@ -177,9 +177,12 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
             allowFullScreen
             onLoad={() => {
               setPlayerError(null);
-              setIsReady(false);
-              setCurrentTime(0);
-              setDuration(0);
+              setIsReady((prev) => {
+                if (!prev) {
+                  onReady?.();
+                }
+                return true;
+              });
             }}
             onError={() => {
               const message = "Failed to load Kinescope player";

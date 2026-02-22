@@ -199,7 +199,6 @@ export default function VersionDetailPage(): JSX.Element {
   const hasClientFeedback = versionFeedback.length > 0;
   const versionUiStatus = activeVersion ? toVersionUiStatus(activeVersion.status, hasClientFeedback) : "DRAFT";
   const isActiveVersionApproved = versionUiStatus === "APPROVED";
-  const showKinescopeProcessingState = activeVersion.videoProvider === "KINESCOPE" && activeVersion.processingStatus !== "READY";
 
   const seekToTimecode = (timecodeSec: number | null): void => {
     const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
@@ -343,13 +342,7 @@ export default function VersionDetailPage(): JSX.Element {
         <div className="min-w-0 space-y-3 xl:col-span-3">
           <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
             <CardContent className="p-2 sm:p-4">
-              {showKinescopeProcessingState ? (
-                <div className="flex aspect-video items-center justify-center rounded-lg bg-black/90 p-6 text-center text-sm text-white/85">
-                  {activeVersion.processingStatus === "FAILED"
-                    ? "Обработка видео в Kinescope завершилась с ошибкой. Перезагрузите версию."
-                    : "Видео обрабатывается в Kinescope. Плеер станет доступен после завершения обработки."}
-                </div>
-              ) : isYouTubeUrl(activeVersion.fileUrl) ? (
+              {isYouTubeUrl(activeVersion.fileUrl) ? (
                 activeVersion.videoProvider === "KINESCOPE" ? (
                   <KinescopePlayer
                     ref={kinescopeRef}
@@ -378,6 +371,13 @@ export default function VersionDetailPage(): JSX.Element {
                   <track kind="captions" />
                 </video>
               )}
+              {activeVersion.videoProvider === "KINESCOPE" && activeVersion.processingStatus !== "READY" ? (
+                <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+                  {activeVersion.processingStatus === "FAILED"
+                    ? "Обработка видео в Kinescope завершилась с ошибкой."
+                    : "Kinescope еще обрабатывает видео. Воспроизведение может быть временно недоступно."}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
 
