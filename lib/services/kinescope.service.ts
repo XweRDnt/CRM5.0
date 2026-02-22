@@ -113,17 +113,24 @@ export class KinescopeService {
   }
 
   async createUploadSession(context: ServiceContext, input: CreateUploadSessionInput): Promise<UploadUrlResponse> {
-    this.ensureConfigured();
+    this.ensureApiTokenConfigured();
     this.validateUploadInput(input);
 
     await this.assertProjectInTenant(context.tenantId, input.projectId);
+
+    const resolvedUploadingLocationId = await this.resolveUploadingLocationId();
+    if (!resolvedUploadingLocationId) {
+      throw new Error(
+        "Kinescope uploading location is not configured. Set KINESCOPE_UPLOADING_LOCATION_ID or ensure locations are available via API.",
+      );
+    }
 
     const response = await this.request<KinescopeUploadApiResponse>("/file-requests", {
       method: "POST",
       body: JSON.stringify({
         title: input.fileName,
         name: input.fileName,
-        uploading_location_id: this.uploadingLocationId,
+        uploading_location_id: resolvedUploadingLocationId,
         type: "one-time",
         auto_start: false,
         save_stream: true,
@@ -388,15 +395,47 @@ export class KinescopeService {
 
   private ensureConfigured(): void {
     this.ensureApiTokenConfigured();
-    if (!this.uploadingLocationId) {
-      throw new Error("Kinescope is not configured: KINESCOPE_UPLOADING_LOCATION_ID is required");
-    }
   }
 
   private ensureApiTokenConfigured(): void {
     if (!this.apiToken) {
       throw new Error("Kinescope is not configured: KINESCOPE_API_TOKEN is required");
     }
+  }
+
+  private async resolveUploadingLocationId(): Promise<string | null> {
+    const configured = this.uploadingLocationId.trim();
+    if (configured) {
+      return configured;
+    }
+
+    const discovered = await this.tryDiscoverUploadingLocationId();
+    return discovered;
+  }
+
+  private async tryDiscoverUploadingLocationId(): Promise<string | null> {
+    const locations = await this.listUploadingLocations().catch(() => []);
+    if (locations.length > 0) {
+      const preferred = locations.find((item) => item.isDefault) ?? locations[0];
+      return preferred.id;
+    }
+
+    const projectUuid = this.resolveOptionalUuid(this.projectId);
+    if (projectUuid) {
+      try {
+        const project = await this.request<{
+          uploading_location_id?: string;
+          data?: { uploading_location_id?: string };
+        }>(`/projects/${projectUuid}`, {
+          method: "GET",
+        });
+        return project.uploading_location_id ?? project.data?.uploading_location_id ?? null;
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
   }
 
   private resolveOptionalUuid(value: string): string | null {
