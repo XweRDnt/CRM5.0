@@ -59,9 +59,11 @@ async function cleanup() {
 describe("KinescopeService", () => {
   beforeEach(async () => {
     process.env.KINESCOPE_API_TOKEN = "test-token";
+    process.env.KINESCOPE_PARENT_ID = "parent_123";
     process.env.KINESCOPE_PROJECT_ID = "proj_123";
     process.env.KINESCOPE_UPLOADING_LOCATION_ID = "loc_123";
     process.env.KINESCOPE_BASE_URL = "https://api.kinescope.local/v1";
+    process.env.KINESCOPE_UPLOADER_BASE_URL = "https://uploader.kinescope.local/v2";
     process.env.KINESCOPE_WEBHOOK_SECRET = "secret";
     await cleanup();
     vi.restoreAllMocks();
@@ -80,19 +82,20 @@ describe("KinescopeService", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse((init?.body as string | undefined) ?? "{}") as Record<string, unknown>;
+        expect(body.parent_id).toBe("parent_123");
+        expect(body.filesize).toBe(1000);
+        return new Response(
           JSON.stringify({
-            video_id: "video_123",
-            expires_in: 1200,
-            upload: {
-              url: "https://upload.kinescope.local/video_123",
-              method: "PUT",
+            data: {
+              id: "video_123",
+              endpoint: "https://uploader.kinescope.local/upload/video_123",
             },
           }),
           { status: 200 },
-        ),
-      ),
+        );
+      }),
     );
 
     const session = await service.createUploadSession(
@@ -106,7 +109,8 @@ describe("KinescopeService", () => {
     );
 
     expect(session.kinescopeVideoId).toBe("video_123");
-    expect(session.uploadUrl).toContain("upload.kinescope.local");
+    expect(session.uploadMethod).toBe("POST");
+    expect(session.uploadUrl).toContain("uploader.kinescope.local");
     const dbSession = await prisma.videoUploadSession.findUnique({ where: { kinescopeVideoId: "video_123" } });
     expect(dbSession?.tenantId).toBe(tenant.id);
     expect(dbSession?.projectId).toBe(project.id);
@@ -215,28 +219,22 @@ describe("KinescopeService", () => {
     expect(service.verifyWebhookSignature(body, "sha256=bad")).toBe(false);
   });
 
-  it("creates upload session without uploading_location_id when discovery does not resolve one", async () => {
-    delete process.env.KINESCOPE_UPLOADING_LOCATION_ID;
+  it("uses KINESCOPE_PROJECT_ID as fallback parent when KINESCOPE_PARENT_ID is missing", async () => {
+    delete process.env.KINESCOPE_PARENT_ID;
 
     const tenant = await createTenant("kinescope-4");
     const client = await createClient(tenant.id, "client-k4@example.com");
     const project = await createProject(tenant.id, client.id, "Project");
     const service = new KinescopeService();
 
-    vi.spyOn(service as unknown as { resolveUploadingLocationId: () => Promise<string | null> }, "resolveUploadingLocationId").mockResolvedValue(
-      null,
-    );
-
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse((init?.body as string | undefined) ?? "{}") as Record<string, unknown>;
-      expect(body.uploading_location_id).toBeUndefined();
+      expect(body.parent_id).toBe("proj_123");
       return new Response(
         JSON.stringify({
-          video_id: "video_999",
-          expires_in: 1200,
-          upload: {
-            url: "https://upload.kinescope.local/video_999",
-            method: "PUT",
+          data: {
+            id: "video_999",
+            endpoint: "https://uploader.kinescope.local/upload/video_999",
           },
         }),
         { status: 200 },
@@ -255,6 +253,7 @@ describe("KinescopeService", () => {
     );
 
     expect(session.kinescopeVideoId).toBe("video_999");
+    expect(session.uploadMethod).toBe("POST");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

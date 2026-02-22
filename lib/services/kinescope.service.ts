@@ -14,31 +14,6 @@ type CreateUploadSessionInput = {
   fileSize: number;
 };
 
-type KinescopeUploadApiResponse = {
-  id?: string;
-  video_id?: string;
-  file_request_id?: string;
-  url?: string;
-  upload_url?: string;
-  link?: string;
-  data?: {
-    id?: string;
-    video_id?: string;
-    file_request_id?: string;
-    url?: string;
-    upload_url?: string;
-    link?: string;
-  };
-  expires_in?: number;
-  expires_at?: string;
-  upload?: {
-    url?: string;
-    method?: "PUT" | "POST";
-    headers?: Record<string, string>;
-    fields?: Record<string, string>;
-  };
-};
-
 type KinescopeVideoApiResponse = {
   id?: string;
   status?: string;
@@ -99,16 +74,20 @@ function toDuration(value: number | undefined): number | null {
 
 export class KinescopeService {
   private readonly apiToken: string;
+  private readonly parentId: string;
   private readonly projectId: string;
   private readonly uploadingLocationId: string;
   private readonly baseUrl: string;
+  private readonly uploaderBaseUrl: string;
   private readonly webhookSecret: string;
 
   constructor(private prismaClient: PrismaClient = prisma as PrismaClient) {
     this.apiToken = process.env.KINESCOPE_API_TOKEN ?? "";
+    this.parentId = process.env.KINESCOPE_PARENT_ID ?? "";
     this.projectId = process.env.KINESCOPE_PROJECT_ID ?? "";
     this.uploadingLocationId = process.env.KINESCOPE_UPLOADING_LOCATION_ID ?? "";
     this.baseUrl = (process.env.KINESCOPE_BASE_URL ?? "https://api.kinescope.io/v1").replace(/\/+$/, "");
+    this.uploaderBaseUrl = (process.env.KINESCOPE_UPLOADER_BASE_URL ?? "https://uploader.kinescope.io/v2").replace(/\/+$/, "");
     this.webhookSecret = process.env.KINESCOPE_WEBHOOK_SECRET ?? "";
   }
 
@@ -118,55 +97,55 @@ export class KinescopeService {
 
     await this.assertProjectInTenant(context.tenantId, input.projectId);
 
-    const resolvedUploadingLocationId = await this.resolveUploadingLocationId();
-    const payload: Record<string, unknown> = {
-      title: input.fileName,
-      name: input.fileName,
-      type: "one-time",
-      auto_start: false,
-      save_stream: true,
-    };
-    if (resolvedUploadingLocationId) {
-      payload.uploading_location_id = resolvedUploadingLocationId;
+    const resolvedParentId = this.resolveParentId();
+    if (!resolvedParentId) {
+      throw new Error("Kinescope upload parent is not configured. Set KINESCOPE_PARENT_ID (or KINESCOPE_PROJECT_ID).");
     }
 
-    let response: KinescopeUploadApiResponse;
+    const payload = {
+      filesize: input.fileSize,
+      type: "video",
+      title: input.fileName,
+      parent_id: resolvedParentId,
+      name: input.fileName,
+      filename: input.fileName,
+    } as const;
+
+    let response: {
+      id?: string;
+      video_id?: string;
+      endpoint?: string;
+      data?: {
+        id?: string;
+        video_id?: string;
+        endpoint?: string;
+      };
+    };
     try {
-      response = await this.request<KinescopeUploadApiResponse>("/file-requests", {
+      response = await this.requestUploader("/init", {
         method: "POST",
         body: JSON.stringify(payload),
       });
     } catch (error) {
-      if (!resolvedUploadingLocationId) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(
-          `Kinescope uploading location is not configured. Set KINESCOPE_UPLOADING_LOCATION_ID or ensure locations are available via API. [API Error] ${message}`,
-        );
-      }
-      throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Kinescope upload init failed. Check KINESCOPE_PARENT_ID (or KINESCOPE_PROJECT_ID). [API Error] ${message}`);
     }
 
     const uploadUrl =
-      response.upload?.url ??
-      response.upload_url ??
-      response.url ??
-      response.link ??
-      response.data?.upload_url ??
-      response.data?.url ??
-      response.data?.link;
+      response.data?.endpoint ??
+      response.endpoint;
     const kinescopeVideoId =
-      response.video_id ??
-      response.file_request_id ??
-      response.id ??
       response.data?.video_id ??
-      response.data?.file_request_id ??
-      response.data?.id;
+      response.video_id ??
+      response.data?.id ??
+      response.id ??
+      "";
     if (!uploadUrl || !kinescopeVideoId) {
-      throw new Error("Kinescope upload session response is invalid");
+      throw new Error("Kinescope upload init response is invalid");
     }
 
-    const expiresIn = response.expires_in ?? DEFAULT_EXPIRES_IN;
-    const expiresAt = response.expires_at ?? new Date(Date.now() + expiresIn * 1000).toISOString();
+    const expiresIn = DEFAULT_EXPIRES_IN;
+    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
     await this.prismaClient.videoUploadSession.upsert({
       where: { kinescopeVideoId },
@@ -192,9 +171,7 @@ export class KinescopeService {
 
     return {
       uploadUrl,
-      uploadMethod: response.upload?.method ?? "POST",
-      uploadHeaders: response.upload?.headers,
-      uploadFields: response.upload?.fields,
+      uploadMethod: "POST",
       kinescopeVideoId,
       expiresAt,
       expiresIn,
@@ -412,6 +389,15 @@ export class KinescopeService {
     }
   }
 
+  private resolveParentId(): string | null {
+    const configuredParentId = this.parentId.trim();
+    if (configuredParentId) {
+      return configuredParentId;
+    }
+    const legacyProjectId = this.projectId.trim();
+    return legacyProjectId || null;
+  }
+
   private async resolveUploadingLocationId(): Promise<string | null> {
     const configured = this.uploadingLocationId.trim();
     if (configured) {
@@ -510,6 +496,25 @@ export class KinescopeService {
     if (!response.ok) {
       const body = await response.text();
       throw new Error(`Kinescope API request failed (${response.status}): ${body || response.statusText}`);
+    }
+
+    return (await response.json()) as T;
+  }
+
+  private async requestUploader<T>(path: string, init: RequestInit): Promise<T> {
+    const response = await fetch(`${this.uploaderBaseUrl}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiToken}`,
+        ...(init.headers ?? {}),
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Kinescope uploader request failed (${response.status}): ${body || response.statusText}`);
     }
 
     return (await response.json()) as T;

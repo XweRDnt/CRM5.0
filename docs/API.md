@@ -84,7 +84,7 @@ Delete client.
 Generate Kinescope upload session.
 Requires env:
 - `KINESCOPE_API_TOKEN`
-- `KINESCOPE_UPLOADING_LOCATION_ID`
+- `KINESCOPE_PARENT_ID` (or `KINESCOPE_PROJECT_ID` fallback)
 
 Body:
 ```json
@@ -100,7 +100,7 @@ Response:
 ```json
 {
   "uploadUrl": "https://...",
-  "uploadMethod": "PUT",
+  "uploadMethod": "POST",
   "kinescopeVideoId": "video_123",
   "expiresAt": "2026-02-21T12:00:00.000Z",
   "expiresIn": 3600
