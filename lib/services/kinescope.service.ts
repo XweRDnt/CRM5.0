@@ -431,7 +431,47 @@ export class KinescopeService {
         });
         return project.uploading_location_id ?? project.data?.uploading_location_id ?? null;
       } catch {
-        return null;
+        // continue to token-scope discovery
+      }
+    }
+
+    const tokenScopedEntityId = await this.tryResolveUploadingLocationFromTokenScope();
+    if (tokenScopedEntityId) {
+      return tokenScopedEntityId;
+    }
+
+    return null;
+  }
+
+  private async tryResolveUploadingLocationFromTokenScope(): Promise<string | null> {
+    const probePaths = ["/tokens/current", "/auth/tokens/current", "/tokens/me"];
+    for (const path of probePaths) {
+      try {
+        const tokenInfo = await this.request<{
+          data?: {
+            scope?: {
+              upload?: {
+                entities?: Array<{ id?: string }>;
+              };
+            };
+          };
+          scope?: {
+            upload?: {
+              entities?: Array<{ id?: string }>;
+            };
+          };
+        }>(path, { method: "GET" });
+
+        const entities =
+          tokenInfo.data?.scope?.upload?.entities ??
+          tokenInfo.scope?.upload?.entities ??
+          [];
+        const entityId = entities.find((entity) => Boolean(entity.id))?.id;
+        if (entityId) {
+          return entityId;
+        }
+      } catch {
+        // try next path
       }
     }
 
