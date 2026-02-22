@@ -104,6 +104,22 @@ export default function ClientPortalPage(): JSX.Element {
     return nativeVideoRef.current?.currentTime ?? 0;
   }, [videoIsKinescope, videoIsYouTube]);
 
+  const readKinescopeTimeSafe = useCallback(async (): Promise<number> => {
+    const player = kinescopeRef.current;
+    if (!player) {
+      return 0;
+    }
+
+    if (typeof player.getCurrentTimeAsync === "function") {
+      const asyncTime = await player.getCurrentTimeAsync().catch(() => 0);
+      if (Number.isFinite(asyncTime) && asyncTime > 0) {
+        return asyncTime;
+      }
+    }
+
+    return player.getCurrentTime();
+  }, []);
+
   useEffect(() => {
     setPlayerReady(false);
     setPlayerCurrentTimeSec(0);
@@ -119,8 +135,12 @@ export default function ClientPortalPage(): JSX.Element {
     const interval = window.setInterval(() => {
       if (videoIsKinescope) {
         void (async () => {
-          const next = kinescopeRef.current ? await kinescopeRef.current.getCurrentTimeAsync().catch(() => 0) : 0;
-          updatePlayerTime(next);
+          try {
+            const next = await readKinescopeTimeSafe();
+            updatePlayerTime(next);
+          } catch {
+            updatePlayerTime(0);
+          }
         })();
         return;
       }
@@ -131,7 +151,7 @@ export default function ClientPortalPage(): JSX.Element {
     return () => {
       window.clearInterval(interval);
     };
-  }, [playerReady, readCurrentPlayerTime, videoIsKinescope]);
+  }, [playerReady, readCurrentPlayerTime, readKinescopeTimeSafe, videoIsKinescope]);
 
   if (isLoading) {
     return (
@@ -171,9 +191,7 @@ export default function ClientPortalPage(): JSX.Element {
     }
 
     window.setTimeout(async () => {
-      const kinescopeTime = kinescopeRef.current
-        ? await kinescopeRef.current.getCurrentTimeAsync().catch(() => 0)
-        : 0;
+      const kinescopeTime = await readKinescopeTimeSafe();
       const rawTime = videoIsKinescope ? kinescopeTime : readCurrentPlayerTime();
       const directTime = Math.max(0, Math.floor(Number.isFinite(rawTime) ? rawTime : 0));
       const normalized = Math.max(directTime, lastKnownTimeRef.current, playerCurrentTimeSec);
@@ -313,7 +331,9 @@ export default function ClientPortalPage(): JSX.Element {
           </CardHeader>
           <CardContent className="space-y-3">
             {data.feedback.length === 0 && <p className={`text-sm ${mutedTextClass}`}>{m.portal.noFeedback}</p>}
-            {data.feedback.map((item) => (
+            {data.feedback
+              .filter((item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text))
+              .map((item) => (
               <article key={item.id} className={feedbackItemClass}>
                 <div className={`mb-2 flex flex-wrap items-center gap-2 text-xs ${mutedTextClass}`}>
                   <span className={`font-medium ${titleClass}`}>{item.authorName}</span>
