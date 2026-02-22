@@ -97,20 +97,6 @@ export class KinescopeService {
 
     await this.assertProjectInTenant(context.tenantId, input.projectId);
 
-    const resolvedParentId = this.resolveParentId();
-    if (!resolvedParentId) {
-      throw new Error("Kinescope upload parent is not configured. Set KINESCOPE_PARENT_ID (or KINESCOPE_PROJECT_ID).");
-    }
-
-    const payload = {
-      filesize: input.fileSize,
-      type: "video",
-      title: input.fileName,
-      parent_id: resolvedParentId,
-      name: input.fileName,
-      filename: input.fileName,
-    } as const;
-
     let response: {
       id?: string;
       video_id?: string;
@@ -121,14 +107,51 @@ export class KinescopeService {
         endpoint?: string;
       };
     };
-    try {
-      response = await this.requestUploader("/init", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Kinescope upload init failed. Check KINESCOPE_PARENT_ID (or KINESCOPE_PROJECT_ID). [API Error] ${message}`);
+    let candidateParentId = this.resolveParentId();
+    const attemptedParentIds = new Set<string>();
+
+    if (!candidateParentId) {
+      candidateParentId = await this.discoverParentId(attemptedParentIds);
+    }
+    if (!candidateParentId) {
+      throw new Error("Kinescope upload parent is not configured. Set KINESCOPE_PARENT_ID (or KINESCOPE_PROJECT_ID).");
+    }
+
+    while (true) {
+      attemptedParentIds.add(candidateParentId);
+      const payload = {
+        filesize: input.fileSize,
+        type: "video",
+        title: input.fileName,
+        parent_id: candidateParentId,
+        name: input.fileName,
+        filename: input.fileName,
+      } as const;
+
+      try {
+        response = await this.requestUploader("/init", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        break;
+      } catch (error) {
+        if (!this.isParentIdInvalidError(error)) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new Error(`Kinescope upload init failed. Check KINESCOPE_PARENT_ID (or KINESCOPE_PROJECT_ID). [API Error] ${message}`);
+        }
+
+        const nextCandidate = await this.discoverParentId(attemptedParentIds);
+        if (nextCandidate) {
+          candidateParentId = nextCandidate;
+          continue;
+        }
+
+        const attempted = Array.from(attemptedParentIds).join(", ");
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Kinescope upload init failed. Check KINESCOPE_PARENT_ID (or KINESCOPE_PROJECT_ID). Attempted parent_id values: ${attempted}. [API Error] ${message}`,
+        );
+      }
     }
 
     const uploadUrl =
@@ -396,6 +419,75 @@ export class KinescopeService {
     }
     const legacyProjectId = this.projectId.trim();
     return legacyProjectId || null;
+  }
+
+  private isParentIdInvalidError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return message.includes("parent_id invalid") || message.includes("400406");
+  }
+
+  private async discoverParentId(excludedIds: Set<string>): Promise<string | null> {
+    const tokenScoped = await this.tryResolveUploadingLocationFromTokenScope();
+    if (tokenScoped && !excludedIds.has(tokenScoped)) {
+      return tokenScoped;
+    }
+
+    const projectIds = await this.tryDiscoverProjectIds();
+    const projectCandidate = projectIds.find((id) => !excludedIds.has(id));
+    if (projectCandidate) {
+      return projectCandidate;
+    }
+
+    return null;
+  }
+
+  private async tryDiscoverProjectIds(): Promise<string[]> {
+    const probePaths = ["/projects", "/projects?per_page=100&page=1"];
+    for (const path of probePaths) {
+      try {
+        const payload = await this.request<unknown>(path, { method: "GET" });
+        const ids = this.extractIdsFromCollectionPayload(payload);
+        if (ids.length > 0) {
+          return ids;
+        }
+      } catch {
+        // try next path
+      }
+    }
+    return [];
+  }
+
+  private extractIdsFromCollectionPayload(payload: unknown): string[] {
+    const candidates: Array<Record<string, unknown>> = [];
+
+    if (Array.isArray(payload)) {
+      candidates.push(...payload.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"));
+    } else if (payload && typeof payload === "object") {
+      const record = payload as Record<string, unknown>;
+      const directData = record.data;
+      const directItems = record.items;
+      if (Array.isArray(directData)) {
+        candidates.push(...directData.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"));
+      }
+      if (Array.isArray(directItems)) {
+        candidates.push(...directItems.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"));
+      }
+      if (directData && typeof directData === "object") {
+        const nestedItems = (directData as Record<string, unknown>).items;
+        if (Array.isArray(nestedItems)) {
+          candidates.push(...nestedItems.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object"));
+        }
+      }
+    }
+
+    const ids = new Set<string>();
+    for (const candidate of candidates) {
+      const id = candidate.id;
+      if (typeof id === "string" && id.trim()) {
+        ids.add(id.trim());
+      }
+    }
+    return Array.from(ids);
   }
 
   private async resolveUploadingLocationId(): Promise<string | null> {

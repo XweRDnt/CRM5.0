@@ -256,4 +256,74 @@ describe("KinescopeService", () => {
     expect(session.uploadMethod).toBe("POST");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("retries init with discovered parent_id when configured parent is invalid", async () => {
+    process.env.KINESCOPE_PARENT_ID = "bad_parent";
+
+    const tenant = await createTenant("kinescope-5");
+    const client = await createClient(tenant.id, "client-k5@example.com");
+    const project = await createProject(tenant.id, client.id, "Project");
+    const service = new KinescopeService();
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url.endsWith("/init")) {
+        const body = JSON.parse((init?.body as string | undefined) ?? "{}") as Record<string, unknown>;
+        if (body.parent_id === "bad_parent") {
+          return new Response(
+            JSON.stringify({
+              error: {
+                code: 400406,
+                message: "parent_id invalid",
+              },
+            }),
+            { status: 400 },
+          );
+        }
+
+        expect(body.parent_id).toBe("entity_777");
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: "video_retry_1",
+              endpoint: "https://uploader.kinescope.local/upload/video_retry_1",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url.endsWith("/tokens/current")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              scope: {
+                upload: {
+                  entities: [{ id: "entity_777" }],
+                },
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ error: "unexpected url" }), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const session = await service.createUploadSession(
+      { tenantId: tenant.id },
+      {
+        projectId: project.id,
+        fileName: "v5.mp4",
+        fileType: "video/mp4",
+        fileSize: 1000,
+      },
+    );
+
+    expect(session.kinescopeVideoId).toBe("video_retry_1");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
 });
