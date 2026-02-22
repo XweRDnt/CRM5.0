@@ -116,15 +116,13 @@ export class FeedbackService {
       },
     });
 
-    try {
-      await addParseFeedbackJob({
-        tenantId,
-        projectId: version.project.id,
-        feedbackIds: [feedback.id],
-      });
-    } catch (error) {
+    void addParseFeedbackJob({
+      tenantId,
+      projectId: version.project.id,
+      feedbackIds: [feedback.id],
+    }).catch((error) => {
       console.error("Failed to queue feedback parsing job", error);
-    }
+    });
 
     return this.mapFeedbackResponse(feedback as FeedbackWithAuthor);
   }
