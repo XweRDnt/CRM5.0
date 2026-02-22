@@ -66,7 +66,8 @@ export function FeedbackForm({
       toast.success(m.feedback.submitSuccess);
       onSubmitted?.();
     } catch (error) {
-      const isAbort = error instanceof DOMException && error.name === "AbortError";
+      const errorName = typeof error === "object" && error !== null && "name" in error ? String((error as { name?: unknown }).name) : "";
+      const isAbort = errorName === "AbortError";
       if (isAbort) {
         toast.error("Request timeout. Please try again.");
       } else {
