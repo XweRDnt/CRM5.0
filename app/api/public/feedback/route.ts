@@ -1,4 +1,4 @@
-import { AuthorType, FeedbackCategory } from "@prisma/client";
+﻿import { AuthorType, FeedbackCategory } from "@prisma/client";
 import { z } from "zod";
 import { FeedbackService } from "@/lib/services/feedback.service";
 import { getTelegramNotificationService } from "@/lib/services/telegram-notification.service";
@@ -44,23 +44,24 @@ export async function POST(request: Request): Promise<Response> {
       tenantId: version.project.tenantId,
     });
 
-    try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      await getTelegramNotificationService().notifyNewFeedback({
+    const response = Response.json(feedback, { status: 201 });
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+    void getTelegramNotificationService()
+      .notifyNewFeedback({
         projectName: version.project.name,
         versionNumber: version.versionNo,
-        authorName: payload.authorName?.trim() || "Клиент",
+        authorName: payload.authorName?.trim() || "Client",
         text: payload.text,
         timecodeSec: payload.timecodeSec,
         portalUrl: `${appUrl}/client-portal/${version.id}`,
+      })
+      .catch((telegramError) => {
+        console.error("[Telegram] feedback notification failed", telegramError);
       });
-    } catch (telegramError) {
-      console.error("[Telegram] feedback notification failed", telegramError);
-    }
 
-    return Response.json(feedback, { status: 201 });
+    return response;
   } catch (error) {
     return handleAPIError(error);
   }
 }
-

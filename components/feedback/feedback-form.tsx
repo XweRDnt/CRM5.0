@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -17,6 +17,8 @@ type FeedbackFormProps = {
   disabled?: boolean;
   disabledReason?: string;
 };
+
+const SUBMIT_TIMEOUT_MS = 15000;
 
 export function FeedbackForm({
   versionId,
@@ -38,8 +40,11 @@ export function FeedbackForm({
     event.preventDefault();
     setSubmitting(true);
 
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+
     try {
-      await fetch("/api/public/feedback", {
+      const response = await fetch("/api/public/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -49,19 +54,26 @@ export function FeedbackForm({
           text,
           timecodeSec: capturedTimecodeSec ?? undefined,
         }),
-      }).then(async (response) => {
-        if (!response.ok) {
-          const json = (await response.json()) as { error?: string };
-          throw new Error(json.error || "Failed to submit feedback");
-        }
+        signal: controller.signal,
       });
+
+      if (!response.ok) {
+        const json = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(json?.error || "Failed to submit feedback");
+      }
 
       setText("");
       toast.success(m.feedback.submitSuccess);
       onSubmitted?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : m.feedback.submitError);
+      const isAbort = error instanceof DOMException && error.name === "AbortError";
+      if (isAbort) {
+        toast.error("Request timeout. Please try again.");
+      } else {
+        toast.error(error instanceof Error ? error.message : m.feedback.submitError);
+      }
     } finally {
+      window.clearTimeout(timeout);
       setSubmitting(false);
     }
   };
