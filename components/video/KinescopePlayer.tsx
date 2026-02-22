@@ -2,7 +2,7 @@
 
 import KinescopeSdkPlayer from "@kinescope/react-kinescope-player";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 
 type KinescopeTimeUpdateEvent = {
@@ -67,10 +67,10 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
   ({ videoId, videoUrl, onTimeUpdate, onPause, onPlay, onReady, onError, autoplay, className }, ref) => {
     const playerRef = useRef<InstanceType<typeof KinescopeSdkPlayer> | null>(null);
     const readyNotifiedRef = useRef(false);
+    const currentTimeRef = useRef(0);
+    const durationRef = useRef(0);
     const [isReady, setIsReady] = useState(false);
     const [playerError, setPlayerError] = useState<string | null>(null);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0);
     const resolvedVideoId = useMemo(() => resolveVideoId(videoId, videoUrl), [videoId, videoUrl]);
 
     useEffect(() => {
@@ -106,22 +106,66 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
         seekTo: (seconds: number) => {
           void playerRef.current?.seekTo(Math.max(0, Number.isFinite(seconds) ? seconds : 0)).catch(() => undefined);
         },
-        getCurrentTime: () => currentTime,
+        getCurrentTime: () => currentTimeRef.current,
         getCurrentTimeAsync: async () => {
           try {
             const value = await playerRef.current?.getCurrentTime();
             const normalized = normalizeSeconds(value);
-            setCurrentTime(normalized);
+            currentTimeRef.current = normalized;
             return normalized;
           } catch {
-            return currentTime;
+            return currentTimeRef.current;
           }
         },
-        getDuration: () => duration,
+        getDuration: () => durationRef.current,
         isReady,
       }),
-      [currentTime, duration, isReady],
+      [isReady],
     );
+
+    const handleInit = useCallback(() => {
+      setPlayerError(null);
+      currentTimeRef.current = 0;
+      durationRef.current = 0;
+      setIsReady(true);
+      if (!readyNotifiedRef.current) {
+        readyNotifiedRef.current = true;
+        onReady?.();
+      }
+    }, [onReady]);
+
+    const handleReady = useCallback(() => {
+      setPlayerError(null);
+      setIsReady(true);
+      if (!readyNotifiedRef.current) {
+        readyNotifiedRef.current = true;
+        onReady?.();
+      }
+    }, [onReady]);
+
+    const handleTimeUpdate = useCallback((event: KinescopeTimeUpdateEvent) => {
+      const normalized = normalizeSeconds(event?.currentTime);
+      currentTimeRef.current = normalized;
+      onTimeUpdate?.(normalized);
+    }, [onTimeUpdate]);
+
+    const handleDurationChange = useCallback((event: KinescopeDurationEvent) => {
+      durationRef.current = normalizeSeconds(event?.duration);
+    }, []);
+
+    const handlePlay = useCallback(() => {
+      onPlay?.();
+    }, [onPlay]);
+
+    const handlePause = useCallback(() => {
+      onPause?.();
+    }, [onPause]);
+
+    const handleError = useCallback(() => {
+      const message = "Failed to load Kinescope player";
+      setPlayerError(message);
+      onError?.(message);
+    }, [onError]);
 
     if (!resolvedVideoId) {
       return (
@@ -136,50 +180,19 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
       <div className={cn("w-full", className)}>
         <div className="relative aspect-video w-full overflow-hidden rounded-md bg-black">
           <KinescopeSdkPlayer
-            key={resolvedVideoId}
             ref={playerRef}
             videoId={resolvedVideoId}
             autoPlay={Boolean(autoplay)}
             width="100%"
             height="100%"
             className="h-full w-full"
-            onInit={() => {
-              setPlayerError(null);
-              setCurrentTime(0);
-              setDuration(0);
-              setIsReady(true);
-              if (!readyNotifiedRef.current) {
-                readyNotifiedRef.current = true;
-                onReady?.();
-              }
-            }}
-            onReady={() => {
-              setPlayerError(null);
-              setIsReady(true);
-              if (!readyNotifiedRef.current) {
-                readyNotifiedRef.current = true;
-                onReady?.();
-              }
-            }}
-            onTimeUpdate={(event: KinescopeTimeUpdateEvent) => {
-              const normalized = normalizeSeconds(event?.currentTime);
-              setCurrentTime(normalized);
-              onTimeUpdate?.(normalized);
-            }}
-            onDurationChange={(event: KinescopeDurationEvent) => {
-              setDuration(normalizeSeconds(event?.duration));
-            }}
-            onPlay={() => {
-              onPlay?.();
-            }}
-            onPause={() => {
-              onPause?.();
-            }}
-            onError={() => {
-              const message = "Failed to load Kinescope player";
-              setPlayerError(message);
-              onError?.(message);
-            }}
+            onInit={handleInit}
+            onReady={handleReady}
+            onTimeUpdate={handleTimeUpdate}
+            onDurationChange={handleDurationChange}
+            onPlay={handlePlay}
+            onPause={handlePause}
+            onError={handleError}
           />
 
           {!isReady && !playerError ? (
