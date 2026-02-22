@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, Loader2 } from "lucide-react";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 
 export interface KinescopePlayerProps {
@@ -36,14 +36,31 @@ type PlayerMessage = {
   };
 };
 
-function resolveEmbedSrc(videoId?: string | null, videoUrl?: string): string {
-  if (videoUrl?.trim()) {
-    return videoUrl.trim();
-  }
+const DEFAULT_KINESCOPE_ORIGIN = "https://kinescope.io";
+
+function resolveEmbedSrc(videoId?: string | null, videoUrl?: string): { src: string; targetOrigin: string } {
   if (videoId?.trim()) {
-    return `https://kinescope.io/${videoId.trim()}`;
+    const normalizedOrigin = DEFAULT_KINESCOPE_ORIGIN.replace(/\/+$/, "");
+    return {
+      src: `${normalizedOrigin}/${videoId.trim()}`,
+      targetOrigin: DEFAULT_KINESCOPE_ORIGIN,
+    };
   }
-  return "";
+
+  if (videoUrl?.trim()) {
+    const normalized = videoUrl.trim();
+    try {
+      const parsed = new URL(normalized);
+      return {
+        src: parsed.toString(),
+        targetOrigin: parsed.origin,
+      };
+    } catch {
+      return { src: normalized, targetOrigin: "*" };
+    }
+  }
+
+  return { src: "", targetOrigin: "*" };
 }
 
 export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerProps>(
@@ -53,7 +70,9 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
     const [playerError, setPlayerError] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
-    const embedSrc = useMemo(() => resolveEmbedSrc(videoId, videoUrl), [videoId, videoUrl]);
+    const embed = useMemo(() => resolveEmbedSrc(videoId, videoUrl), [videoId, videoUrl]);
+    const embedSrc = embed.src;
+    const targetOrigin = embed.targetOrigin;
 
     useEffect(() => {
       if (!embedSrc) {
@@ -69,6 +88,9 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
 
       const handleMessage = (event: MessageEvent<unknown>): void => {
         if (!iframeRef.current || event.source !== iframeRef.current.contentWindow) {
+          return;
+        }
+        if (targetOrigin !== "*" && event.origin !== targetOrigin) {
           return;
         }
 
@@ -88,8 +110,12 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
         }
 
         if (eventName === "ready" || eventName === "player.ready") {
-          setIsReady(true);
-          onReady?.();
+          setIsReady((prev) => {
+            if (!prev) {
+              onReady?.();
+            }
+            return true;
+          });
         }
         if (eventName === "play" || eventName === "player.play") {
           onPlay?.();
@@ -101,21 +127,21 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
 
       window.addEventListener("message", handleMessage);
       return () => window.removeEventListener("message", handleMessage);
-    }, [onPause, onPlay, onReady, onTimeUpdate]);
+    }, [onPause, onPlay, onReady, onTimeUpdate, targetOrigin]);
 
     useEffect(() => {
       if (!autoplay || !isReady || !iframeRef.current?.contentWindow) {
         return;
       }
-      iframeRef.current.contentWindow.postMessage({ type: "command", method: "play" }, "*");
-    }, [autoplay, isReady]);
+      iframeRef.current.contentWindow.postMessage({ type: "command", method: "play" }, targetOrigin);
+    }, [autoplay, isReady, targetOrigin]);
 
-    const sendCommand = (method: string, args: Record<string, unknown> = {}): void => {
+    const sendCommand = useCallback((method: string, args: Record<string, unknown> = {}): void => {
       if (!iframeRef.current?.contentWindow) {
         return;
       }
-      iframeRef.current.contentWindow.postMessage({ type: "command", method, ...args }, "*");
-    };
+      iframeRef.current.contentWindow.postMessage({ type: "command", method, ...args }, targetOrigin);
+    }, [targetOrigin]);
 
     useImperativeHandle(
       ref,
@@ -127,7 +153,7 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
         getDuration: () => duration,
         isReady,
       }),
-      [currentTime, duration, isReady],
+      [currentTime, duration, isReady, sendCommand],
     );
 
     if (!embedSrc) {
@@ -146,12 +172,14 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
             ref={iframeRef}
             src={embedSrc}
             className="h-full w-full border-0"
+            title="Kinescope video player"
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen
             onLoad={() => {
               setPlayerError(null);
-              setIsReady(true);
-              onReady?.();
+              setIsReady(false);
+              setCurrentTime(0);
+              setDuration(0);
             }}
             onError={() => {
               const message = "Failed to load Kinescope player";

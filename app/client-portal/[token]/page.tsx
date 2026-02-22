@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -68,7 +68,6 @@ export default function ClientPortalPage(): JSX.Element {
   const lastKnownTimeRef = useRef(0);
   const [playerCurrentTimeSec, setPlayerCurrentTimeSec] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
-  const [youtubePlaying, setYoutubePlaying] = useState(false);
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -76,6 +75,7 @@ export default function ClientPortalPage(): JSX.Element {
   const videoProvider = data?.version.videoProvider ?? "EXTERNAL_URL";
   const videoIsKinescope = videoProvider === "KINESCOPE";
   const videoIsYouTube = !videoIsKinescope && isYouTubeUrl(safeVideoUrl);
+  const kinescopeReady = !videoIsKinescope || data?.version.processingStatus === "READY";
 
   const pageBackground = "bg-[var(--app-bg)]";
   const shellCardClass =
@@ -95,39 +95,36 @@ export default function ClientPortalPage(): JSX.Element {
     setPlayerCurrentTimeSec(normalized);
   };
 
+  const readCurrentPlayerTime = useCallback((): number => {
+    if (videoIsKinescope) {
+      return kinescopeRef.current?.getCurrentTime() ?? 0;
+    }
+    if (videoIsYouTube) {
+      return youtubeRef.current?.getCurrentTime() ?? 0;
+    }
+    return nativeVideoRef.current?.currentTime ?? 0;
+  }, [videoIsKinescope, videoIsYouTube]);
+
   useEffect(() => {
-    if (!playerReady) {
+    setPlayerReady(false);
+    setPlayerCurrentTimeSec(0);
+    setCapturedTimecodeSec(null);
+    lastKnownTimeRef.current = 0;
+  }, [data?.version.id, videoProvider, safeVideoUrl, data?.version.kinescopeVideoId]);
+
+  useEffect(() => {
+    if (!playerReady || !kinescopeReady) {
       return;
     }
 
     const interval = window.setInterval(() => {
-      const rawTime = videoIsYouTube ? youtubeRef.current?.getCurrentTime() ?? 0 : nativeVideoRef.current?.currentTime ?? 0;
-      const resolvedTime = videoIsKinescope ? kinescopeRef.current?.getCurrentTime() ?? 0 : rawTime;
-      updatePlayerTime(resolvedTime);
+      updatePlayerTime(readCurrentPlayerTime());
     }, 250);
 
     return () => {
       window.clearInterval(interval);
     };
-  }, [playerReady, videoIsKinescope, videoIsYouTube]);
-
-  useEffect(() => {
-    if (!videoIsYouTube || !youtubePlaying || videoIsKinescope) {
-      return;
-    }
-
-    const interval = window.setInterval(() => {
-      setPlayerCurrentTimeSec((prev) => {
-        const next = prev + 1;
-        lastKnownTimeRef.current = next;
-        return next;
-      });
-    }, 1000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [videoIsKinescope, videoIsYouTube, youtubePlaying]);
+  }, [kinescopeReady, playerReady, readCurrentPlayerTime]);
 
   if (isLoading) {
     return (
@@ -153,7 +150,7 @@ export default function ClientPortalPage(): JSX.Element {
   }
 
   const captureCurrentTimecode = (): void => {
-    if (!playerReady) {
+    if (!playerReady || !kinescopeReady) {
       toast.error(m.portal.playerNotReady);
       return;
     }
@@ -167,9 +164,7 @@ export default function ClientPortalPage(): JSX.Element {
     }
 
     window.setTimeout(() => {
-      const rawTime = videoIsKinescope
-        ? kinescopeRef.current?.getCurrentTime() ?? 0
-        : (videoIsYouTube ? youtubeRef.current?.getCurrentTime() ?? 0 : nativeVideoRef.current?.currentTime ?? 0);
+      const rawTime = readCurrentPlayerTime();
       const directTime = Math.max(0, Math.floor(Number.isFinite(rawTime) ? rawTime : 0));
       const normalized = Math.max(directTime, lastKnownTimeRef.current, playerCurrentTimeSec);
       if (normalized === 0) {
@@ -213,7 +208,13 @@ export default function ClientPortalPage(): JSX.Element {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
-              {videoIsKinescope ? (
+              {videoIsKinescope && data.version.processingStatus !== "READY" ? (
+                <div className="flex aspect-video items-center justify-center rounded-[20px] bg-black/90 p-6 text-center text-sm text-white/85">
+                  {data.version.processingStatus === "FAILED"
+                    ? "Video processing failed. Try re-uploading this version."
+                    : "Video is processing in Kinescope. Player will be available when processing is complete."}
+                </div>
+              ) : videoIsKinescope ? (
                 <KinescopePlayer
                   ref={kinescopeRef}
                   className="w-full"
@@ -221,11 +222,7 @@ export default function ClientPortalPage(): JSX.Element {
                   videoUrl={safeVideoUrl}
                   onReady={() => setPlayerReady(true)}
                   onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
-                  onPlay={() => {
-                    setPlayerReady(true);
-                    setYoutubePlaying(true);
-                  }}
-                  onPause={() => setYoutubePlaying(false)}
+                  onPlay={() => setPlayerReady(true)}
                 />
               ) : videoIsYouTube ? (
                 <YouTubePlayer
@@ -234,11 +231,7 @@ export default function ClientPortalPage(): JSX.Element {
                   videoUrl={safeVideoUrl}
                   onReady={() => setPlayerReady(true)}
                   onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
-                  onPlay={() => {
-                    setPlayerReady(true);
-                    setYoutubePlaying(true);
-                  }}
-                  onPause={() => setYoutubePlaying(false)}
+                  onPlay={() => setPlayerReady(true)}
                 />
               ) : (
                 <video
@@ -265,7 +258,7 @@ export default function ClientPortalPage(): JSX.Element {
                 <Button
                   onClick={captureCurrentTimecode}
                   type="button"
-                  disabled={!playerReady || isVersionLocked}
+                  disabled={!playerReady || !kinescopeReady || isVersionLocked}
                   className="h-11 rounded-full bg-[#007AFF] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(0,122,255,0.35)] hover:bg-[#0A84FF]"
                 >
                   {m.portal.addFeedbackAtCurrentTime}
@@ -317,7 +310,7 @@ export default function ClientPortalPage(): JSX.Element {
                     variant="secondary"
                     className="rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] px-2.5 text-[11px] text-[color:var(--app-text)]"
                   >
-                    {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                    {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "No timecode"}
                   </Badge>
                 </div>
                 <p className={`text-sm leading-relaxed ${cardTextClass}`}>{item.text}</p>
