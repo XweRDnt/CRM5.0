@@ -19,11 +19,12 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function uploadViaTus(endpoint: string, file: File): Promise<void> {
+async function uploadViaTus(uploadUrl: string, file: File, headers?: Record<string, string>): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const upload = new tus.Upload(file, {
-      endpoint,
+      uploadUrl,
       retryDelays: [0, 1000, 3000, 5000],
+      headers,
       metadata: {
         filename: file.name,
         filetype: file.type || "application/octet-stream",
@@ -43,7 +44,7 @@ async function uploadViaTus(endpoint: string, file: File): Promise<void> {
 async function uploadToKinescope(session: UploadUrlResponse, file: File): Promise<void> {
   if (session.uploadMethod === "POST") {
     try {
-      await uploadViaTus(session.uploadUrl, file);
+      await uploadViaTus(session.uploadUrl, file, session.uploadHeaders);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown error";
       throw new Error(`Upload failed with Tus: ${message}`);
