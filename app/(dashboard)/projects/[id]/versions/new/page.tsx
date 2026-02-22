@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import * as tus from "tus-js-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,19 +19,34 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function uploadToKinescope(session: UploadUrlResponse, file: File): Promise<void> {
-  if (session.uploadMethod === "POST") {
-    const formData = new FormData();
-    Object.entries(session.uploadFields ?? {}).forEach(([key, value]) => formData.append(key, value));
-    formData.append("file", file);
-
-    const response = await fetch(session.uploadUrl, {
-      method: "POST",
-      body: formData,
+async function uploadViaTus(endpoint: string, file: File): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint,
+      retryDelays: [0, 1000, 3000, 5000],
+      metadata: {
+        filename: file.name,
+        filetype: file.type || "application/octet-stream",
+      },
+      onError(error) {
+        reject(error);
+      },
+      onSuccess() {
+        resolve();
+      },
     });
 
-    if (!response.ok) {
-      throw new Error(`Upload failed with code ${response.status}`);
+    upload.start();
+  });
+}
+
+async function uploadToKinescope(session: UploadUrlResponse, file: File): Promise<void> {
+  if (session.uploadMethod === "POST") {
+    try {
+      await uploadViaTus(session.uploadUrl, file);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown error";
+      throw new Error(`Upload failed with Tus: ${message}`);
     }
     return;
   }
