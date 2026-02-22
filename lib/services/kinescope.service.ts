@@ -325,21 +325,38 @@ export class KinescopeService {
 
   async listUploadingLocations(): Promise<KinescopeUploadingLocation[]> {
     this.ensureApiTokenConfigured();
-    const payload = await this.request<{
-      data?: Array<{ id?: string; title?: string; name?: string; is_default?: boolean }>;
-      items?: Array<{ id?: string; title?: string; name?: string; is_default?: boolean }>;
-    }>("/uploading-locations", {
-      method: "GET",
-    });
+    const candidates = ["/uploading-locations", "/uploading_locations", "/locations"];
+    let lastError: unknown;
 
-    const items = payload.data ?? payload.items ?? [];
-    return items
-      .filter((item) => Boolean(item.id))
-      .map((item) => ({
-        id: item.id as string,
-        title: item.title ?? item.name ?? "Untitled location",
-        isDefault: Boolean(item.is_default),
-      }));
+    for (const path of candidates) {
+      try {
+        const payload = await this.request<{
+          data?: Array<{ id?: string; title?: string; name?: string; is_default?: boolean }>;
+          items?: Array<{ id?: string; title?: string; name?: string; is_default?: boolean }>;
+        }>(path, {
+          method: "GET",
+        });
+
+        const items = payload.data ?? payload.items ?? [];
+        const normalized = items
+          .filter((item) => Boolean(item.id))
+          .map((item) => ({
+            id: item.id as string,
+            title: item.title ?? item.name ?? "Untitled location",
+            isDefault: Boolean(item.is_default),
+          }));
+
+        if (normalized.length > 0) {
+          return normalized;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("Kinescope uploading locations endpoint is not available");
   }
 
   buildEmbedUrl(videoId: string): string {
