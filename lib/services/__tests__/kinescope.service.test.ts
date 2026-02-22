@@ -60,6 +60,7 @@ describe("KinescopeService", () => {
   beforeEach(async () => {
     process.env.KINESCOPE_API_TOKEN = "test-token";
     process.env.KINESCOPE_PROJECT_ID = "proj_123";
+    process.env.KINESCOPE_UPLOADING_LOCATION_ID = "loc_123";
     process.env.KINESCOPE_BASE_URL = "https://api.kinescope.local/v1";
     process.env.KINESCOPE_WEBHOOK_SECRET = "secret";
     await cleanup();
@@ -212,5 +213,48 @@ describe("KinescopeService", () => {
     const sig = `sha256=${crypto.createHmac("sha256", "secret").update(body).digest("hex")}`;
     expect(service.verifyWebhookSignature(body, sig)).toBe(true);
     expect(service.verifyWebhookSignature(body, "sha256=bad")).toBe(false);
+  });
+
+  it("creates upload session without uploading_location_id when discovery does not resolve one", async () => {
+    delete process.env.KINESCOPE_UPLOADING_LOCATION_ID;
+
+    const tenant = await createTenant("kinescope-4");
+    const client = await createClient(tenant.id, "client-k4@example.com");
+    const project = await createProject(tenant.id, client.id, "Project");
+    const service = new KinescopeService();
+
+    vi.spyOn(service as unknown as { resolveUploadingLocationId: () => Promise<string | null> }, "resolveUploadingLocationId").mockResolvedValue(
+      null,
+    );
+
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse((init?.body as string | undefined) ?? "{}") as Record<string, unknown>;
+      expect(body.uploading_location_id).toBeUndefined();
+      return new Response(
+        JSON.stringify({
+          video_id: "video_999",
+          expires_in: 1200,
+          upload: {
+            url: "https://upload.kinescope.local/video_999",
+            method: "PUT",
+          },
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const session = await service.createUploadSession(
+      { tenantId: tenant.id },
+      {
+        projectId: project.id,
+        fileName: "v4.mp4",
+        fileType: "video/mp4",
+        fileSize: 1000,
+      },
+    );
+
+    expect(session.kinescopeVideoId).toBe("video_999");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -119,23 +119,32 @@ export class KinescopeService {
     await this.assertProjectInTenant(context.tenantId, input.projectId);
 
     const resolvedUploadingLocationId = await this.resolveUploadingLocationId();
-    if (!resolvedUploadingLocationId) {
-      throw new Error(
-        "Kinescope uploading location is not configured. Set KINESCOPE_UPLOADING_LOCATION_ID or ensure locations are available via API.",
-      );
+    const payload: Record<string, unknown> = {
+      title: input.fileName,
+      name: input.fileName,
+      type: "one-time",
+      auto_start: false,
+      save_stream: true,
+    };
+    if (resolvedUploadingLocationId) {
+      payload.uploading_location_id = resolvedUploadingLocationId;
     }
 
-    const response = await this.request<KinescopeUploadApiResponse>("/file-requests", {
-      method: "POST",
-      body: JSON.stringify({
-        title: input.fileName,
-        name: input.fileName,
-        uploading_location_id: resolvedUploadingLocationId,
-        type: "one-time",
-        auto_start: false,
-        save_stream: true,
-      }),
-    });
+    let response: KinescopeUploadApiResponse;
+    try {
+      response = await this.request<KinescopeUploadApiResponse>("/file-requests", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      if (!resolvedUploadingLocationId) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Kinescope uploading location is not configured. Set KINESCOPE_UPLOADING_LOCATION_ID or ensure locations are available via API. [API Error] ${message}`,
+        );
+      }
+      throw error;
+    }
 
     const uploadUrl =
       response.upload?.url ??
