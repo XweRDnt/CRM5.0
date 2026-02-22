@@ -420,13 +420,13 @@ export class KinescopeService {
       return preferred.id;
     }
 
-    const projectUuid = this.resolveOptionalUuid(this.projectId);
-    if (projectUuid) {
+    const projectId = this.projectId.trim();
+    if (projectId) {
       try {
         const project = await this.request<{
           uploading_location_id?: string;
           data?: { uploading_location_id?: string };
-        }>(`/projects/${projectUuid}`, {
+        }>(`/projects/${projectId}`, {
           method: "GET",
         });
         return project.uploading_location_id ?? project.data?.uploading_location_id ?? null;
