@@ -6,7 +6,7 @@ import { KinescopePlayer } from "../KinescopePlayer";
 
 vi.mock("@kinescope/react-kinescope-player", () => {
   const Mocked = forwardRef(function MockedKinescopePlayer(
-    props: { videoId: string },
+    props: { videoId: string; playsInline?: boolean },
     ref,
   ) {
     useImperativeHandle(ref, () => ({
@@ -17,7 +17,13 @@ vi.mock("@kinescope/react-kinescope-player", () => {
       getDuration: async () => 120,
     }));
 
-    return <div data-testid="kinescope-sdk-player" data-video-id={props.videoId} />;
+    return (
+      <div
+        data-testid="kinescope-sdk-player"
+        data-video-id={props.videoId}
+        data-plays-inline={String(Boolean(props.playsInline))}
+      />
+    );
   });
 
   return {
@@ -27,6 +33,19 @@ vi.mock("@kinescope/react-kinescope-player", () => {
 });
 
 describe("KinescopePlayer", () => {
+  const originalUserAgent = navigator.userAgent;
+
+  const setUserAgent = (userAgent: string): void => {
+    Object.defineProperty(window.navigator, "userAgent", {
+      value: userAgent,
+      configurable: true,
+    });
+  };
+
+  afterEach(() => {
+    setUserAgent(originalUserAgent);
+  });
+
   it("renders configuration error when no source is provided", () => {
     render(<KinescopePlayer />);
     expect(screen.getByText("Kinescope video is not configured.")).toBeTruthy();
@@ -42,5 +61,19 @@ describe("KinescopePlayer", () => {
     render(<KinescopePlayer videoUrl="https://kinescope.io/video_777" />);
     const sdkPlayer = screen.getByTestId("kinescope-sdk-player");
     expect(sdkPlayer.getAttribute("data-video-id")).toBe("video_777");
+  });
+
+  it("keeps inline playback for non-android browsers", () => {
+    setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+    render(<KinescopePlayer videoId="video_123" />);
+    const sdkPlayer = screen.getByTestId("kinescope-sdk-player");
+    expect(sdkPlayer.getAttribute("data-plays-inline")).toBe("true");
+  });
+
+  it("disables inline playback on Android to allow native fullscreen", () => {
+    setUserAgent("Mozilla/5.0 (Linux; Android 14; Pixel 8)");
+    render(<KinescopePlayer videoId="video_123" />);
+    const sdkPlayer = screen.getByTestId("kinescope-sdk-player");
+    expect(sdkPlayer.getAttribute("data-plays-inline")).toBe("false");
   });
 });

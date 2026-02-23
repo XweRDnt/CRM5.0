@@ -73,6 +73,12 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
     const [isReady, setIsReady] = useState(false);
     const [playerError, setPlayerError] = useState<string | null>(null);
     const resolvedVideoId = useMemo(() => resolveVideoId(videoId, videoUrl), [videoId, videoUrl]);
+    const playsInline = useMemo(() => {
+      if (typeof navigator === "undefined") {
+        return true;
+      }
+      return !/Android/i.test(navigator.userAgent ?? "");
+    }, []);
 
     useEffect(() => {
       if (!resolvedVideoId) {
@@ -187,7 +193,7 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
             ref={playerRef}
             videoId={resolvedVideoId}
             autoPlay={Boolean(autoplay)}
-            playsInline={true}
+            playsInline={playsInline}
             controls={true}
             width="100%"
             height="100%"
