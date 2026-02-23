@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -53,6 +54,7 @@ export default function LoginPage(): JSX.Element {
   const m = getMessages();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const next = searchParams.get("next") || "/projects";
   const {
     register,
@@ -91,6 +93,53 @@ export default function LoginPage(): JSX.Element {
       toast.error(error instanceof Error ? error.message : "Не удалось выполнить вход");
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkSession = async (): Promise<void> => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        if (!cancelled) {
+          setIsCheckingSession(false);
+        }
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/auth/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          router.replace("/dashboard");
+          return;
+        }
+      } catch {
+        // ignore and show login form
+      }
+
+      if (!cancelled) {
+        setIsCheckingSession(false);
+      }
+    };
+
+    void checkSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  if (isCheckingSession) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-neutral-100 p-4">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-neutral-100 p-4">
