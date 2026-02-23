@@ -342,13 +342,6 @@ export default function ClientPortalPage(): JSX.Element {
                   </span>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
-                      onClick={requestPlayerFullscreen}
-                      type="button"
-                      className="h-11 rounded-full bg-black px-5 text-sm font-semibold text-white hover:bg-black/90 sm:hidden"
-                    >
-                      Полный экран
-                    </Button>
-                    <Button
                       onClick={captureCurrentTimecode}
                       type="button"
                       disabled={!playerReady || isVersionLocked}
