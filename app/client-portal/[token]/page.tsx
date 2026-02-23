@@ -362,7 +362,7 @@ export default function ClientPortalPage(): JSX.Element {
                     <button
                       type="button"
                       onClick={() => seekToTimecode(item.timecodeSec)}
-                      className="rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] px-2.5 text-[11px] text-[color:var(--app-text)]"
+                      className="rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] px-2.5 text-[11px] text-blue-600"
                     >
                       {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "No timecode"}
                     </button>
