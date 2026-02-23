@@ -51,7 +51,7 @@ export class AuthService {
       role,
     };
 
-    return jwt.sign(payload, secret, { expiresIn: "7d" });
+    return jwt.sign(payload, secret, { expiresIn: "30d" });
   }
 
   async verifyToken(token: string): Promise<JWTPayload> {

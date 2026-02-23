@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Bot, Clock3, MessageSquareText, ShieldCheck, Sparkles, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CTASection, FAQ, Features, Footer, Hero, HowItWorks, Pricing } from "@/components/landing";
+import { LandingAutoRedirectGate } from "@/components/landing/LandingAutoRedirectGate";
 import { LoginEntryButton } from "@/components/landing/LoginEntryButton";
 
 export const metadata: Metadata = {
@@ -139,71 +140,73 @@ const footerGroups = [
 
 export default function MarketingPage(): JSX.Element {
   return (
-    <main className="min-h-screen bg-neutral-50">
-      <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/90 backdrop-blur">
-        <div className="container mx-auto flex items-center justify-between px-4 py-3">
-          <Link href="/" className="text-lg font-semibold text-neutral-900">
-            VideoFeedback
-          </Link>
-          <nav className="hidden items-center gap-5 text-sm text-neutral-700 md:flex">
-            <a href="#features" className="hover:text-neutral-900">
-              Возможности
-            </a>
-            <a href="#pricing" className="hover:text-neutral-900">
-              Тарифы
-            </a>
-            <a href="#faq" className="hover:text-neutral-900">
-              FAQ
-            </a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <LoginEntryButton />
-            <Button size="sm" asChild>
-              <Link href="/signup">Регистрация</Link>
-            </Button>
+    <LandingAutoRedirectGate>
+      <main className="min-h-screen bg-neutral-50">
+        <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/90 backdrop-blur">
+          <div className="container mx-auto flex items-center justify-between px-4 py-3">
+            <Link href="/" className="text-lg font-semibold text-neutral-900">
+              VideoFeedback
+            </Link>
+            <nav className="hidden items-center gap-5 text-sm text-neutral-700 md:flex">
+              <a href="#features" className="hover:text-neutral-900">
+                Возможности
+              </a>
+              <a href="#pricing" className="hover:text-neutral-900">
+                Тарифы
+              </a>
+              <a href="#faq" className="hover:text-neutral-900">
+                FAQ
+              </a>
+            </nav>
+            <div className="flex items-center gap-2">
+              <LoginEntryButton />
+              <Button size="sm" asChild>
+                <Link href="/signup">Регистрация</Link>
+              </Button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <Hero
-        headline="Ведите видеопроекты без хаоса в правках"
-        subheadline="Собирайте комментарии по таймкоду, превращайте фидбек в задачи и ускоряйте согласование между командой и клиентом."
-        primaryCTA={{ text: "Начать бесплатно", href: "/signup" }}
-        secondaryCTA={{ text: "Смотреть демо", href: "#how-it-works" }}
-      />
+        <Hero
+          headline="Ведите видеопроекты без хаоса в правках"
+          subheadline="Собирайте комментарии по таймкоду, превращайте фидбек в задачи и ускоряйте согласование между командой и клиентом."
+          primaryCTA={{ text: "Начать бесплатно", href: "/signup" }}
+          secondaryCTA={{ text: "Смотреть демо", href: "#how-it-works" }}
+        />
 
-      <Features
-        title="Все инструменты согласования в одном месте"
-        subtitle="От первого комментария до финальной версии: прозрачный процесс для команды и клиента."
-        features={features}
-      />
+        <Features
+          title="Все инструменты согласования в одном месте"
+          subtitle="От первого комментария до финальной версии: прозрачный процесс для команды и клиента."
+          features={features}
+        />
 
-      <HowItWorks
-        title="Как это работает"
-        subtitle="Три шага, чтобы ускорить производство и не терять важные правки."
-        steps={steps}
-      />
+        <HowItWorks
+          title="Как это работает"
+          subtitle="Три шага, чтобы ускорить производство и не терять важные правки."
+          steps={steps}
+        />
 
-      <Pricing
-        title="Тарифы для команд любого размера"
-        subtitle="Выберите план под текущую нагрузку и масштабируйтесь по мере роста студии."
-        plans={plans}
-      />
+        <Pricing
+          title="Тарифы для команд любого размера"
+          subtitle="Выберите план под текущую нагрузку и масштабируйтесь по мере роста студии."
+          plans={plans}
+        />
 
-      <FAQ title="Частые вопросы" subtitle="Коротко о запуске, доступах и хранении данных." items={faqItems} />
+        <FAQ title="Частые вопросы" subtitle="Коротко о запуске, доступах и хранении данных." items={faqItems} />
 
-      <CTASection
-        title="Готовы ускорить согласование видео?"
-        description="Создайте аккаунт и запустите первый проект уже сегодня."
-        primaryCTA={{ text: "Перейти к регистрации", href: "/signup" }}
-      />
+        <CTASection
+          title="Готовы ускорить согласование видео?"
+          description="Создайте аккаунт и запустите первый проект уже сегодня."
+          primaryCTA={{ text: "Перейти к регистрации", href: "/signup" }}
+        />
 
-      <Footer
-        brandName="VideoFeedback"
-        description="Платформа для агентств и продакшен-команд, которые хотят сдавать проекты быстрее."
-        linkGroups={footerGroups}
-      />
-    </main>
+        <Footer
+          brandName="VideoFeedback"
+          description="Платформа для агентств и продакшен-команд, которые хотят сдавать проекты быстрее."
+          linkGroups={footerGroups}
+        />
+      </main>
+    </LandingAutoRedirectGate>
   );
 }
 
