@@ -81,6 +81,8 @@ export default function ClientPortalPage(): JSX.Element {
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [isMobileLandscape, setIsMobileLandscape] = useState(false);
+  const [isLikelyMobileDevice, setIsLikelyMobileDevice] = useState(false);
+  const [manualLandscapeMode, setManualLandscapeMode] = useState<boolean | null>(null);
   const [orientationDebug, setOrientationDebug] = useState({
     mediaLandscape: false,
     screenLandscape: false,
@@ -181,6 +183,7 @@ export default function ClientPortalPage(): JSX.Element {
       const isLikelyMobile = hasTouchPointer && shortestSide <= 1024;
       const isLandscape = mediaLandscape || screenLandscape || viewportLandscape || visualViewportLandscape;
 
+      setIsLikelyMobileDevice(isLikelyMobile);
       setIsMobileLandscape(isLandscape && isLikelyMobile);
       setOrientationDebug({
         mediaLandscape,
@@ -231,6 +234,27 @@ export default function ClientPortalPage(): JSX.Element {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const saved = window.localStorage.getItem("portal-manual-landscape-mode");
+    if (saved === "on") {
+      setManualLandscapeMode(true);
+    } else if (saved === "off") {
+      setManualLandscapeMode(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || manualLandscapeMode === null) {
+      return;
+    }
+
+    window.localStorage.setItem("portal-manual-landscape-mode", manualLandscapeMode ? "on" : "off");
+  }, [manualLandscapeMode]);
 
   if (isLoading) {
     return (
@@ -321,16 +345,33 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const showOrientationDebug = searchParams.get("debugOrientation") === "1";
+  const effectiveLandscapeMode = manualLandscapeMode ?? isMobileLandscape;
+  const showLandscapeToggle = isLikelyMobileDevice || showOrientationDebug;
 
   return (
-    <main className={cn("portal-landscape-page min-h-screen px-3 py-4 sm:px-6 sm:py-8", pageBackground, isMobileLandscape && "portal-mobile-landscape")}>
+    <main className={cn("portal-landscape-page min-h-screen px-3 py-4 sm:px-6 sm:py-8", pageBackground, effectiveLandscapeMode && "portal-mobile-landscape")}>
       {showOrientationDebug ? (
         <div className="fixed bottom-2 left-2 z-[120] rounded-lg bg-black/85 px-2.5 py-1.5 text-[11px] leading-tight text-white">
-          land:{String(isMobileLandscape)} m:{String(orientationDebug.mediaLandscape)} s:{String(orientationDebug.screenLandscape)} v:
+          land:{String(isMobileLandscape)} manual:{String(manualLandscapeMode)} effective:{String(effectiveLandscapeMode)} m:
+          {String(orientationDebug.mediaLandscape)} s:{String(orientationDebug.screenLandscape)} v:
           {String(orientationDebug.viewportLandscape)} vv:{String(orientationDebug.visualViewportLandscape)} mobile:
           {String(orientationDebug.isLikelyMobile)} {orientationDebug.width}x{orientationDebug.height} vv:{Math.round(orientationDebug.vvWidth)}x
           {Math.round(orientationDebug.vvHeight)}
         </div>
+      ) : null}
+      {showLandscapeToggle ? (
+        <button
+          type="button"
+          onClick={() =>
+            setManualLandscapeMode((prev) => {
+              const next = !(prev ?? isMobileLandscape);
+              return next;
+            })
+          }
+          className="fixed right-2 top-2 z-[120] rounded-full border border-white/35 bg-black/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur"
+        >
+          Landscape: {effectiveLandscapeMode ? "ON" : "OFF"}
+        </button>
       ) : null}
       <section className="portal-landscape-grid mx-auto max-w-5xl space-y-4 sm:space-y-6">
         <Card className={cn(shellCardClass, "portal-main-card")}>
