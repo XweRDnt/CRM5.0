@@ -81,6 +81,17 @@ export default function ClientPortalPage(): JSX.Element {
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [isMobileLandscape, setIsMobileLandscape] = useState(false);
+  const [orientationDebug, setOrientationDebug] = useState({
+    mediaLandscape: false,
+    screenLandscape: false,
+    viewportLandscape: false,
+    visualViewportLandscape: false,
+    width: 0,
+    height: 0,
+    vvWidth: 0,
+    vvHeight: 0,
+    isLikelyMobile: false,
+  });
 
   const safeVideoUrl = (activeVersion?.streamUrl ?? activeVersion?.fileUrl ?? "").trim();
 
@@ -156,46 +167,66 @@ export default function ClientPortalPage(): JSX.Element {
     }
 
     const landscapeQuery = window.matchMedia("(orientation: landscape)");
-    const mobileWidthQuery = window.matchMedia("(max-width: 1024px)");
     const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
 
     const updateOrientationLayout = (): void => {
-      const isLandscape = landscapeQuery.matches;
-      const isMobileWidth = mobileWidthQuery.matches;
+      const mediaLandscape = landscapeQuery.matches;
+      const screenLandscape = typeof screen !== "undefined" && screen.orientation?.type?.startsWith("landscape");
+      const viewportLandscape = window.innerWidth > window.innerHeight;
+      const vvWidth = window.visualViewport?.width ?? 0;
+      const vvHeight = window.visualViewport?.height ?? 0;
+      const visualViewportLandscape = vvWidth > vvHeight;
       const hasTouchPointer = coarsePointerQuery.matches || navigator.maxTouchPoints > 0 || "ontouchstart" in window;
-      setIsMobileLandscape(isLandscape && isMobileWidth && hasTouchPointer);
+      const shortestSide = Math.min(window.innerWidth, window.innerHeight);
+      const isLikelyMobile = hasTouchPointer && shortestSide <= 1024;
+      const isLandscape = mediaLandscape || screenLandscape || viewportLandscape || visualViewportLandscape;
+
+      setIsMobileLandscape(isLandscape && isLikelyMobile);
+      setOrientationDebug({
+        mediaLandscape,
+        screenLandscape,
+        viewportLandscape,
+        visualViewportLandscape,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        vvWidth,
+        vvHeight,
+        isLikelyMobile,
+      });
     };
 
     updateOrientationLayout();
+    const timeoutIds = new Set<number>();
 
     const mediaChangeHandler = (): void => {
       updateOrientationLayout();
+      timeoutIds.add(window.setTimeout(updateOrientationLayout, 120));
+      timeoutIds.add(window.setTimeout(updateOrientationLayout, 320));
     };
 
     window.addEventListener("resize", mediaChangeHandler);
-    window.addEventListener("orientationchange", mediaChangeHandler);
+    window.visualViewport?.addEventListener("resize", mediaChangeHandler);
+    screen.orientation?.addEventListener?.("change", mediaChangeHandler);
 
     if (typeof landscapeQuery.addEventListener === "function") {
       landscapeQuery.addEventListener("change", mediaChangeHandler);
-      mobileWidthQuery.addEventListener("change", mediaChangeHandler);
       coarsePointerQuery.addEventListener("change", mediaChangeHandler);
     } else {
       landscapeQuery.addListener(mediaChangeHandler);
-      mobileWidthQuery.addListener(mediaChangeHandler);
       coarsePointerQuery.addListener(mediaChangeHandler);
     }
 
     return () => {
       window.removeEventListener("resize", mediaChangeHandler);
-      window.removeEventListener("orientationchange", mediaChangeHandler);
+      window.visualViewport?.removeEventListener("resize", mediaChangeHandler);
+      screen.orientation?.removeEventListener?.("change", mediaChangeHandler);
+      timeoutIds.forEach((id) => window.clearTimeout(id));
 
       if (typeof landscapeQuery.removeEventListener === "function") {
         landscapeQuery.removeEventListener("change", mediaChangeHandler);
-        mobileWidthQuery.removeEventListener("change", mediaChangeHandler);
         coarsePointerQuery.removeEventListener("change", mediaChangeHandler);
       } else {
         landscapeQuery.removeListener(mediaChangeHandler);
-        mobileWidthQuery.removeListener(mediaChangeHandler);
         coarsePointerQuery.removeListener(mediaChangeHandler);
       }
     };
@@ -289,8 +320,18 @@ export default function ClientPortalPage(): JSX.Element {
     }
   };
 
+  const showOrientationDebug = searchParams.get("debugOrientation") === "1";
+
   return (
     <main className={cn("portal-landscape-page min-h-screen px-3 py-4 sm:px-6 sm:py-8", pageBackground, isMobileLandscape && "portal-mobile-landscape")}>
+      {showOrientationDebug ? (
+        <div className="fixed bottom-2 left-2 z-[120] rounded-lg bg-black/85 px-2.5 py-1.5 text-[11px] leading-tight text-white">
+          land:{String(isMobileLandscape)} m:{String(orientationDebug.mediaLandscape)} s:{String(orientationDebug.screenLandscape)} v:
+          {String(orientationDebug.viewportLandscape)} vv:{String(orientationDebug.visualViewportLandscape)} mobile:
+          {String(orientationDebug.isLikelyMobile)} {orientationDebug.width}x{orientationDebug.height} vv:{Math.round(orientationDebug.vvWidth)}x
+          {Math.round(orientationDebug.vvHeight)}
+        </div>
+      ) : null}
       <section className="portal-landscape-grid mx-auto max-w-5xl space-y-4 sm:space-y-6">
         <Card className={cn(shellCardClass, "portal-main-card")}>
           <CardHeader className="space-y-3 pb-3">
