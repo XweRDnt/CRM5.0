@@ -121,21 +121,6 @@ export default function ClientPortalPage(): JSX.Element {
     return player.getCurrentTime();
   }, []);
 
-  const requestPlayerFullscreen = useCallback((): void => {
-    kinescopeRef.current?.setFullscreen(true);
-    if (typeof screen === "undefined") {
-      return;
-    }
-
-    const orientationApi = screen.orientation as ScreenOrientation & {
-      lock?: (orientation: "landscape" | "portrait" | "any" | "natural" | "landscape-primary" | "landscape-secondary" | "portrait-primary" | "portrait-secondary") => Promise<void>;
-    };
-
-    if (typeof orientationApi?.lock === "function") {
-      void orientationApi.lock("landscape").catch(() => undefined);
-    }
-  }, []);
-
   useEffect(() => {
     setPlayerReady(false);
     setPlayerCurrentTimeSec(0);
@@ -163,39 +148,6 @@ export default function ClientPortalPage(): JSX.Element {
       window.clearInterval(interval);
     };
   }, [activeVersion, playerReady, readCurrentPlayerTime, readKinescopeTimeSafe]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const landscapeQuery = window.matchMedia("(orientation: landscape)");
-    const mobileQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
-
-    const handleOrientation = (): void => {
-      if (landscapeQuery.matches && mobileQuery.matches) {
-        requestPlayerFullscreen();
-      }
-    };
-
-    handleOrientation();
-
-    if (typeof landscapeQuery.addEventListener === "function") {
-      landscapeQuery.addEventListener("change", handleOrientation);
-      mobileQuery.addEventListener("change", handleOrientation);
-      return () => {
-        landscapeQuery.removeEventListener("change", handleOrientation);
-        mobileQuery.removeEventListener("change", handleOrientation);
-      };
-    }
-
-    landscapeQuery.addListener(handleOrientation);
-    mobileQuery.addListener(handleOrientation);
-    return () => {
-      landscapeQuery.removeListener(handleOrientation);
-      mobileQuery.removeListener(handleOrientation);
-    };
-  }, [requestPlayerFullscreen]);
 
   if (isLoading) {
     return (
@@ -287,8 +239,8 @@ export default function ClientPortalPage(): JSX.Element {
 
   return (
     <main className={`portal-landscape-page min-h-screen px-3 py-4 sm:px-6 sm:py-8 ${pageBackground}`}>
-      <section className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
-        <Card className={shellCardClass}>
+      <section className="portal-landscape-grid mx-auto max-w-5xl space-y-4 sm:space-y-6">
+        <Card className={cn(shellCardClass, "portal-main-card")}>
           <CardHeader className="space-y-3 pb-3">
             <CardTitle className={`text-2xl font-semibold tracking-tight sm:text-3xl ${titleClass}`}>{data.project.name}</CardTitle>
             {data.versions.length > 0 ? (
@@ -318,7 +270,7 @@ export default function ClientPortalPage(): JSX.Element {
               </p>
             ) : null}
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="portal-main-content space-y-4">
             {!activeVersion ? (
               <p className={`text-sm ${mutedTextClass}`}>This project has no uploaded versions yet.</p>
             ) : (
@@ -373,11 +325,11 @@ export default function ClientPortalPage(): JSX.Element {
           </CardContent>
         </Card>
 
-        <Card className={shellCardClass}>
+        <Card className={cn(shellCardClass, "portal-feedback-card")}>
           <CardHeader>
             <CardTitle className={`text-xl font-semibold tracking-tight ${titleClass}`}>{m.portal.leaveFeedback}</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="portal-feedback-content">
             {activeVersion ? (
               <FeedbackForm
                 capturedTimecodeSec={capturedTimecodeSec}
@@ -395,11 +347,11 @@ export default function ClientPortalPage(): JSX.Element {
           </CardContent>
         </Card>
 
-        <Card className={shellCardClass}>
+        <Card className={cn(shellCardClass, "portal-history-card")}>
           <CardHeader>
             <CardTitle className={`text-xl font-semibold tracking-tight ${titleClass}`}>{m.portal.recentFeedback}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="portal-history-content space-y-3">
             {data.feedback.length === 0 && <p className={`text-sm ${mutedTextClass}`}>{m.portal.noFeedback}</p>}
             {data.feedback
               .filter((item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text))
@@ -440,37 +392,73 @@ export default function ClientPortalPage(): JSX.Element {
       </section>
       <style jsx global>{`
         @media (orientation: landscape) and (hover: none) and (pointer: coarse) {
-          .portal-landscape-page * {
-            visibility: hidden;
+          .portal-landscape-page {
+            min-height: 100dvh;
+            padding: 0.75rem;
           }
 
-          .portal-landscape-page .portal-player-shell,
-          .portal-landscape-page .portal-player-shell * {
-            visibility: visible;
+          .portal-landscape-page .portal-landscape-grid {
+            max-width: none;
+            height: calc(100dvh - 1.5rem);
+            margin: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 0.75rem;
+            align-items: stretch;
           }
 
-          .portal-landscape-page .portal-player-shell {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 50;
-            background: #000;
-            border: none !important;
-            border-radius: 0 !important;
-            padding: 0 !important;
-          }
-
-          .portal-landscape-page .portal-player-shell > div {
-            width: 100%;
+          .portal-landscape-page .portal-main-card,
+          .portal-landscape-page .portal-feedback-card,
+          .portal-landscape-page .portal-history-card {
+            margin: 0;
             height: 100%;
           }
 
+          .portal-landscape-page .portal-main-card {
+            grid-column: 1;
+            grid-row: 1 / span 2;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .portal-landscape-page .portal-main-content,
+          .portal-landscape-page .portal-feedback-content,
+          .portal-landscape-page .portal-history-content {
+            min-height: 0;
+            overflow: auto;
+          }
+
+          .portal-landscape-page .portal-player-shell {
+            max-height: 52dvh;
+          }
+
           .portal-landscape-page .portal-player-shell .aspect-video {
-            width: 100vw;
-            height: 100vh;
-            border-radius: 0 !important;
+            max-height: 50dvh;
+          }
+
+          .portal-landscape-page .portal-feedback-card {
+            grid-column: 2;
+            grid-row: 1;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .portal-landscape-page .portal-history-card {
+            grid-column: 2;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .portal-landscape-page .portal-main-card .portal-main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+          }
+
+          .portal-landscape-page .portal-main-card .portal-main-content > .portal-player-shell {
+            flex: 0 0 auto;
           }
         }
       `}</style>
