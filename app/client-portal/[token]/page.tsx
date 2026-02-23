@@ -238,7 +238,7 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   return (
-    <main className={`min-h-screen px-3 py-4 sm:px-6 sm:py-8 ${pageBackground}`}>
+    <main className={`portal-landscape-page min-h-screen px-3 py-4 sm:px-6 sm:py-8 ${pageBackground}`}>
       <section className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
         <Card className={shellCardClass}>
           <CardHeader className="space-y-3 pb-3">
@@ -275,7 +275,7 @@ export default function ClientPortalPage(): JSX.Element {
               <p className={`text-sm ${mutedTextClass}`}>This project has no uploaded versions yet.</p>
             ) : (
               <>
-                <div className="overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
+                <div className="portal-player-shell overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
                   <KinescopePlayer
                     ref={kinescopeRef}
                     className="w-full"
@@ -390,6 +390,42 @@ export default function ClientPortalPage(): JSX.Element {
           </DialogContent>
         </Dialog>
       </section>
+      <style jsx global>{`
+        @media (max-width: 1024px) and (orientation: landscape) {
+          .portal-landscape-page * {
+            visibility: hidden;
+          }
+
+          .portal-landscape-page .portal-player-shell,
+          .portal-landscape-page .portal-player-shell * {
+            visibility: visible;
+          }
+
+          .portal-landscape-page .portal-player-shell {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 50;
+            background: #000;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+          }
+
+          .portal-landscape-page .portal-player-shell > div {
+            width: 100%;
+            height: 100%;
+          }
+
+          .portal-landscape-page .portal-player-shell .aspect-video {
+            width: 100vw;
+            height: 100vh;
+            border-radius: 0 !important;
+          }
+        }
+      `}</style>
     </main>
   );
 }

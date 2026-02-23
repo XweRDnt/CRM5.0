@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { forwardRef, useImperativeHandle } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { KinescopePlayer } from "../KinescopePlayer";
 
