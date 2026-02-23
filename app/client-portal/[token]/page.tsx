@@ -121,6 +121,21 @@ export default function ClientPortalPage(): JSX.Element {
     return player.getCurrentTime();
   }, []);
 
+  const requestPlayerFullscreen = useCallback((): void => {
+    kinescopeRef.current?.setFullscreen(true);
+    if (typeof screen === "undefined") {
+      return;
+    }
+
+    const orientationApi = screen.orientation as ScreenOrientation & {
+      lock?: (orientation: "landscape" | "portrait" | "any" | "natural" | "landscape-primary" | "landscape-secondary" | "portrait-primary" | "portrait-secondary") => Promise<void>;
+    };
+
+    if (typeof orientationApi?.lock === "function") {
+      void orientationApi.lock("landscape").catch(() => undefined);
+    }
+  }, []);
+
   useEffect(() => {
     setPlayerReady(false);
     setPlayerCurrentTimeSec(0);
@@ -148,6 +163,39 @@ export default function ClientPortalPage(): JSX.Element {
       window.clearInterval(interval);
     };
   }, [activeVersion, playerReady, readCurrentPlayerTime, readKinescopeTimeSafe]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const landscapeQuery = window.matchMedia("(orientation: landscape)");
+    const mobileQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
+
+    const handleOrientation = (): void => {
+      if (landscapeQuery.matches && mobileQuery.matches) {
+        requestPlayerFullscreen();
+      }
+    };
+
+    handleOrientation();
+
+    if (typeof landscapeQuery.addEventListener === "function") {
+      landscapeQuery.addEventListener("change", handleOrientation);
+      mobileQuery.addEventListener("change", handleOrientation);
+      return () => {
+        landscapeQuery.removeEventListener("change", handleOrientation);
+        mobileQuery.removeEventListener("change", handleOrientation);
+      };
+    }
+
+    landscapeQuery.addListener(handleOrientation);
+    mobileQuery.addListener(handleOrientation);
+    return () => {
+      landscapeQuery.removeListener(handleOrientation);
+      mobileQuery.removeListener(handleOrientation);
+    };
+  }, [requestPlayerFullscreen]);
 
   if (isLoading) {
     return (
@@ -293,6 +341,13 @@ export default function ClientPortalPage(): JSX.Element {
                       : `${m.portal.currentTime}: ${formatTimecode(playerCurrentTimeSec)}`}
                   </span>
                   <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      onClick={requestPlayerFullscreen}
+                      type="button"
+                      className="h-11 rounded-full bg-black px-5 text-sm font-semibold text-white hover:bg-black/90 sm:hidden"
+                    >
+                      Полный экран
+                    </Button>
                     <Button
                       onClick={captureCurrentTimecode}
                       type="button"
