@@ -183,6 +183,7 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
             ref={playerRef}
             videoId={resolvedVideoId}
             autoPlay={Boolean(autoplay)}
+            playsInline={false}
             width="100%"
             height="100%"
             className="h-full w-full"
