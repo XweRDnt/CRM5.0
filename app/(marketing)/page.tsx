@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Bot, Clock3, MessageSquareText, ShieldCheck, Sparkles, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CTASection, FAQ, Features, Footer, Hero, HowItWorks, Pricing } from "@/components/landing";
+import { LoginEntryButton } from "@/components/landing/LoginEntryButton";
 
 export const metadata: Metadata = {
   title: "VideoFeedback - Ускорьте согласование видео",
@@ -155,9 +156,12 @@ export default function MarketingPage(): JSX.Element {
               FAQ
             </a>
           </nav>
-          <Button size="sm" asChild>
-            <Link href="/signup">Регистрация</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <LoginEntryButton />
+            <Button size="sm" asChild>
+              <Link href="/signup">Регистрация</Link>
+            </Button>
+          </div>
         </div>
       </header>
 
