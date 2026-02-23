@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -205,6 +204,12 @@ export default function ClientPortalPage(): JSX.Element {
     }, 120);
   };
 
+  const seekToTimecode = (timecodeSec: number | null): void => {
+    const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
+    kinescopeRef.current?.seekTo(target);
+    kinescopeRef.current?.play();
+  };
+
   const approveVersion = async (): Promise<void> => {
     if (!activeVersion) {
       return;
@@ -354,12 +359,13 @@ export default function ClientPortalPage(): JSX.Element {
                 <article key={item.id} className={feedbackItemClass}>
                   <div className={`mb-2 flex flex-wrap items-center gap-2 text-xs ${mutedTextClass}`}>
                     <span className={`font-medium ${titleClass}`}>{item.authorName}</span>
-                    <Badge
-                      variant="secondary"
+                    <button
+                      type="button"
+                      onClick={() => seekToTimecode(item.timecodeSec)}
                       className="rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] px-2.5 text-[11px] text-[color:var(--app-text)]"
                     >
                       {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "No timecode"}
-                    </Badge>
+                    </button>
                   </div>
                   <p className={`text-sm leading-relaxed ${cardTextClass}`}>{item.text}</p>
                 </article>
