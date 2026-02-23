@@ -114,7 +114,7 @@ export default function LoginPage(): JSX.Element {
         });
 
         if (response.ok) {
-          router.replace("/dashboard");
+          router.replace("https://crm50-production.up.railway.app/projects");
           return;
         }
       } catch {
