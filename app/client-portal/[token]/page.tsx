@@ -391,7 +391,7 @@ export default function ClientPortalPage(): JSX.Element {
         </Dialog>
       </section>
       <style jsx global>{`
-        @media (max-width: 1024px) and (orientation: landscape) {
+        @media (orientation: landscape) and (hover: none) and (pointer: coarse) {
           .portal-landscape-page * {
             visibility: hidden;
           }
