@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
+import { Expand } from "lucide-react";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,6 +211,10 @@ export default function ClientPortalPage(): JSX.Element {
     kinescopeRef.current?.play();
   };
 
+  const enterFullscreen = (): void => {
+    kinescopeRef.current?.setFullscreen(true);
+  };
+
   const approveVersion = async (): Promise<void> => {
     if (!activeVersion) {
       return;
@@ -275,7 +280,7 @@ export default function ClientPortalPage(): JSX.Element {
               <p className={`text-sm ${mutedTextClass}`}>This project has no uploaded versions yet.</p>
             ) : (
               <>
-                <div className="overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
+                <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
                   <KinescopePlayer
                     ref={kinescopeRef}
                     className="w-full"
@@ -285,6 +290,14 @@ export default function ClientPortalPage(): JSX.Element {
                     onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
                     onPlay={() => setPlayerReady(true)}
                   />
+                  <button
+                    type="button"
+                    onClick={enterFullscreen}
+                    className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/75"
+                    aria-label="Enter fullscreen"
+                  >
+                    <Expand className="h-4 w-4" aria-hidden />
+                  </button>
                 </div>
                 <div className={inputCardClass}>
                   <span className={`text-sm font-medium ${titleClass}`}>

@@ -29,6 +29,7 @@ export interface KinescopePlayerRef {
   play: () => void;
   pause: () => void;
   seekTo: (seconds: number) => void;
+  setFullscreen: (fullscreen: boolean) => void;
   getCurrentTime: () => number;
   getCurrentTimeAsync: () => Promise<number>;
   getDuration: () => number;
@@ -105,6 +106,9 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
         },
         seekTo: (seconds: number) => {
           void playerRef.current?.seekTo(Math.max(0, Number.isFinite(seconds) ? seconds : 0)).catch(() => undefined);
+        },
+        setFullscreen: (fullscreen: boolean) => {
+          void playerRef.current?.setFullscreen(Boolean(fullscreen)).catch(() => undefined);
         },
         getCurrentTime: () => currentTimeRef.current,
         getCurrentTimeAsync: async () => {
