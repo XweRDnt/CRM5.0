@@ -80,6 +80,7 @@ export default function ClientPortalPage(): JSX.Element {
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [isMobileLandscape, setIsMobileLandscape] = useState(false);
 
   const safeVideoUrl = (activeVersion?.streamUrl ?? activeVersion?.fileUrl ?? "").trim();
 
@@ -148,6 +149,57 @@ export default function ClientPortalPage(): JSX.Element {
       window.clearInterval(interval);
     };
   }, [activeVersion, playerReady, readCurrentPlayerTime, readKinescopeTimeSafe]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const landscapeQuery = window.matchMedia("(orientation: landscape)");
+    const mobileWidthQuery = window.matchMedia("(max-width: 1024px)");
+    const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
+
+    const updateOrientationLayout = (): void => {
+      const isLandscape = landscapeQuery.matches;
+      const isMobileWidth = mobileWidthQuery.matches;
+      const hasTouchPointer = coarsePointerQuery.matches || navigator.maxTouchPoints > 0 || "ontouchstart" in window;
+      setIsMobileLandscape(isLandscape && isMobileWidth && hasTouchPointer);
+    };
+
+    updateOrientationLayout();
+
+    const mediaChangeHandler = (): void => {
+      updateOrientationLayout();
+    };
+
+    window.addEventListener("resize", mediaChangeHandler);
+    window.addEventListener("orientationchange", mediaChangeHandler);
+
+    if (typeof landscapeQuery.addEventListener === "function") {
+      landscapeQuery.addEventListener("change", mediaChangeHandler);
+      mobileWidthQuery.addEventListener("change", mediaChangeHandler);
+      coarsePointerQuery.addEventListener("change", mediaChangeHandler);
+    } else {
+      landscapeQuery.addListener(mediaChangeHandler);
+      mobileWidthQuery.addListener(mediaChangeHandler);
+      coarsePointerQuery.addListener(mediaChangeHandler);
+    }
+
+    return () => {
+      window.removeEventListener("resize", mediaChangeHandler);
+      window.removeEventListener("orientationchange", mediaChangeHandler);
+
+      if (typeof landscapeQuery.removeEventListener === "function") {
+        landscapeQuery.removeEventListener("change", mediaChangeHandler);
+        mobileWidthQuery.removeEventListener("change", mediaChangeHandler);
+        coarsePointerQuery.removeEventListener("change", mediaChangeHandler);
+      } else {
+        landscapeQuery.removeListener(mediaChangeHandler);
+        mobileWidthQuery.removeListener(mediaChangeHandler);
+        coarsePointerQuery.removeListener(mediaChangeHandler);
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (
@@ -238,7 +290,7 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   return (
-    <main className={`portal-landscape-page min-h-screen px-3 py-4 sm:px-6 sm:py-8 ${pageBackground}`}>
+    <main className={cn("portal-landscape-page min-h-screen px-3 py-4 sm:px-6 sm:py-8", pageBackground, isMobileLandscape && "portal-mobile-landscape")}>
       <section className="portal-landscape-grid mx-auto max-w-5xl space-y-4 sm:space-y-6">
         <Card className={cn(shellCardClass, "portal-main-card")}>
           <CardHeader className="space-y-3 pb-3">
@@ -391,13 +443,12 @@ export default function ClientPortalPage(): JSX.Element {
         </Dialog>
       </section>
       <style jsx global>{`
-        @media (orientation: landscape) and (hover: none) and (pointer: coarse) {
-          .portal-landscape-page {
+        .portal-landscape-page.portal-mobile-landscape {
             min-height: 100dvh;
             padding: 0.75rem;
-          }
+        }
 
-          .portal-landscape-page .portal-landscape-grid {
+        .portal-landscape-page.portal-mobile-landscape .portal-landscape-grid {
             max-width: none;
             height: calc(100dvh - 1.5rem);
             margin: 0;
@@ -406,60 +457,59 @@ export default function ClientPortalPage(): JSX.Element {
             grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
             gap: 0.75rem;
             align-items: stretch;
-          }
+        }
 
-          .portal-landscape-page .portal-main-card,
-          .portal-landscape-page .portal-feedback-card,
-          .portal-landscape-page .portal-history-card {
+        .portal-landscape-page.portal-mobile-landscape .portal-main-card,
+        .portal-landscape-page.portal-mobile-landscape .portal-feedback-card,
+        .portal-landscape-page.portal-mobile-landscape .portal-history-card {
             margin: 0;
             height: 100%;
-          }
+        }
 
-          .portal-landscape-page .portal-main-card {
+        .portal-landscape-page.portal-mobile-landscape .portal-main-card {
             grid-column: 1;
             grid-row: 1 / span 2;
             display: flex;
             flex-direction: column;
-          }
+        }
 
-          .portal-landscape-page .portal-main-content,
-          .portal-landscape-page .portal-feedback-content,
-          .portal-landscape-page .portal-history-content {
+        .portal-landscape-page.portal-mobile-landscape .portal-main-content,
+        .portal-landscape-page.portal-mobile-landscape .portal-feedback-content,
+        .portal-landscape-page.portal-mobile-landscape .portal-history-content {
             min-height: 0;
             overflow: auto;
-          }
+        }
 
-          .portal-landscape-page .portal-player-shell {
+        .portal-landscape-page.portal-mobile-landscape .portal-player-shell {
             max-height: 52dvh;
-          }
+        }
 
-          .portal-landscape-page .portal-player-shell .aspect-video {
+        .portal-landscape-page.portal-mobile-landscape .portal-player-shell .aspect-video {
             max-height: 50dvh;
-          }
+        }
 
-          .portal-landscape-page .portal-feedback-card {
+        .portal-landscape-page.portal-mobile-landscape .portal-feedback-card {
             grid-column: 2;
             grid-row: 1;
             display: flex;
             flex-direction: column;
-          }
+        }
 
-          .portal-landscape-page .portal-history-card {
+        .portal-landscape-page.portal-mobile-landscape .portal-history-card {
             grid-column: 2;
             grid-row: 2;
             display: flex;
             flex-direction: column;
-          }
+        }
 
-          .portal-landscape-page .portal-main-card .portal-main-content {
+        .portal-landscape-page.portal-mobile-landscape .portal-main-card .portal-main-content {
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
-          }
+        }
 
-          .portal-landscape-page .portal-main-card .portal-main-content > .portal-player-shell {
+        .portal-landscape-page.portal-mobile-landscape .portal-main-card .portal-main-content > .portal-player-shell {
             flex: 0 0 auto;
-          }
         }
       `}</style>
     </main>
