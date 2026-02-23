@@ -29,6 +29,7 @@ describe("API Projects", () => {
 
     expect(res.status).toBe(201);
     expect(res.body.name).toBe("Project Alpha");
+    expect(typeof res.body.portalToken).toBe("string");
   });
 
   it("GET /api/projects returns list", async () => {

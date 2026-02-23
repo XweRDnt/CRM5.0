@@ -56,12 +56,12 @@ function formatVersionDate(value: Date): string {
   });
 }
 
-function createPublicPortalLink(versionId: string): string {
+function createPublicPortalLink(portalToken: string): string {
   if (typeof window === "undefined") {
-    return `/client-portal/${versionId}`;
+    return `/client-portal/${portalToken}`;
   }
 
-  return `${window.location.origin}/client-portal/${versionId}`;
+  return `${window.location.origin}/client-portal/${portalToken}`;
 }
 
 function copyToClipboard(text: string): Promise<void> {
@@ -95,6 +95,7 @@ export default function ProjectDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
   const [appTheme, setAppTheme] = useState<AppTheme>("light");
+  const [resettingPortalLink, setResettingPortalLink] = useState(false);
 
   const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
   const { data: versionsResponse, isLoading: versionsLoading } = useSWR(
@@ -144,6 +145,7 @@ export default function ProjectDetailPage(): JSX.Element {
 
   const latestVersion = versions[0];
   const latestVersionHasFeedback = latestVersion ? (feedbackStatsByVersion[latestVersion.id]?.totalClient ?? 0) > 0 : false;
+  const portalToken = project?.portalToken;
   const projectDisplayStatus =
     latestVersion !== undefined
       ? toVersionUiStatus(latestVersion.status, latestVersionHasFeedback)
@@ -152,16 +154,31 @@ export default function ProjectDetailPage(): JSX.Element {
         : undefined;
 
   const handleCopyPublicLink = async (): Promise<void> => {
-    if (!latestVersion) {
-      toast.error("Сначала добавьте версию");
+    if (!portalToken) {
+      toast.error("Failed to resolve public portal link");
       return;
     }
 
     try {
-      await copyToClipboard(createPublicPortalLink(latestVersion.id));
-      toast.success("Ссылка скопирована");
+      await copyToClipboard(createPublicPortalLink(portalToken));
+      toast.success("Link copied");
     } catch {
-      toast.error("Не удалось скопировать ссылку");
+      toast.error("Failed to copy link");
+    }
+  };
+
+  const handleResetPublicLink = async (): Promise<void> => {
+    setResettingPortalLink(true);
+    try {
+      const result = await apiFetch<{ portalToken: string }>(`/api/projects/${projectId}/portal-token/reset`, {
+        method: "POST",
+      });
+      await copyToClipboard(createPublicPortalLink(result.portalToken));
+      toast.success("Public link reset and copied");
+    } catch {
+      toast.error("Failed to reset public link");
+    } finally {
+      setResettingPortalLink(false);
     }
   };
 
@@ -194,8 +211,11 @@ export default function ProjectDetailPage(): JSX.Element {
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button variant="outline" onClick={handleCopyPublicLink} disabled={!latestVersion} className="w-full sm:w-auto">
+            <Button variant="outline" onClick={handleCopyPublicLink} disabled={!portalToken} className="w-full sm:w-auto">
               Публичная ссылка
+            </Button>
+            <Button variant="outline" onClick={handleResetPublicLink} disabled={resettingPortalLink} className="w-full sm:w-auto">
+              {resettingPortalLink ? "Reset..." : "Reset link"}
             </Button>
             <Button asChild className="w-full sm:w-auto">
               <Link href={`/projects/${projectId}/versions/new`}>+ Добавить версию</Link>
@@ -274,3 +294,5 @@ export default function ProjectDetailPage(): JSX.Element {
     </div>
   );
 }
+
+

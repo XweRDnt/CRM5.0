@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
@@ -11,8 +11,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { YouTubePlayer, type YouTubePlayerRef } from "@/components/video/YouTubePlayer";
+import { cn } from "@/lib/utils/cn";
 import { getMessages } from "@/lib/i18n/messages";
 import { formatTimecode } from "@/lib/utils/time";
+
+type PortalVersion = {
+  id: string;
+  versionNumber: number;
+  fileUrl: string;
+  fileName: string;
+  videoProvider: "KINESCOPE" | "EXTERNAL_URL" | "YOUTUBE_LEGACY";
+  kinescopeVideoId: string | null;
+  streamUrl: string | null;
+  processingStatus: "UPLOADING" | "PROCESSING" | "READY" | "FAILED";
+  durationSec: number | null;
+  status: string;
+  createdAt: string;
+};
 
 type PortalResponse = {
   project: {
@@ -21,19 +36,8 @@ type PortalResponse = {
     clientName: string;
     companyName: string;
   };
-  version: {
-    id: string;
-    versionNumber: number;
-    fileUrl: string;
-    fileName: string;
-    videoProvider: "KINESCOPE" | "EXTERNAL_URL" | "YOUTUBE_LEGACY";
-    kinescopeVideoId: string | null;
-    streamUrl: string | null;
-    processingStatus: "UPLOADING" | "PROCESSING" | "READY" | "FAILED";
-    durationSec: number | null;
-    status: string;
-    createdAt: string;
-  };
+  activeVersionId: string | null;
+  versions: PortalVersion[];
   feedback: Array<{
     id: string;
     text: string;
@@ -60,8 +64,21 @@ function isYouTubeUrl(url: string): boolean {
 export default function ClientPortalPage(): JSX.Element {
   const m = getMessages();
   const params = useParams<{ token: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const token = params.token;
-  const { data, isLoading, error, mutate } = useSWR(`/api/public/portal/${token}`, fetcher);
+  const requestedVersionId = searchParams.get("versionId") ?? undefined;
+
+  const portalUrl = requestedVersionId
+    ? `/api/public/portal/${token}?versionId=${encodeURIComponent(requestedVersionId)}`
+    : `/api/public/portal/${token}`;
+
+  const { data, isLoading, error, mutate } = useSWR(portalUrl, fetcher);
+  const activeVersion = useMemo(
+    () => data?.versions.find((version) => version.id === data.activeVersionId) ?? null,
+    [data],
+  );
+
   const nativeVideoRef = useRef<HTMLVideoElement | null>(null);
   const youtubeRef = useRef<YouTubePlayerRef | null>(null);
   const kinescopeRef = useRef<KinescopePlayerRef | null>(null);
@@ -71,8 +88,9 @@ export default function ClientPortalPage(): JSX.Element {
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
-  const safeVideoUrl = (data?.version.streamUrl ?? data?.version.fileUrl ?? "").trim();
-  const videoProvider = data?.version.videoProvider ?? "EXTERNAL_URL";
+
+  const safeVideoUrl = (activeVersion?.streamUrl ?? activeVersion?.fileUrl ?? "").trim();
+  const videoProvider = activeVersion?.videoProvider ?? "EXTERNAL_URL";
   const videoIsKinescope = videoProvider === "KINESCOPE";
   const videoIsYouTube = !videoIsKinescope && isYouTubeUrl(safeVideoUrl);
 
@@ -86,7 +104,7 @@ export default function ClientPortalPage(): JSX.Element {
     "flex flex-col gap-2 rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4";
   const feedbackItemClass =
     "rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] p-4 shadow-[0_6px_24px_rgba(15,23,42,0.08)]";
-  const isVersionLocked = data?.version.status === "APPROVED" || data?.version.status === "FINAL";
+  const isVersionLocked = activeVersion?.status === "APPROVED" || activeVersion?.status === "FINAL";
 
   const updatePlayerTime = (seconds: number): void => {
     const normalized = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
@@ -125,10 +143,10 @@ export default function ClientPortalPage(): JSX.Element {
     setPlayerCurrentTimeSec(0);
     setCapturedTimecodeSec(null);
     lastKnownTimeRef.current = 0;
-  }, [data?.version.id, videoProvider, safeVideoUrl, data?.version.kinescopeVideoId]);
+  }, [activeVersion?.id, videoProvider, safeVideoUrl, activeVersion?.kinescopeVideoId]);
 
   useEffect(() => {
-    if (!playerReady) {
+    if (!playerReady || !activeVersion) {
       return;
     }
 
@@ -151,7 +169,7 @@ export default function ClientPortalPage(): JSX.Element {
     return () => {
       window.clearInterval(interval);
     };
-  }, [playerReady, readCurrentPlayerTime, readKinescopeTimeSafe, videoIsKinescope]);
+  }, [activeVersion, playerReady, readCurrentPlayerTime, readKinescopeTimeSafe, videoIsKinescope]);
 
   if (isLoading) {
     return (
@@ -176,7 +194,18 @@ export default function ClientPortalPage(): JSX.Element {
     );
   }
 
+  const selectVersion = (versionId: string): void => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("versionId", versionId);
+    router.replace(`/client-portal/${token}?${params.toString()}`);
+  };
+
   const captureCurrentTimecode = (): void => {
+    if (!activeVersion) {
+      toast.error("Version not found");
+      return;
+    }
+
     if (!playerReady) {
       toast.error(m.portal.playerNotReady);
       return;
@@ -204,11 +233,17 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const approveVersion = async (): Promise<void> => {
+    if (!activeVersion) {
+      return;
+    }
+
     setApproving(true);
 
     try {
       const response = await fetch(`/api/public/portal/${token}/approve`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId: activeVersion.id }),
       });
       const json = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
@@ -228,82 +263,111 @@ export default function ClientPortalPage(): JSX.Element {
     <main className={`min-h-screen px-3 py-4 sm:px-6 sm:py-8 ${pageBackground}`}>
       <section className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
         <Card className={shellCardClass}>
-          <CardHeader className="space-y-2 pb-3">
+          <CardHeader className="space-y-3 pb-3">
             <CardTitle className={`text-2xl font-semibold tracking-tight sm:text-3xl ${titleClass}`}>{data.project.name}</CardTitle>
-            <p className={`text-xs sm:text-sm ${mutedTextClass}`}>
-              Version {data.version.versionNumber}: {data.version.fileName}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
-              {videoIsKinescope ? (
-                <KinescopePlayer
-                  ref={kinescopeRef}
-                  className="w-full"
-                  videoId={data.version.kinescopeVideoId}
-                  videoUrl={safeVideoUrl}
-                  onReady={() => setPlayerReady(true)}
-                  onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
-                  onPlay={() => setPlayerReady(true)}
-                />
-              ) : videoIsYouTube ? (
-                <YouTubePlayer
-                  ref={youtubeRef}
-                  className="w-full"
-                  videoUrl={safeVideoUrl}
-                  onReady={() => setPlayerReady(true)}
-                  onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
-                  onPlay={() => setPlayerReady(true)}
-                />
-              ) : (
-                <video
-                  ref={nativeVideoRef}
-                  className="h-auto w-full rounded-[20px] bg-black"
-                  controls
-                  preload="metadata"
-                  src={safeVideoUrl}
-                  onLoadedMetadata={() => setPlayerReady(true)}
-                  onCanPlay={() => setPlayerReady(true)}
-                  onTimeUpdate={(event) => updatePlayerTime(event.currentTarget.currentTime)}
-                >
-                  <track kind="captions" />
-                </video>
-              )}
-            </div>
-            <div className={inputCardClass}>
-              <span className={`text-sm font-medium ${titleClass}`}>
-                {capturedTimecodeSec !== null
-                  ? `${m.portal.selectedTime}: ${formatTimecode(capturedTimecodeSec)}`
-                  : `${m.portal.currentTime}: ${formatTimecode(playerCurrentTimeSec)}`}
-              </span>
+            {data.versions.length > 0 ? (
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  onClick={captureCurrentTimecode}
-                  type="button"
-                  disabled={!playerReady || isVersionLocked}
-                  className="h-11 rounded-full bg-[#007AFF] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(0,122,255,0.35)] hover:bg-[#0A84FF]"
-                >
-                  {m.portal.addFeedbackAtCurrentTime}
-                </Button>
-                <Button
-                  onClick={() => setApproveDialogOpen(true)}
-                  type="button"
-                  variant={isVersionLocked ? "outline" : "default"}
-                  disabled={isVersionLocked}
-                  className="h-11 rounded-full px-5 text-sm font-semibold"
-                >
-                  {isVersionLocked ? m.portal.approved : m.portal.approveVersion}
-                </Button>
+                {data.versions.map((version) => (
+                  <button
+                    key={version.id}
+                    type="button"
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm",
+                      version.id === activeVersion?.id
+                        ? "border-[color:var(--app-brand)] bg-[color:var(--app-brand)]/15 text-[color:var(--app-text)]"
+                        : "border-[color:var(--app-border)] bg-[var(--app-surface-soft)] text-[color:var(--app-text-muted)] hover:text-[color:var(--app-text)]",
+                    )}
+                    onClick={() => selectVersion(version.id)}
+                  >
+                    Version {version.versionNumber}
+                  </button>
+                ))}
               </div>
-            </div>
-            {videoIsKinescope && data.version.processingStatus !== "READY" ? (
-              <p className={`text-xs ${mutedTextClass}`}>
-                {data.version.processingStatus === "FAILED"
-                  ? "Kinescope processing failed for this version."
-                  : "Kinescope is still processing this video. Playback may be temporarily unavailable."}
+            ) : (
+              <p className={`text-sm ${mutedTextClass}`}>No versions uploaded yet.</p>
+            )}
+            {activeVersion ? (
+              <p className={`text-xs sm:text-sm ${mutedTextClass}`}>
+                Version {activeVersion.versionNumber}: {activeVersion.fileName}
               </p>
             ) : null}
-            {isVersionLocked && <p className={`text-sm ${mutedTextClass}`}>{m.portal.approvalLocked}</p>}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!activeVersion ? (
+              <p className={`text-sm ${mutedTextClass}`}>This project has no uploaded versions yet.</p>
+            ) : (
+              <>
+                <div className="overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
+                  {videoIsKinescope ? (
+                    <KinescopePlayer
+                      ref={kinescopeRef}
+                      className="w-full"
+                      videoId={activeVersion.kinescopeVideoId}
+                      videoUrl={safeVideoUrl}
+                      onReady={() => setPlayerReady(true)}
+                      onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
+                      onPlay={() => setPlayerReady(true)}
+                    />
+                  ) : videoIsYouTube ? (
+                    <YouTubePlayer
+                      ref={youtubeRef}
+                      className="w-full"
+                      videoUrl={safeVideoUrl}
+                      onReady={() => setPlayerReady(true)}
+                      onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
+                      onPlay={() => setPlayerReady(true)}
+                    />
+                  ) : (
+                    <video
+                      ref={nativeVideoRef}
+                      className="h-auto w-full rounded-[20px] bg-black"
+                      controls
+                      preload="metadata"
+                      src={safeVideoUrl}
+                      onLoadedMetadata={() => setPlayerReady(true)}
+                      onCanPlay={() => setPlayerReady(true)}
+                      onTimeUpdate={(event) => updatePlayerTime(event.currentTarget.currentTime)}
+                    >
+                      <track kind="captions" />
+                    </video>
+                  )}
+                </div>
+                <div className={inputCardClass}>
+                  <span className={`text-sm font-medium ${titleClass}`}>
+                    {capturedTimecodeSec !== null
+                      ? `${m.portal.selectedTime}: ${formatTimecode(capturedTimecodeSec)}`
+                      : `${m.portal.currentTime}: ${formatTimecode(playerCurrentTimeSec)}`}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      onClick={captureCurrentTimecode}
+                      type="button"
+                      disabled={!playerReady || isVersionLocked}
+                      className="h-11 rounded-full bg-[#007AFF] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(0,122,255,0.35)] hover:bg-[#0A84FF]"
+                    >
+                      {m.portal.addFeedbackAtCurrentTime}
+                    </Button>
+                    <Button
+                      onClick={() => setApproveDialogOpen(true)}
+                      type="button"
+                      variant={isVersionLocked ? "outline" : "default"}
+                      disabled={isVersionLocked}
+                      className="h-11 rounded-full px-5 text-sm font-semibold"
+                    >
+                      {isVersionLocked ? m.portal.approved : m.portal.approveVersion}
+                    </Button>
+                  </div>
+                </div>
+                {videoIsKinescope && activeVersion.processingStatus !== "READY" ? (
+                  <p className={`text-xs ${mutedTextClass}`}>
+                    {activeVersion.processingStatus === "FAILED"
+                      ? "Kinescope processing failed for this version."
+                      : "Kinescope is still processing this video. Playback may be temporarily unavailable."}
+                  </p>
+                ) : null}
+                {isVersionLocked && <p className={`text-sm ${mutedTextClass}`}>{m.portal.approvalLocked}</p>}
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -312,16 +376,20 @@ export default function ClientPortalPage(): JSX.Element {
             <CardTitle className={`text-xl font-semibold tracking-tight ${titleClass}`}>{m.portal.leaveFeedback}</CardTitle>
           </CardHeader>
           <CardContent>
-            <FeedbackForm
-              capturedTimecodeSec={capturedTimecodeSec}
-              versionId={data.version.id}
-              disabled={isVersionLocked}
-              disabledReason={isVersionLocked ? m.portal.approvalLocked : undefined}
-              onSubmitted={() => {
-                setCapturedTimecodeSec(null);
-                void mutate();
-              }}
-            />
+            {activeVersion ? (
+              <FeedbackForm
+                capturedTimecodeSec={capturedTimecodeSec}
+                versionId={activeVersion.id}
+                disabled={isVersionLocked}
+                disabledReason={isVersionLocked ? m.portal.approvalLocked : undefined}
+                onSubmitted={() => {
+                  setCapturedTimecodeSec(null);
+                  void mutate();
+                }}
+              />
+            ) : (
+              <p className={`text-sm ${mutedTextClass}`}>Feedback is available after the first version upload.</p>
+            )}
           </CardContent>
         </Card>
 
@@ -334,19 +402,19 @@ export default function ClientPortalPage(): JSX.Element {
             {data.feedback
               .filter((item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text))
               .map((item) => (
-              <article key={item.id} className={feedbackItemClass}>
-                <div className={`mb-2 flex flex-wrap items-center gap-2 text-xs ${mutedTextClass}`}>
-                  <span className={`font-medium ${titleClass}`}>{item.authorName}</span>
-                  <Badge
-                    variant="secondary"
-                    className="rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] px-2.5 text-[11px] text-[color:var(--app-text)]"
-                  >
-                    {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "No timecode"}
-                  </Badge>
-                </div>
-                <p className={`text-sm leading-relaxed ${cardTextClass}`}>{item.text}</p>
-              </article>
-            ))}
+                <article key={item.id} className={feedbackItemClass}>
+                  <div className={`mb-2 flex flex-wrap items-center gap-2 text-xs ${mutedTextClass}`}>
+                    <span className={`font-medium ${titleClass}`}>{item.authorName}</span>
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] px-2.5 text-[11px] text-[color:var(--app-text)]"
+                    >
+                      {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "No timecode"}
+                    </Badge>
+                  </div>
+                  <p className={`text-sm leading-relaxed ${cardTextClass}`}>{item.text}</p>
+                </article>
+              ))}
           </CardContent>
         </Card>
 
@@ -360,7 +428,7 @@ export default function ClientPortalPage(): JSX.Element {
               <Button variant="outline" onClick={() => setApproveDialogOpen(false)} disabled={approving}>
                 {m.portal.cancel}
               </Button>
-              <Button onClick={approveVersion} disabled={approving}>
+              <Button onClick={approveVersion} disabled={approving || !activeVersion}>
                 {approving ? "..." : m.portal.approveConfirm}
               </Button>
             </DialogFooter>

@@ -251,6 +251,7 @@ export interface ProjectFilters {
 export interface ProjectResponse {
   id: string;
   tenantId: string;
+  portalToken: string;
   name: string;
   description: string | null;
   status: ProjectStatus;

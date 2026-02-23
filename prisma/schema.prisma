@@ -182,6 +182,7 @@ model Project {
   id                   String         @id @default(cuid())
   tenantId             String
   clientAccountId      String
+  portalToken          String         @unique @default(cuid())
   name                 String
   description          String?
   status               ProjectStatus  @default(DRAFT)

@@ -85,12 +85,12 @@ function formatTimecode(seconds: number | null): string {
   return `${min}:${sec.toString().padStart(2, "0")}`;
 }
 
-function createPublicPortalLink(versionId: string): string {
+function createPublicPortalLink(portalToken: string): string {
   if (typeof window === "undefined") {
-    return `/client-portal/${versionId}`;
+    return `/client-portal/${portalToken}`;
   }
 
-  return `${window.location.origin}/client-portal/${versionId}`;
+  return `${window.location.origin}/client-portal/${portalToken}`;
 }
 
 function copyToClipboard(text: string): Promise<void> {
@@ -146,6 +146,7 @@ export default function VersionDetailPage(): JSX.Element {
   const [activeVersionId, setActiveVersionId] = useState<string>(versionId);
   const [pendingFeedbackId, setPendingFeedbackId] = useState<string | null>(null);
   const [appTheme, setAppTheme] = useState<AppTheme>("light");
+  const [resettingPortalLink, setResettingPortalLink] = useState(false);
 
     useEffect(() => {
     if (typeof document === "undefined") {
@@ -252,15 +253,30 @@ export default function VersionDetailPage(): JSX.Element {
   };
 
   const handleCopyPublicLink = async (): Promise<void> => {
-    if (!activeVersion) {
+    if (!project?.portalToken) {
       return;
     }
 
     try {
-      await copyToClipboard(createPublicPortalLink(activeVersion.id));
+      await copyToClipboard(createPublicPortalLink(project.portalToken));
       toast.success("Ссылка скопирована");
     } catch {
       toast.error("Не удалось скопировать ссылку");
+    }
+  };
+
+  const handleResetPublicLink = async (): Promise<void> => {
+    setResettingPortalLink(true);
+    try {
+      const result = await apiFetch<{ portalToken: string }>(`/api/projects/${projectId}/portal-token/reset`, {
+        method: "POST",
+      });
+      await copyToClipboard(createPublicPortalLink(result.portalToken));
+      toast.success("Новая публичная ссылка создана и скопирована");
+    } catch {
+      toast.error("Не удалось сбросить публичную ссылку");
+    } finally {
+      setResettingPortalLink(false);
     }
   };
 
@@ -304,6 +320,9 @@ export default function VersionDetailPage(): JSX.Element {
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <Button variant="outline" onClick={handleCopyPublicLink} className="w-full sm:w-auto">
               Публичная ссылка
+            </Button>
+            <Button variant="outline" onClick={handleResetPublicLink} disabled={resettingPortalLink} className="w-full sm:w-auto">
+              {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
             </Button>
           </div>
         </div>

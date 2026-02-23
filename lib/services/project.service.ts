@@ -1,6 +1,7 @@
 import { ProjectStatus as PrismaProjectStatus } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
 import { WorkflowService } from "@/lib/services/workflow.service";
+import { generatePortalProjectToken } from "@/lib/utils/portal-token";
 import { ProjectStatus } from "@/types";
 import type {
   CreateProjectInput,
@@ -53,6 +54,7 @@ export class ProjectService {
   private mapProjectResponse(project: {
     id: string;
     tenantId: string;
+    portalToken: string;
     name: string;
     description: string | null;
     status: PrismaProjectStatus;
@@ -71,6 +73,7 @@ export class ProjectService {
     return {
       id: project.id,
       tenantId: project.tenantId,
+      portalToken: project.portalToken,
       name: project.name,
       description: project.description,
       status: toAppProjectStatus(project.status),
@@ -122,6 +125,7 @@ export class ProjectService {
       data: {
         tenantId,
         clientAccountId: clientId,
+        portalToken: generatePortalProjectToken(),
         name,
         description: input.description ?? null,
         scopeDocUrl: input.brief ?? null,
@@ -199,6 +203,42 @@ export class ProjectService {
     });
 
     return projects.map((project) => this.mapProjectResponse(project));
+  }
+
+  async rotatePortalToken(projectId: string, tenantId: string): Promise<{ portalToken: string }> {
+    if (!tenantId || tenantId.trim().length === 0) {
+      throw new Error("tenantId is required");
+    }
+
+    const updated = await prisma.project.updateMany({
+      where: {
+        id: projectId,
+        tenantId,
+      },
+      data: {
+        portalToken: generatePortalProjectToken(),
+      },
+    });
+
+    if (updated.count === 0) {
+      throw new Error("Project not found");
+    }
+
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        tenantId,
+      },
+      select: {
+        portalToken: true,
+      },
+    });
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    return { portalToken: project.portalToken };
   }
 
   async updateProject(_context: ServiceContext, _input?: unknown): Promise<unknown> {

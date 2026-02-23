@@ -25,6 +25,7 @@ export async function POST(request: Request): Promise<Response> {
           select: {
             tenantId: true,
             name: true,
+            portalToken: true,
           },
         },
       },
@@ -78,7 +79,7 @@ export async function POST(request: Request): Promise<Response> {
         authorName: payload.authorName?.trim() || "Client",
         text: payload.text,
         timecodeSec: payload.timecodeSec,
-        portalUrl: `${appUrl}/client-portal/${version.id}`,
+        portalUrl: `${appUrl}/client-portal/${version.project.portalToken}`,
       })
       .catch((telegramError) => {
         console.error("[Telegram] feedback notification failed", telegramError);

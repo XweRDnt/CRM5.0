@@ -1,36 +1,81 @@
+import { VersionStatus, type AssetVersion } from "@prisma/client";
 import { z } from "zod";
-import { VersionStatus } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
 import { handleAPIError } from "@/lib/utils/api-error";
-import { resolvePortalVersionId } from "@/lib/utils/portal-token";
+import { resolvePortalProjectToken } from "@/lib/utils/portal-token";
 
 const paramsSchema = z.object({
   token: z.string().min(1),
 });
 
-export async function GET(_: Request, context: { params: Promise<{ token: string }> }): Promise<Response> {
+const querySchema = z.object({
+  versionId: z.string().min(1).optional(),
+});
+
+function selectActiveVersion(versions: AssetVersion[], requestedVersionId?: string): AssetVersion | null {
+  if (versions.length === 0) {
+    return null;
+  }
+
+  if (requestedVersionId) {
+    const requested = versions.find((item) => item.id === requestedVersionId);
+    if (requested) {
+      return requested;
+    }
+  }
+
+  const inReview = versions.find((item) => item.status === VersionStatus.IN_REVIEW);
+  return inReview ?? versions[0];
+}
+
+export async function GET(request: Request, context: { params: Promise<{ token: string }> }): Promise<Response> {
   try {
     const { token } = paramsSchema.parse(await context.params);
-    const versionId = resolvePortalVersionId(token);
+    const searchParams = new URL(request.url).searchParams;
+    const { versionId: requestedVersionId } = querySchema.parse({
+      versionId: searchParams.get("versionId") ?? undefined,
+    });
 
-    if (!versionId) {
-      return Response.json({ error: "Invalid or expired portal token" }, { status: 400 });
+    const portalToken = resolvePortalProjectToken(token);
+
+    if (!portalToken) {
+      return Response.json({ error: "Invalid portal token" }, { status: 400 });
     }
 
-    const version = await prisma.assetVersion.findFirst({
-      where: { id: versionId },
+    const project = await prisma.project.findFirst({
+      where: { portalToken },
       include: {
-        project: {
-          include: {
-            client: {
-              select: {
-                contactName: true,
-                companyName: true,
-              },
-            },
+        client: {
+          select: {
+            contactName: true,
+            companyName: true,
           },
         },
-        feedbackItems: {
+        versions: {
+          orderBy: { versionNo: "desc" },
+        },
+      },
+    });
+
+    if (!project) {
+      return Response.json({ error: "Portal not found" }, { status: 404 });
+    }
+
+    let activeVersion = selectActiveVersion(project.versions, requestedVersionId);
+
+    if (activeVersion && activeVersion.status === VersionStatus.DRAFT) {
+      const updated = await prisma.assetVersion.update({
+        where: { id: activeVersion.id },
+        data: { status: VersionStatus.IN_REVIEW },
+      });
+
+      project.versions = project.versions.map((version) => (version.id === updated.id ? updated : version));
+      activeVersion = updated;
+    }
+
+    const feedbackItems = activeVersion
+      ? await prisma.feedbackItem.findMany({
+          where: { assetVersionId: activeVersion.id },
           orderBy: { createdAt: "desc" },
           take: 50,
           select: {
@@ -47,31 +92,19 @@ export async function GET(_: Request, context: { params: Promise<{ token: string
               },
             },
           },
-        },
-      },
-    });
-
-    if (!version) {
-      return Response.json({ error: "Version not found" }, { status: 404 });
-    }
-
-    if (version.status === VersionStatus.DRAFT) {
-      const updated = await prisma.assetVersion.update({
-        where: { id: version.id },
-        data: { status: VersionStatus.IN_REVIEW },
-      });
-      version.status = updated.status;
-    }
+        })
+      : [];
 
     return Response.json(
       {
         project: {
-          id: version.project.id,
-          name: version.project.name,
-          clientName: version.project.client.contactName,
-          companyName: version.project.client.companyName,
+          id: project.id,
+          name: project.name,
+          clientName: project.client.contactName,
+          companyName: project.client.companyName,
         },
-        version: {
+        activeVersionId: activeVersion?.id ?? null,
+        versions: project.versions.map((version) => ({
           id: version.id,
           versionNumber: version.versionNo,
           fileUrl: version.fileUrl,
@@ -83,8 +116,8 @@ export async function GET(_: Request, context: { params: Promise<{ token: string
           durationSec: version.durationSec,
           status: version.status,
           createdAt: version.createdAt,
-        },
-        feedback: version.feedbackItems.map((item) => ({
+        })),
+        feedback: feedbackItems.map((item) => ({
           id: item.id,
           text: item.text,
           timecodeSec: item.timecodeSec,
