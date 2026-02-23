@@ -75,6 +75,7 @@ export default function ClientPortalPage(): JSX.Element {
   );
 
   const kinescopeRef = useRef<KinescopePlayerRef | null>(null);
+  const playerFrameRef = useRef<HTMLDivElement | null>(null);
   const lastKnownTimeRef = useRef(0);
   const [playerCurrentTimeSec, setPlayerCurrentTimeSec] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
@@ -212,6 +213,13 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const enterFullscreen = (): void => {
+    const container = playerFrameRef.current;
+    if (container && typeof container.requestFullscreen === "function") {
+      void container.requestFullscreen().catch(() => {
+        kinescopeRef.current?.setFullscreen(true);
+      });
+      return;
+    }
     kinescopeRef.current?.setFullscreen(true);
   };
 
@@ -280,7 +288,10 @@ export default function ClientPortalPage(): JSX.Element {
               <p className={`text-sm ${mutedTextClass}`}>This project has no uploaded versions yet.</p>
             ) : (
               <>
-                <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
+                <div
+                  ref={playerFrameRef}
+                  className="relative overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2"
+                >
                   <KinescopePlayer
                     ref={kinescopeRef}
                     className="w-full"
@@ -293,7 +304,7 @@ export default function ClientPortalPage(): JSX.Element {
                   <button
                     type="button"
                     onClick={enterFullscreen}
-                    className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/75"
+                    className="absolute bottom-3 right-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/75"
                     aria-label="Enter fullscreen"
                   >
                     <Expand className="h-4 w-4" aria-hidden />
