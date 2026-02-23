@@ -178,7 +178,7 @@ export const KinescopePlayer = forwardRef<KinescopePlayerRef, KinescopePlayerPro
 
     return (
       <div className={cn("w-full", className)}>
-        <div className="relative aspect-video w-full overflow-hidden rounded-md bg-black">
+        <div className="relative aspect-video w-full overflow-clip rounded-md bg-black">
           <KinescopeSdkPlayer
             ref={playerRef}
             videoId={resolvedVideoId}
