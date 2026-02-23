@@ -199,5 +199,3 @@ export class ScopeGuardService {
     };
   }
 }
-
-export const scopeGuardService = new ScopeGuardService();

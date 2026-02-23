@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
-import { YouTubePlayer, type YouTubePlayerRef } from "@/components/video/YouTubePlayer";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -66,10 +65,6 @@ function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
 }
 
-function isYouTubeUrl(url: string): boolean {
-  return /youtube\.com|youtu\.be/i.test(url);
-}
-
 function formatDate(value: Date): string {
   return new Date(value).toLocaleDateString("ru-RU", {
     day: "2-digit",
@@ -123,8 +118,6 @@ function copyToClipboard(text: string): Promise<void> {
 export default function VersionDetailPage(): JSX.Element {
   const params = useParams<{ id: string; versionId: string }>();
   const { id: projectId, versionId } = params;
-  const htmlVideoRef = useRef<HTMLVideoElement>(null);
-  const youtubeRef = useRef<YouTubePlayerRef>(null);
   const kinescopeRef = useRef<KinescopePlayerRef>(null);
 
   const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
@@ -203,23 +196,8 @@ export default function VersionDetailPage(): JSX.Element {
 
   const seekToTimecode = (timecodeSec: number | null): void => {
     const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
-
-    if (activeVersion?.videoProvider === "KINESCOPE") {
-      kinescopeRef.current?.seekTo(target);
-      kinescopeRef.current?.play();
-      return;
-    }
-
-    if (activeVersion && isYouTubeUrl(activeVersion.fileUrl)) {
-      youtubeRef.current?.seekTo(target);
-      youtubeRef.current?.play();
-      return;
-    }
-
-    if (htmlVideoRef.current) {
-      htmlVideoRef.current.currentTime = target;
-      void htmlVideoRef.current.play().catch(() => undefined);
-    }
+    kinescopeRef.current?.seekTo(target);
+    kinescopeRef.current?.play();
   };
 
   const handleChangeFeedbackStatus = async (feedbackId: string, status: FeedbackStatus): Promise<void> => {
@@ -361,36 +339,13 @@ export default function VersionDetailPage(): JSX.Element {
         <div className="min-w-0 space-y-3 xl:col-span-3">
           <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
             <CardContent className="p-2 sm:p-4">
-              {isYouTubeUrl(activeVersion.fileUrl) ? (
-                activeVersion.videoProvider === "KINESCOPE" ? (
-                  <KinescopePlayer
-                    ref={kinescopeRef}
-                    className="w-full"
-                    videoId={activeVersion.kinescopeVideoId}
-                    videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
-                  />
-                ) : (
-                  <YouTubePlayer ref={youtubeRef} videoUrl={activeVersion.fileUrl} className="w-full" />
-                )
-              ) : activeVersion.videoProvider === "KINESCOPE" ? (
-                <KinescopePlayer
-                  ref={kinescopeRef}
-                  className="w-full"
-                  videoId={activeVersion.kinescopeVideoId}
-                  videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
-                />
-              ) : (
-                <video
-                  ref={htmlVideoRef}
-                  className="h-auto w-full rounded-lg bg-black"
-                  controls
-                  preload="metadata"
-                  src={activeVersion.fileUrl}
-                >
-                  <track kind="captions" />
-                </video>
-              )}
-              {activeVersion.videoProvider === "KINESCOPE" && activeVersion.processingStatus !== "READY" ? (
+              <KinescopePlayer
+                ref={kinescopeRef}
+                className="w-full"
+                videoId={activeVersion.kinescopeVideoId}
+                videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
+              />
+              {activeVersion.processingStatus !== "READY" ? (
                 <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
                   {activeVersion.processingStatus === "FAILED"
                     ? "Обработка видео в Kinescope завершилась с ошибкой."

@@ -1,9 +1,7 @@
 import { closeFeedbackQueue } from "@/lib/jobs/queues/feedback.queue";
 import { scheduleWorkflowReminderJob } from "@/lib/jobs/queues/workflow.queue";
 import { closeRedisConnections } from "@/lib/jobs/redis";
-import { emailWorker } from "@/lib/jobs/workers/email.worker";
 import { feedbackWorker } from "@/lib/jobs/workers/feedback.worker";
-import { scopeWorker } from "@/lib/jobs/workers/scope.worker";
 import { workflowWorker } from "@/lib/jobs/workers/workflow.worker";
 
 let shutdownRegistered = false;
@@ -11,8 +9,6 @@ let shutdownRegistered = false;
 async function closeWorkers(): Promise<void> {
   await Promise.allSettled([
     feedbackWorker.close(),
-    scopeWorker.close(),
-    emailWorker.close(),
     workflowWorker.close(),
     closeFeedbackQueue(),
   ]);
