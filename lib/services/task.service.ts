@@ -205,7 +205,22 @@ export class TaskService {
     return this.mapTaskResponse(task);
   }
 
-  async listTasks(tenantId: string, filters?: TaskFilters): Promise<TaskResponse[]> {
+  async listTasks(
+    tenantId: string,
+    filters?: TaskFilters,
+    options?: { accessibleProjectIds?: string[] },
+  ): Promise<TaskResponse[]> {
+    const accessibleProjectIds = options?.accessibleProjectIds;
+
+    let projectIdFilter: string | { in: string[] } | undefined = filters?.projectId;
+    if (accessibleProjectIds) {
+      projectIdFilter = filters?.projectId
+        ? accessibleProjectIds.includes(filters.projectId)
+          ? filters.projectId
+          : { in: [] }
+        : { in: accessibleProjectIds };
+    }
+
     if (filters?.projectId) {
       const project = await this.prismaClient.project.findFirst({
         where: {
@@ -225,7 +240,7 @@ export class TaskService {
         project: {
           tenantId,
         },
-        projectId: filters?.projectId,
+        projectId: projectIdFilter,
         assignedToUserId: filters?.assignedToUserId,
         status: filters?.status,
         priority: filters?.priority,

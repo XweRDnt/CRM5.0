@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,8 +15,7 @@ import { Label } from "@/components/ui/label";
 import { getMessages } from "@/lib/i18n/messages";
 
 const signupSchema = z.object({
-  tenantName: z.string().min(1, "Agency name is required"),
-  tenantSlug: z.string().min(2, "Slug is required").regex(/^[a-z0-9-]+$/, "Use lowercase letters, numbers and -"),
+  workspaceName: z.string().optional(),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Valid email is required"),
@@ -49,6 +48,8 @@ function extractSignupPayload(json: unknown): SignupResponse {
 export default function SignupPage(): JSX.Element {
   const m = getMessages();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("inviteToken") ?? "";
   const {
     register,
     handleSubmit,
@@ -56,8 +57,7 @@ export default function SignupPage(): JSX.Element {
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      tenantName: "",
-      tenantSlug: "",
+      workspaceName: "",
       firstName: "",
       lastName: "",
       email: "",
@@ -66,11 +66,20 @@ export default function SignupPage(): JSX.Element {
   });
 
   const onSubmit = async (data: SignupFormValues): Promise<void> => {
+    if (!inviteToken && (!data.workspaceName || data.workspaceName.trim().length === 0)) {
+      toast.error("Workspace name is required");
+      return;
+    }
+
     try {
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          workspaceName: data.workspaceName?.trim() || undefined,
+          inviteToken: inviteToken || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -100,16 +109,13 @@ export default function SignupPage(): JSX.Element {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="tenantName">Agency Name</Label>
-                <Input id="tenantName" placeholder="North Studio" {...register("tenantName")} />
-                {errors.tenantName && <p className="text-xs text-red-500">{errors.tenantName.message}</p>}
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="tenantSlug">Agency Slug</Label>
-                <Input id="tenantSlug" placeholder="north-studio" {...register("tenantSlug")} />
-                {errors.tenantSlug && <p className="text-xs text-red-500">{errors.tenantSlug.message}</p>}
-              </div>
+              {!inviteToken && (
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="workspaceName">Workspace Name</Label>
+                  <Input id="workspaceName" placeholder="North Studio" {...register("workspaceName")} />
+                  {errors.workspaceName && <p className="text-xs text-red-500">{errors.workspaceName.message}</p>}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <Input id="firstName" {...register("firstName")} />

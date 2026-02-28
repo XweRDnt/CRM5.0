@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FolderOpen, Users, X } from "lucide-react";
+import { FolderOpen, Users, UserPlus, X } from "lucide-react";
 import { getMessages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils/cn";
 import type { AuthUser } from "@/lib/hooks/use-auth-guard";
 
 const navItems = [
-  { href: "/projects", key: "projects" as const, icon: FolderOpen },
-  { href: "/clients", key: "clients" as const, icon: Users },
+  { href: "/projects", key: "projects" as const, icon: FolderOpen, onlyOwnerOrPm: false },
+  { href: "/clients", key: "clients" as const, icon: Users, onlyOwnerOrPm: true },
+  { href: "/team", key: "team" as const, icon: UserPlus, onlyOwnerOrPm: true },
 ];
 
 type SidebarProps = {
@@ -21,6 +22,7 @@ type SidebarProps = {
 export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
   const pathname = usePathname();
   const m = getMessages();
+  const isOwnerOrPm = user.role === "OWNER" || user.role === "PM";
 
   return (
     <>
@@ -50,7 +52,9 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
           </button>
         </div>
         <nav className="sidebar-nav-group overflow-hidden border border-neutral-200 divide-y divide-neutral-200">
-          {navItems.map((item) => {
+          {navItems
+            .filter((item) => !item.onlyOwnerOrPm || isOwnerOrPm)
+            .map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
@@ -62,9 +66,9 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
                   "sidebar-nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition",
                   active ? "sidebar-nav-item-active bg-blue-100 text-blue-700" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900",
                 )}
-              >
+                >
                 <Icon className="h-4 w-4" />
-                {item.key === "projects" ? m.nav.projects : m.nav.clients}
+                {item.key === "projects" ? m.nav.projects : item.key === "clients" ? m.nav.clients : m.nav.team}
               </Link>
             );
           })}

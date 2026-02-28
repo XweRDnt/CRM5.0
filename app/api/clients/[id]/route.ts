@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
+import { assertOwnerOrPm } from "@/lib/services/access-control.service";
 import { clientService } from "@/lib/services/client.service";
 import { prisma } from "@/lib/utils/db";
 import { APIError, handleAPIError } from "@/lib/utils/api-error";
@@ -17,6 +18,7 @@ const updateClientSchema = z.object({
 
 export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
+    assertOwnerOrPm(req.user);
     const { id } = paramsSchema.parse(await context.params);
     const client = await clientService.getClientById(id, req.user.tenantId);
     return Response.json(client, { status: 200 });
@@ -27,6 +29,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context: { params:
 
 export const PATCH = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
+    assertOwnerOrPm(req.user);
     const tenantId = req.user.tenantId;
     const { id } = paramsSchema.parse(await context.params);
     const payload = updateClientSchema.parse(await req.json());
@@ -58,6 +61,7 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest, context: { param
 
 export const DELETE = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
+    assertOwnerOrPm(req.user);
     const tenantId = req.user.tenantId;
     const { id } = paramsSchema.parse(await context.params);
 

@@ -2,6 +2,7 @@ import { projectService } from "@/lib/services/project.service";
 import { withAuth } from "@/lib/middleware/auth";
 import { z } from "zod";
 import { handleAPIError } from "@/lib/utils/api-error";
+import { assertOwnerOrPm } from "@/lib/services/access-control.service";
 import { ProjectStatus } from "@/types";
 
 const createProjectSchema = z.object({
@@ -27,7 +28,7 @@ export const GET = withAuth(async (req) => {
     });
 
     const filters = parsed.clientId || parsed.status ? parsed : undefined;
-    const projects = await projectService.listProjects(tenantId, filters);
+    const projects = await projectService.listProjects(tenantId, filters, req.user);
 
     return Response.json(projects);
   } catch (error) {
@@ -37,6 +38,7 @@ export const GET = withAuth(async (req) => {
 
 export const POST = withAuth(async (req) => {
   try {
+    assertOwnerOrPm(req.user);
     const tenantId = req.user.tenantId;
     const body = await req.json();
     const validated = createProjectSchema.parse(body);

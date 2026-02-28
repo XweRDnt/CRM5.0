@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
 import { FeedbackService } from "@/lib/services/feedback.service";
+import { assertProjectAccess } from "@/lib/services/access-control.service";
 import { prisma } from "@/lib/utils/db";
 import { handleAPIError } from "@/lib/utils/api-error";
 
@@ -11,6 +12,7 @@ const paramsSchema = z.object({
 export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = paramsSchema.parse(await context.params);
+    await assertProjectAccess(req.user, id);
     const feedbackService = new FeedbackService(prisma);
     const feedback = await feedbackService.listFeedbackByProject(id, req.user.tenantId);
     return Response.json(feedback, { status: 200 });

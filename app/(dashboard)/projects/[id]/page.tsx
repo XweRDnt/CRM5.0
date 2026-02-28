@@ -9,6 +9,7 @@ import type { ProjectStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
+import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
 import { VERSION_STATUS_BADGE_CLASSES, VERSION_STATUS_LABELS, toVersionUiStatus, type VersionUiStatus } from "@/lib/constants/status-ui";
@@ -35,6 +36,19 @@ const STATUS_BADGE_STYLES: Record<AppTheme, Record<VersionUiStatus, CSSPropertie
 type VersionFeedbackStats = {
   totalClient: number;
   newClient: number;
+};
+type WorkspaceEditor = {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+};
+type ProjectMember = {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  addedAt: string;
 };
 
 function unwrap<T>(payload: ApiWrapped<T>): T {
@@ -94,8 +108,11 @@ function copyToClipboard(text: string): Promise<void> {
 export default function ProjectDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
+  const { user } = useAuthGuard();
+  const isOwnerOrPm = user?.role === "OWNER" || user?.role === "PM";
   const [appTheme, setAppTheme] = useState<AppTheme>("light");
   const [resettingPortalLink, setResettingPortalLink] = useState(false);
+  const [selectedEditorIds, setSelectedEditorIds] = useState<string[]>([]);
 
   const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
   const { data: versionsResponse, isLoading: versionsLoading } = useSWR(
@@ -105,6 +122,14 @@ export default function ProjectDetailPage(): JSX.Element {
   const { data: feedback = [], isLoading: feedbackLoading } = useSWR(
     `/api/projects/${projectId}/feedback`,
     apiFetch<FeedbackResponse[]>,
+  );
+  const { data: teamEditors = [] } = useSWR(
+    isOwnerOrPm ? "/api/team/members" : null,
+    apiFetch<WorkspaceEditor[]>,
+  );
+  const { data: projectMembers = [], mutate: mutateProjectMembers } = useSWR(
+    isOwnerOrPm ? `/api/projects/${projectId}/members` : null,
+    apiFetch<ProjectMember[]>,
   );
 
   useEffect(() => {
@@ -182,6 +207,41 @@ export default function ProjectDetailPage(): JSX.Element {
     }
   };
 
+  const handleToggleEditor = (editorId: string): void => {
+    setSelectedEditorIds((current) => (current.includes(editorId) ? current.filter((id) => id !== editorId) : [...current, editorId]));
+  };
+
+  const handleAddEditors = async (): Promise<void> => {
+    if (selectedEditorIds.length === 0) {
+      toast.error("Select at least one editor");
+      return;
+    }
+
+    try {
+      await apiFetch(`/api/projects/${projectId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ userIds: selectedEditorIds }),
+      });
+      setSelectedEditorIds([]);
+      await mutateProjectMembers();
+      toast.success("Editors added");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add editors");
+    }
+  };
+
+  const handleRemoveEditor = async (editorUserId: string): Promise<void> => {
+    try {
+      await apiFetch(`/api/projects/${projectId}/members/${editorUserId}`, {
+        method: "DELETE",
+      });
+      await mutateProjectMembers();
+      toast.success("Editor removed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to remove editor");
+    }
+  };
+
   if (projectLoading || !project) {
     return (
       <div className="flex h-40 items-center justify-center">
@@ -223,6 +283,59 @@ export default function ProjectDetailPage(): JSX.Element {
           </div>
         </div>
       </section>
+
+      {isOwnerOrPm && (
+        <section>
+          <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
+            <CardContent className="space-y-4 p-4 sm:p-5">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Участники проекта</h2>
+              <div className="space-y-2">
+                {(projectMembers ?? []).length === 0 ? (
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">Пока нет назначенных редакторов.</p>
+                ) : (
+                  projectMembers.map((member) => (
+                    <div key={member.userId} className="flex items-center justify-between rounded-lg border border-neutral-200 p-2.5 dark:border-neutral-700">
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                          {member.firstName} {member.lastName}
+                        </p>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400">{member.email}</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => void handleRemoveEditor(member.userId)}>
+                        Удалить
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Добавить редакторов</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {teamEditors.map((editor) => (
+                    <label
+                      key={editor.userId}
+                      className="flex items-center gap-2 rounded-lg border border-neutral-200 px-2.5 py-2 text-sm text-neutral-700 dark:border-neutral-700 dark:text-neutral-300"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedEditorIds.includes(editor.userId)}
+                        onChange={() => handleToggleEditor(editor.userId)}
+                      />
+                      <span className="truncate">
+                        {editor.firstName} {editor.lastName}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <Button onClick={() => void handleAddEditors()} className="w-full sm:w-auto">
+                  Добавить в проект
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       <section>
         {versionsLoading || feedbackLoading ? (

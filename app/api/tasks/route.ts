@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { FeedbackCategory, TaskPriority, TaskStatus } from "@prisma/client";
 import { withAuth } from "@/lib/middleware/auth";
+import { assertProjectAccess, getAccessibleProjectIds, isOwnerOrPm } from "@/lib/services/access-control.service";
 import { taskService } from "@/lib/services/task.service";
 import { handleAPIError } from "@/lib/utils/api-error";
 
@@ -36,7 +37,18 @@ export const GET = withAuth(async (request) => {
       category: url.searchParams.get("category") ?? undefined,
     });
 
-    const tasks = await taskService.listTasks(request.user.tenantId, filters);
+    if (filters.projectId) {
+      await assertProjectAccess(request.user, filters.projectId);
+    }
+
+    const accessibleProjectIds = isOwnerOrPm(request.user.role) ? undefined : await getAccessibleProjectIds(request.user);
+    if (accessibleProjectIds && accessibleProjectIds.length === 0) {
+      return Response.json([], { status: 200 });
+    }
+
+    const tasks = await taskService.listTasks(request.user.tenantId, filters, {
+      accessibleProjectIds,
+    });
     return Response.json(tasks, { status: 200 });
   } catch (error) {
     return handleAPIError(error);
@@ -46,6 +58,7 @@ export const GET = withAuth(async (request) => {
 export const POST = withAuth(async (request) => {
   try {
     const payload = createTaskSchema.parse(await request.json());
+    await assertProjectAccess(request.user, payload.projectId);
     const task = await taskService.createTask({
       ...payload,
       tenantId: request.user.tenantId,

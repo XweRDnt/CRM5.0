@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ProjectStatus } from "@prisma/client";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
 import { projectService } from "@/lib/services/project.service";
+import { assertOwnerOrPm, buildAccessibleProjectsWhere } from "@/lib/services/access-control.service";
 import { prisma } from "@/lib/utils/db";
 import { APIError, handleAPIError } from "@/lib/utils/api-error";
 
@@ -21,7 +22,7 @@ const updateProjectSchema = z.object({
 export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = paramsSchema.parse(await context.params);
-    const project = await projectService.getProjectById(id, req.user.tenantId);
+    const project = await projectService.getProjectById(id, req.user.tenantId, req.user);
     return Response.json(project, { status: 200 });
   } catch (error) {
     return handleAPIError(error);
@@ -30,7 +31,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context: { params:
 
 export const PATCH = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
-    const tenantId = req.user.tenantId;
+    assertOwnerOrPm(req.user);
     const { id } = paramsSchema.parse(await context.params);
     const payload = updateProjectSchema.parse(await req.json());
 
@@ -49,7 +50,7 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest, context: { param
     }
 
     const updated = await prisma.project.updateMany({
-      where: { id, tenantId },
+      where: { id, ...buildAccessibleProjectsWhere(req.user) },
       data: {
         name: payload.name,
         description: payload.description === undefined ? undefined : payload.description,
@@ -64,7 +65,7 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest, context: { param
       throw new APIError(404, "Project not found", "NOT_FOUND");
     }
 
-    const project = await projectService.getProjectById(id, tenantId);
+    const project = await projectService.getProjectById(id, req.user.tenantId, req.user);
     return Response.json(project, { status: 200 });
   } catch (error) {
     return handleAPIError(error);
@@ -73,11 +74,12 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest, context: { param
 
 export const DELETE = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
+    assertOwnerOrPm(req.user);
     const tenantId = req.user.tenantId;
     const { id } = paramsSchema.parse(await context.params);
 
     const deleted = await prisma.project.deleteMany({
-      where: { id, tenantId },
+      where: { id, ...buildAccessibleProjectsWhere(req.user) },
     });
 
     if (deleted.count === 0) {

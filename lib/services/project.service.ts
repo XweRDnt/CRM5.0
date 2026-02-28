@@ -3,6 +3,8 @@ import { prisma } from "@/lib/utils/db";
 import { WorkflowService } from "@/lib/services/workflow.service";
 import { generatePortalProjectToken } from "@/lib/utils/portal-token";
 import { ProjectStatus } from "@/types";
+import type { JWTPayload } from "@/types";
+import { buildAccessibleProjectsWhere, isOwnerOrPm } from "@/lib/services/access-control.service";
 import type {
   CreateProjectInput,
   ProjectFilters,
@@ -152,7 +154,7 @@ export class ProjectService {
     return this.mapProjectResponse(created);
   }
 
-  async getProjectById(projectId: string, tenantId: string): Promise<ProjectResponse> {
+  async getProjectById(projectId: string, tenantId: string, user?: JWTPayload): Promise<ProjectResponse> {
     if (!tenantId || tenantId.trim().length === 0) {
       throw new Error("tenantId is required");
     }
@@ -160,7 +162,7 @@ export class ProjectService {
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
-        tenantId,
+        ...(user ? buildAccessibleProjectsWhere(user) : { tenantId }),
       },
       include: {
         client: {
@@ -179,14 +181,14 @@ export class ProjectService {
     return this.mapProjectResponse(project);
   }
 
-  async listProjects(tenantId: string, filters?: ProjectFilters): Promise<ProjectResponse[]> {
+  async listProjects(tenantId: string, filters?: ProjectFilters, user?: JWTPayload): Promise<ProjectResponse[]> {
     if (!tenantId || tenantId.trim().length === 0) {
       throw new Error("tenantId is required");
     }
 
     const projects = await prisma.project.findMany({
       where: {
-        tenantId,
+        ...(user ? buildAccessibleProjectsWhere(user) : { tenantId }),
         clientAccountId: filters?.clientId,
         status: filters?.status ? toPrismaProjectStatus(filters.status) : undefined,
       },
@@ -205,15 +207,19 @@ export class ProjectService {
     return projects.map((project) => this.mapProjectResponse(project));
   }
 
-  async rotatePortalToken(projectId: string, tenantId: string): Promise<{ portalToken: string }> {
+  async rotatePortalToken(projectId: string, tenantId: string, user?: JWTPayload): Promise<{ portalToken: string }> {
     if (!tenantId || tenantId.trim().length === 0) {
       throw new Error("tenantId is required");
+    }
+
+    if (user && !isOwnerOrPm(user.role)) {
+      throw new Error("Forbidden");
     }
 
     const updated = await prisma.project.updateMany({
       where: {
         id: projectId,
-        tenantId,
+        ...(user ? buildAccessibleProjectsWhere(user) : { tenantId }),
       },
       data: {
         portalToken: generatePortalProjectToken(),
@@ -227,7 +233,7 @@ export class ProjectService {
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
-        tenantId,
+        ...(user ? buildAccessibleProjectsWhere(user) : { tenantId }),
       },
       select: {
         portalToken: true,

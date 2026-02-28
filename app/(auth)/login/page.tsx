@@ -18,7 +18,6 @@ import { getMessages } from "@/lib/i18n/messages";
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1, "Password is required"),
-  tenantSlug: z.string().min(1, "Tenant slug is required"),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -55,6 +54,7 @@ export default function LoginPage(): JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const inviteToken = searchParams.get("inviteToken");
   const next = searchParams.get("next") || "/projects";
   const {
     register,
@@ -65,7 +65,6 @@ export default function LoginPage(): JSX.Element {
     defaultValues: {
       email: "",
       password: "",
-      tenantSlug: "",
     },
   });
 
@@ -87,6 +86,14 @@ export default function LoginPage(): JSX.Element {
       await mutate(() => true, undefined, { revalidate: false });
       localStorage.setItem("token", payload.token);
       localStorage.setItem("tenantId", payload.tenant.id);
+      if (inviteToken) {
+        await fetch(`/api/invite/${encodeURIComponent(inviteToken)}/accept`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${payload.token}`,
+          },
+        });
+      }
       toast.success("Вход выполнен");
       router.push(next);
     } catch (error) {
@@ -160,17 +167,12 @@ export default function LoginPage(): JSX.Element {
               <Input id="password" type="password" placeholder="******" {...register("password")} />
               {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="tenantSlug">Tenant Slug</Label>
-              <Input id="tenantSlug" placeholder="my-studio" {...register("tenantSlug")} />
-              {errors.tenantSlug && <p className="text-xs text-red-500">{errors.tenantSlug.message}</p>}
-            </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : m.auth.loginButton}
             </Button>
             <p className="text-center text-sm text-neutral-500">
               {`${m.auth.noAccount} `}
-              <Link href="/signup" className="text-blue-500 hover:underline">
+              <Link href={inviteToken ? `/signup?inviteToken=${encodeURIComponent(inviteToken)}` : "/signup"} className="text-blue-500 hover:underline">
                 {m.auth.toSignup}
               </Link>
             </p>

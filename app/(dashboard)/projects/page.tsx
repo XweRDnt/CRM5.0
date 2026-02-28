@@ -6,6 +6,7 @@ import { AlertCircle } from "lucide-react";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import type { ProjectResponse } from "@/types";
 
@@ -29,6 +30,8 @@ function ProjectGridSkeleton(): JSX.Element {
 
 export default function ProjectsPage(): JSX.Element {
   const { data: projects, error, isLoading } = useSWR("/api/projects", fetcher);
+  const { user } = useAuthGuard();
+  const isEditor = user?.role === "EDITOR";
 
   return (
     <section className="space-y-6">
@@ -56,7 +59,7 @@ export default function ProjectsPage(): JSX.Element {
       {!isLoading && !error && (projects?.length ?? 0) === 0 && (
         <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
           <CardContent className="py-10 text-center text-sm text-neutral-600 dark:text-neutral-400">
-            Пока нет проектов. Создайте первый проект для сбора правок.
+            {isEditor ? "Владелец ещё не добавил вас ни в один проект" : "Пока нет проектов. Создайте первый проект для сбора правок."}
           </CardContent>
         </Card>
       )}

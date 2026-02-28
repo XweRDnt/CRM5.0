@@ -14,6 +14,11 @@ enum UserRole {
   CLIENT_VIEWER
 }
 
+enum WorkspaceRole {
+  OWNER
+  EDITOR
+}
+
 enum ProjectStatus {
   DRAFT
   IN_PROGRESS
@@ -140,6 +145,7 @@ model Tenant {
   subscriptions Subscription[]
   auditLogs     AuditLog[]
   videoUploads  VideoUploadSession[]
+  workspace     Workspace?
 }
 
 model User {
@@ -160,8 +166,61 @@ model User {
   assignedTasks    AITask[]        @relation("UserAssignedTasks")
   pmScopeDecisions ScopeDecision[] @relation("PMScopeDecisions")
   ownedStages      WorkflowStage[] @relation("UserOwnedStages")
+  workspaceMemberships WorkspaceMember[]
+  ownedWorkspaces  Workspace[]    @relation("WorkspaceOwner")
+  createdInviteLinks InviteLink[] @relation("InviteCreatedBy")
+  addedProjectMembers ProjectMember[] @relation("ProjectMemberAddedBy")
 
   @@unique([tenantId, email])
+}
+
+model Workspace {
+  id        String            @id @default(cuid())
+  tenantId  String            @unique
+  name      String
+  ownerId   String
+  createdAt DateTime          @default(now())
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner     User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members   WorkspaceMember[]
+  invites   InviteLink[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole
+  createdAt   DateTime      @default(now())
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([role])
+  @@map("workspace_members")
+}
+
+model InviteLink {
+  id          String    @id @default(cuid())
+  workspaceId String
+  token       String    @unique
+  createdBy   String
+  expiresAt   DateTime
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator     User      @relation("InviteCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId])
+  @@index([createdBy])
+  @@index([expiresAt])
+  @@index([isActive])
+  @@map("invite_links")
 }
 
 model ClientAccount {
@@ -205,14 +264,20 @@ model Project {
 
 model ProjectMember {
   id           String   @id @default(cuid())
-  projectId     String
-  userId        String
+  projectId    String
+  userId       String
   roleOnProject String
-  createdAt     DateTime @default(now())
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  addedBy      String?
+  addedAt      DateTime @default(now())
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedByUser  User?    @relation("ProjectMemberAddedBy", fields: [addedBy], references: [id], onDelete: SetNull)
 
   @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@index([addedBy])
 }
 
 model AssetVersion {

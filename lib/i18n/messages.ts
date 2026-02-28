@@ -5,6 +5,7 @@ type Messages = {
   nav: {
     projects: string;
     clients: string;
+    team: string;
     closeMenu: string;
   };
   header: {
@@ -58,6 +59,7 @@ const messages: Record<Locale, Messages> = {
     nav: {
       projects: "Проекты",
       clients: "Клиенты",
+      team: "Команда",
       closeMenu: "Закрыть меню",
     },
     header: {
@@ -109,6 +111,7 @@ const messages: Record<Locale, Messages> = {
     nav: {
       projects: "Projects",
       clients: "Clients",
+      team: "Team",
       closeMenu: "Close menu",
     },
     header: {
@@ -160,4 +163,3 @@ const messages: Record<Locale, Messages> = {
 export function getMessages(locale: Locale = "ru"): Messages {
   return messages[locale] ?? messages.ru;
 }
-

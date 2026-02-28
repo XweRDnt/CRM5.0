@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/middleware/auth";
+import { assertProjectAccess, isOwnerOrPm } from "@/lib/services/access-control.service";
 import { ScopeGuardService } from "@/lib/services/scope-guard.service";
 import { prisma } from "@/lib/utils/db";
 import { handleAPIError } from "@/lib/utils/api-error";
@@ -15,6 +16,7 @@ export const GET = withAuth(async (request) => {
     });
 
     if (query.projectId) {
+      await assertProjectAccess(request.user, query.projectId);
       const scopeGuardService = new ScopeGuardService(prisma);
       const decisions = await scopeGuardService.listScopeDecisionsByProject(query.projectId, request.user.tenantId);
       return Response.json(decisions, { status: 200 });
@@ -24,6 +26,15 @@ export const GET = withAuth(async (request) => {
       where: {
         project: {
           tenantId: request.user.tenantId,
+          ...(isOwnerOrPm(request.user.role)
+            ? {}
+            : {
+                members: {
+                  some: {
+                    userId: request.user.userId,
+                  },
+                },
+              }),
         },
       },
       orderBy: { createdAt: "desc" },

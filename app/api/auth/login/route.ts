@@ -5,7 +5,7 @@ import { handleAPIError } from "@/lib/utils/api-error";
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  tenantSlug: z.string().min(1),
+  tenantSlug: z.string().min(1).optional(),
 });
 
 export async function POST(request: Request) {

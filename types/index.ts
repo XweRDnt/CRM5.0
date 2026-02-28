@@ -1,5 +1,6 @@
 import {
   UserRole,
+  WorkspaceRole,
   ProjectStatus,
   AuthorType,
   FeedbackCategory,
@@ -20,6 +21,7 @@ import {
 
 export {
   UserRole,
+  WorkspaceRole,
   ProjectStatus,
   AuthorType,
   FeedbackCategory,
@@ -165,8 +167,10 @@ export interface SignupInput {
   password: string;
   firstName: string;
   lastName: string;
-  tenantName: string;
-  tenantSlug: string;
+  workspaceName?: string;
+  inviteToken?: string;
+  tenantName?: string;
+  tenantSlug?: string;
 }
 
 export type SignupResult = {
@@ -213,6 +217,7 @@ export type JWTPayload = {
 export type LoginInput = {
   email: string;
   password: string;
+  tenantSlug?: string;
 };
 
 export interface CreateClientInput {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TaskStatus } from "@prisma/client";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
+import { assertProjectAccess } from "@/lib/services/access-control.service";
 import { taskService } from "@/lib/services/task.service";
 import { prisma } from "@/lib/utils/db";
 import { APIError, handleAPIError } from "@/lib/utils/api-error";
@@ -18,6 +19,11 @@ const updateTaskSchema = z.object({
 export const GET = withAuth(async (request: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = paramsSchema.parse(await context.params);
+    const ref = await prisma.aITask.findUnique({ where: { id }, select: { projectId: true } });
+    if (!ref) {
+      throw new APIError(404, "Task not found", "NOT_FOUND");
+    }
+    await assertProjectAccess(request.user, ref.projectId);
     const task = await taskService.getTaskById(id, request.user.tenantId);
     return Response.json(task, { status: 200 });
   } catch (error) {
@@ -28,6 +34,11 @@ export const GET = withAuth(async (request: AuthenticatedRequest, context: { par
 export const PATCH = withAuth(async (request: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = paramsSchema.parse(await context.params);
+    const ref = await prisma.aITask.findUnique({ where: { id }, select: { projectId: true } });
+    if (!ref) {
+      throw new APIError(404, "Task not found", "NOT_FOUND");
+    }
+    await assertProjectAccess(request.user, ref.projectId);
     const payload = updateTaskSchema.parse(await request.json());
 
     if (Object.keys(payload).length === 0) {
@@ -53,6 +64,11 @@ export const PATCH = withAuth(async (request: AuthenticatedRequest, context: { p
 export const DELETE = withAuth(async (request: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = paramsSchema.parse(await context.params);
+    const ref = await prisma.aITask.findUnique({ where: { id }, select: { projectId: true } });
+    if (!ref) {
+      throw new APIError(404, "Task not found", "NOT_FOUND");
+    }
+    await assertProjectAccess(request.user, ref.projectId);
 
     const deleted = await prisma.aITask.deleteMany({
       where: {

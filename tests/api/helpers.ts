@@ -7,22 +7,19 @@ export type AuthSession = {
   token: string;
   email: string;
   password: string;
-  tenantSlug: string;
+  tenantSlug?: string;
 };
 
 export async function signupAndLogin(): Promise<AuthSession> {
   const nonce = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const email = `owner-${nonce}@example.com`;
   const password = "securePass123";
-  const tenantSlug = `agency-${nonce}`;
-
   const signupResponse = await request(API_URL).post("/api/auth/signup").send({
     email,
     password,
     firstName: "Owner",
     lastName: "User",
-    tenantName: `Agency ${nonce}`,
-    tenantSlug,
+    workspaceName: `Agency ${nonce}`,
   });
 
   if (![200, 201].includes(signupResponse.status)) {
@@ -32,7 +29,6 @@ export async function signupAndLogin(): Promise<AuthSession> {
   const loginResponse = await request(API_URL).post("/api/auth/login").send({
     email,
     password,
-    tenantSlug,
   });
 
   if (loginResponse.status !== 200 || !loginResponse.body.token) {
@@ -43,7 +39,6 @@ export async function signupAndLogin(): Promise<AuthSession> {
     token: loginResponse.body.token as string,
     email,
     password,
-    tenantSlug,
   };
 }
 

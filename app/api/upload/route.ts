@@ -1,4 +1,5 @@
 import { withAuth } from "@/lib/middleware/auth";
+import { assertProjectAccess } from "@/lib/services/access-control.service";
 import { getKinescopeService } from "@/lib/services/kinescope.service";
 import { z } from "zod";
 import { handleAPIError } from "@/lib/utils/api-error";
@@ -13,6 +14,7 @@ const getUploadUrlSchema = z.object({
 export const POST = withAuth(async (req) => {
   try {
     const payload = getUploadUrlSchema.parse(await req.json());
+    await assertProjectAccess(req.user, payload.projectId);
     const kinescopeService = getKinescopeService();
     const upload = await kinescopeService.createUploadSession({ tenantId: req.user.tenantId }, payload);
     return Response.json(upload, { status: 200 });

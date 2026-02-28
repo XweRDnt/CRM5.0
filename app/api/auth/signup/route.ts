@@ -7,8 +7,10 @@ const signupSchema = z.object({
   password: z.string().min(8),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
-  tenantName: z.string().min(1).max(120),
-  tenantSlug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/),
+  workspaceName: z.string().min(1).max(120).optional(),
+  inviteToken: z.string().min(1).optional(),
+  tenantName: z.string().min(1).max(120).optional(),
+  tenantSlug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/).optional(),
 });
 
 export async function POST(request: Request) {

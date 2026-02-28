@@ -1,6 +1,7 @@
 import { VideoProcessingStatus, VideoProvider } from "@prisma/client";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
 import { assetService } from "@/lib/services/asset.service";
+import { assertProjectAccess } from "@/lib/services/access-control.service";
 import { z } from "zod";
 import { handleAPIError } from "@/lib/utils/api-error";
 
@@ -28,6 +29,7 @@ const createVersionSchema = z.object({
 export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = paramsSchema.parse(await context.params);
+    await assertProjectAccess(req.user, id);
     const versions = await assetService.listVersionsByProject(id, req.user.tenantId);
     return Response.json(versions, { status: 200 });
   } catch (error) {
@@ -38,6 +40,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context: { params:
 export const POST = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = paramsSchema.parse(await context.params);
+    await assertProjectAccess(req.user, id);
     const payload = createVersionSchema.parse(await req.json());
 
     const version = await assetService.createVersion({
