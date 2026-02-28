@@ -41,7 +41,7 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest, context: { param
 
     if (payload.clientId) {
       const client = await prisma.clientAccount.findFirst({
-        where: { id: payload.clientId, tenantId },
+        where: { id: payload.clientId, tenantId: req.user.tenantId },
         select: { id: true },
       });
       if (!client) {

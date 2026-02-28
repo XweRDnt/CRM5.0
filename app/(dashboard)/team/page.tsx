@@ -1,4 +1,4 @@
-"use client";
+п»ї"use client";
 
 import useSWR from "swr";
 import { useMemo } from "react";
@@ -72,19 +72,19 @@ export default function TeamPage(): JSX.Element {
     <section className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Команда</h1>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">Управление редакторами и инвайт-ссылками.</p>
+          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Team</h1>
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">Manage editors and invite links.</p>
         </div>
-        <Button onClick={() => void handleCreateInvite()}>Пригласить</Button>
+        <Button onClick={() => void handleCreateInvite()}>Invite</Button>
       </header>
 
       <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
         <CardContent className="space-y-3 p-4 sm:p-5">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Редакторы</h2>
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Editors</h2>
           {membersLoading ? (
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">Загрузка...</p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">Loading...</p>
           ) : members.length === 0 ? (
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">В команде пока нет редакторов.</p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">No editors yet.</p>
           ) : (
             <div className="space-y-2">
               {members.map((member) => (
@@ -102,21 +102,23 @@ export default function TeamPage(): JSX.Element {
 
       <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
         <CardContent className="space-y-3 p-4 sm:p-5">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Активные инвайт-ссылки</h2>
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Active invite links</h2>
           {invitesLoading ? (
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">Загрузка...</p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">Loading...</p>
           ) : sortedInvites.length === 0 ? (
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">Нет активных инвайтов.</p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">No active invites.</p>
           ) : (
             <div className="space-y-2">
               {sortedInvites.map((invite) => (
                 <div key={invite.id} className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">Действует до {new Date(invite.expiresAt).toLocaleString("ru-RU")}</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                      Expires at {new Date(invite.expiresAt).toLocaleString("ru-RU")}
+                    </p>
                     <p className="text-sm text-neutral-700 dark:text-neutral-200">{absoluteInviteUrl(invite.url)}</p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => void handleCopyInvite(invite.url)}>
-                    Копировать
+                    Copy
                   </Button>
                 </div>
               ))}
