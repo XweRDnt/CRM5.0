@@ -179,6 +179,7 @@ model Workspace {
   tenantId  String            @unique
   name      String
   ownerId   String
+  isBlocked Boolean           @default(false)
   createdAt DateTime          @default(now())
   tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owner     User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)

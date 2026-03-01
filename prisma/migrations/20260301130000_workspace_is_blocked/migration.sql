@@ -1,0 +1,2 @@
+ALTER TABLE "workspaces"
+ADD COLUMN "isBlocked" BOOLEAN NOT NULL DEFAULT false;
