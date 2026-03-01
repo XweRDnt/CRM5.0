@@ -11,6 +11,7 @@ export type AuthUser = {
   lastName: string;
   email: string;
   role: string;
+  isAdmin: boolean;
   tenant: {
     id: string;
     name: string;

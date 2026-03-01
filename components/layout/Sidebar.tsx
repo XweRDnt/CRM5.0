@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils/cn";
 import type { AuthUser } from "@/lib/hooks/use-auth-guard";
 
 const navItems = [
-  { href: "/projects", key: "projects" as const, icon: FolderOpen, onlyOwnerOrPm: false },
-  { href: "/clients", key: "clients" as const, icon: Users, onlyOwnerOrPm: true },
-  { href: "/team", key: "team" as const, icon: UserPlus, onlyOwnerOrPm: true },
-  { href: "/admin", key: "admin" as const, icon: Shield, onlyOwnerOrPm: false },
+  { href: "/projects", key: "projects" as const, icon: FolderOpen, onlyOwnerOrPm: false, onlyAdmin: false },
+  { href: "/clients", key: "clients" as const, icon: Users, onlyOwnerOrPm: true, onlyAdmin: false },
+  { href: "/team", key: "team" as const, icon: UserPlus, onlyOwnerOrPm: true, onlyAdmin: false },
+  { href: "/admin", key: "admin" as const, icon: Shield, onlyOwnerOrPm: false, onlyAdmin: true },
 ];
 
 type SidebarProps = {
@@ -54,7 +54,7 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
         </div>
         <nav className="sidebar-nav-group overflow-hidden border border-neutral-200 divide-y divide-neutral-200">
           {navItems
-            .filter((item) => !item.onlyOwnerOrPm || isOwnerOrPm)
+            .filter((item) => (!item.onlyOwnerOrPm || isOwnerOrPm) && (!item.onlyAdmin || user.isAdmin))
             .map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);

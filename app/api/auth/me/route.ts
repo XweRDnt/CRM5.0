@@ -6,7 +6,16 @@ export const GET = withAuth(async (request) => {
   try {
     const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
     const user = await authService.getCurrentUser(token);
-    return Response.json(user, { status: 200 });
+    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const isAdmin = Boolean(adminEmail) && user.email.trim().toLowerCase() === adminEmail;
+
+    return Response.json(
+      {
+        ...user,
+        isAdmin,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     return handleAPIError(error);
   }
