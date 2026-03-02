@@ -49,9 +49,11 @@ describe("API Auth", () => {
 
   it("GET /api/auth/me returns current user", async () => {
     const session = await signupAndLogin();
+    process.env.PLATFORM_ADMIN_EMAILS = session.email;
     const res = await request(API_URL).get("/api/auth/me").set("Authorization", `Bearer ${session.token}`);
 
     expect(res.status).toBe(200);
     expect(res.body.email).toBe(session.email);
+    expect(res.body.isAdmin).toBe(true);
   });
 });

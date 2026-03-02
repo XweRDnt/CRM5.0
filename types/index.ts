@@ -12,6 +12,10 @@ import {
   WorkflowStageName,
   SubscriptionPlan,
   SubscriptionStatus,
+  BillingPlanCode,
+  WorkspaceSubscriptionStatus,
+  WorkspaceBillingCycle,
+  WorkspaceSubscriptionEventType,
   NotificationChannel,
   DeliveryStatus,
   VersionStatus,
@@ -33,6 +37,10 @@ export {
   WorkflowStageName,
   SubscriptionPlan,
   SubscriptionStatus,
+  BillingPlanCode,
+  WorkspaceSubscriptionStatus,
+  WorkspaceBillingCycle,
+  WorkspaceSubscriptionEventType,
   NotificationChannel,
   DeliveryStatus,
   VersionStatus,
@@ -50,6 +58,7 @@ export type ApiErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"
   | "NOT_FOUND"
+  | "PLAN_LIMIT_EXCEEDED"
   | "VALIDATION_ERROR"
   | "CONFLICT"
   | "INTERNAL_ERROR";

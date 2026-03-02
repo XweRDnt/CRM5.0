@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/middleware/auth";
 import { z } from "zod";
 import { handleAPIError } from "@/lib/utils/api-error";
 import { assertOwnerOrPm } from "@/lib/services/access-control.service";
+import { billingGuardService } from "@/lib/services/billing-guard.service";
 import { ProjectStatus } from "@/types";
 
 const createProjectSchema = z.object({
@@ -40,6 +41,7 @@ export const POST = withAuth(async (req) => {
   try {
     assertOwnerOrPm(req.user);
     const tenantId = req.user.tenantId;
+    await billingGuardService.assertCanCreateProject(tenantId);
     const body = await req.json();
     const validated = createProjectSchema.parse(body);
     const project = await projectService.createProject({

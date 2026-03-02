@@ -130,6 +130,31 @@ enum VideoProcessingStatus {
   FAILED
 }
 
+enum BillingPlanCode {
+  FREE
+  START
+  GROWTH
+  BUSINESS
+}
+
+enum WorkspaceSubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum WorkspaceBillingCycle {
+  CALENDAR_MONTH
+}
+
+enum WorkspaceSubscriptionEventType {
+  PLAN_ASSIGNED
+  PAYMENT_RECORDED
+  WORKSPACE_BLOCKED
+  WORKSPACE_UNBLOCKED
+  LIMIT_BLOCKED
+}
+
 model Tenant {
   id            String           @id @default(cuid())
   name          String
@@ -170,21 +195,30 @@ model User {
   ownedWorkspaces  Workspace[]    @relation("WorkspaceOwner")
   createdInviteLinks InviteLink[] @relation("InviteCreatedBy")
   addedProjectMembers ProjectMember[] @relation("ProjectMemberAddedBy")
+  assignedWorkspaceSubscriptions WorkspaceSubscription[] @relation("WorkspaceSubscriptionAssignedBy")
+  workspaceSubscriptionEvents WorkspaceSubscriptionEvent[] @relation("WorkspaceSubscriptionEventActor")
 
   @@unique([tenantId, email])
 }
 
 model Workspace {
-  id        String            @id @default(cuid())
-  tenantId  String            @unique
-  name      String
-  ownerId   String
-  isBlocked Boolean           @default(false)
-  createdAt DateTime          @default(now())
-  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  owner     User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  members   WorkspaceMember[]
-  invites   InviteLink[]
+  id                           String                @id @default(cuid())
+  tenantId                     String                @unique
+  name                         String
+  ownerId                      String
+  isBlocked                    Boolean               @default(false)
+  kinescopeProjectId           String?               @unique
+  kinescopeProjectName         String?
+  kinescopeProjectProvisionedAt DateTime?
+  billingTrackingStartedAt     DateTime?
+  createdAt                    DateTime              @default(now())
+  tenant                       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner                        User                  @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members                      WorkspaceMember[]
+  invites                      InviteLink[]
+  subscription                 WorkspaceSubscription?
+  usageSnapshots               KinescopeUsageSnapshot[]
+  subscriptionEvents           WorkspaceSubscriptionEvent[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -460,6 +494,93 @@ model Subscription {
   tenant               Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, stripeSubscriptionId])
+}
+
+model BillingPlan {
+  code                  BillingPlanCode        @id
+  name                  String
+  currency              String                 @default("RUB")
+  priceMinor            Int                    @default(0)
+  isActive              Boolean                @default(true)
+  sortOrder             Int                    @default(0)
+  maxProjects           Int?
+  maxMembers            Int?
+  maxTrafficGb          Decimal?               @db.Decimal(12, 3)
+  maxStorageGb          Decimal?               @db.Decimal(12, 3)
+  maxTranscodingMinutes Decimal?               @db.Decimal(12, 3)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  subscriptions         WorkspaceSubscription[]
+
+  @@index([isActive, sortOrder])
+}
+
+model WorkspaceSubscription {
+  id                     String                      @id @default(cuid())
+  workspaceId            String                      @unique
+  planCode               BillingPlanCode
+  status                 WorkspaceSubscriptionStatus @default(ACTIVE)
+  cycle                  WorkspaceBillingCycle       @default(CALENDAR_MONTH)
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  lastPaymentAmountMinor Int?
+  lastPaymentCurrency    String?
+  lastPaymentAt          DateTime?
+  lastPaymentComment     String?
+  assignedByUserId       String?
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+  workspace              Workspace                   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  plan                   BillingPlan                 @relation(fields: [planCode], references: [code], onDelete: Restrict)
+  assignedByUser         User?                       @relation("WorkspaceSubscriptionAssignedBy", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+  events                 WorkspaceSubscriptionEvent[]
+
+  @@index([planCode])
+  @@index([status])
+  @@index([currentPeriodStart, currentPeriodEnd])
+}
+
+model WorkspaceSubscriptionEvent {
+  id                  String                         @id @default(cuid())
+  workspaceId         String
+  workspaceSubscriptionId String
+  type                WorkspaceSubscriptionEventType
+  oldPlanCode         BillingPlanCode?
+  newPlanCode         BillingPlanCode?
+  paymentAmountMinor  Int?
+  paymentCurrency     String?
+  paymentAt           DateTime?
+  comment             String?
+  actorUserId         String?
+  metaJson            Json?
+  createdAt           DateTime                       @default(now())
+  workspace           Workspace                      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  subscription        WorkspaceSubscription          @relation(fields: [workspaceSubscriptionId], references: [id], onDelete: Cascade)
+  actorUser           User?                          @relation("WorkspaceSubscriptionEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceSubscriptionId, createdAt])
+  @@index([type])
+}
+
+model KinescopeUsageSnapshot {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  periodStart        DateTime
+  periodEnd          DateTime
+  trafficGb          Decimal? @db.Decimal(16, 6)
+  storageGb          Decimal? @db.Decimal(16, 6)
+  transcodingMinutes Decimal? @db.Decimal(16, 6)
+  amountMinor        Int?
+  rawJson            Json
+  fetchedAt          DateTime @default(now())
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, periodStart, periodEnd])
+  @@index([workspaceId, expiresAt])
 }
 
 model AuditLog {

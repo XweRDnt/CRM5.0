@@ -12,6 +12,7 @@ type CreateUploadSessionInput = {
   fileName: string;
   fileType: string;
   fileSize: number;
+  kinescopeParentId?: string;
 };
 
 type KinescopeVideoApiResponse = {
@@ -107,7 +108,7 @@ export class KinescopeService {
         endpoint?: string;
       };
     };
-    let candidateParentId = this.resolveParentId();
+    let candidateParentId = input.kinescopeParentId?.trim() || this.resolveParentId();
     const attemptedParentIds = new Set<string>();
 
     if (!candidateParentId) {

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/utils/db";
 import { inviteService } from "@/lib/services/invite.service";
+import { billingGuardService } from "@/lib/services/billing-guard.service";
 import type { SignupInput, SignupResult, LoginResult, JWTPayload, User, UserRole } from "@/types";
 
 export class AuthService {
@@ -151,6 +152,7 @@ export class AuthService {
       const created = await prisma.$transaction(async (tx) => {
         if (inviteToken) {
           const invite = await inviteService.validateInviteToken(inviteToken);
+          await billingGuardService.assertCanAddWorkspaceMember(invite.workspaceId);
           const inviteTenant = await tx.tenant.findUnique({
             where: { id: invite.workspace.tenantId },
             select: { id: true, name: true, slug: true },

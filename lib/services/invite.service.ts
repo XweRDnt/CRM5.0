@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/utils/db";
+import { billingGuardService } from "@/lib/services/billing-guard.service";
 
 const INVITE_TTL_DAYS = 7;
 
@@ -67,6 +68,20 @@ export class InviteService {
 
     if (user.tenantId !== invite.workspace.tenantId) {
       throw new Error("User belongs to another workspace");
+    }
+
+    const existingMembership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: invite.workspace.id,
+          userId: user.id,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!existingMembership) {
+      await billingGuardService.assertCanAddWorkspaceMember(invite.workspace.id);
     }
 
     await prisma.workspaceMember.upsert({
