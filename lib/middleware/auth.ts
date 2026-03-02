@@ -19,20 +19,26 @@ export function withAuth<TContext>(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    let payload: JWTPayload;
     try {
-      const payload = await authService.verifyToken(token);
-      (req as AuthenticatedRequest).user = payload;
-      if (context === undefined) {
-        return (handler as (req: AuthenticatedRequest) => Promise<Response> | Response)(
-          req as AuthenticatedRequest,
-        );
-      }
-
-      return (
-        handler as (req: AuthenticatedRequest, context: TContext) => Promise<Response> | Response
-      )(req as AuthenticatedRequest, context);
+      payload = await authService.verifyToken(token);
     } catch {
       return Response.json({ error: "Invalid token" }, { status: 401 });
     }
+
+    if (await authService.isWorkspaceBlocked(payload.tenantId)) {
+      return Response.json({ error: "Workspace is blocked" }, { status: 403 });
+    }
+
+    (req as AuthenticatedRequest).user = payload;
+    if (context === undefined) {
+      return (handler as (req: AuthenticatedRequest) => Promise<Response> | Response)(
+        req as AuthenticatedRequest,
+      );
+    }
+
+    return (
+      handler as (req: AuthenticatedRequest, context: TContext) => Promise<Response> | Response
+    )(req as AuthenticatedRequest, context);
   };
 }

@@ -6,6 +6,15 @@ import { inviteService } from "@/lib/services/invite.service";
 import type { SignupInput, SignupResult, LoginResult, JWTPayload, User, UserRole } from "@/types";
 
 export class AuthService {
+  async isWorkspaceBlocked(tenantId: string): Promise<boolean> {
+    const workspace = await prisma.workspace.findUnique({
+      where: { tenantId },
+      select: { isBlocked: true },
+    });
+
+    return workspace?.isBlocked === true;
+  }
+
   private toSlug(value: string): string {
     return value
       .toLowerCase()
@@ -326,6 +335,10 @@ export class AuthService {
       throw new Error("Account is deactivated");
     }
 
+    if (await this.isWorkspaceBlocked(user.tenantId)) {
+      throw new Error("Workspace is blocked");
+    }
+
     if (!user.passwordHash) {
       throw new Error("Invalid credentials");
     }
@@ -369,6 +382,10 @@ export class AuthService {
 
     if (!user.isActive) {
       throw new Error("Account is deactivated");
+    }
+
+    if (await this.isWorkspaceBlocked(user.tenantId)) {
+      throw new Error("Workspace is blocked");
     }
 
     return {

@@ -25,6 +25,9 @@ function inferStatus(error: Error): APIError {
   if (normalized.includes("forbidden")) {
     return new APIError(403, message, "FORBIDDEN");
   }
+  if (normalized.includes("blocked")) {
+    return new APIError(403, message, "FORBIDDEN");
+  }
   if (
     normalized.includes("required") ||
     normalized.includes("invalid") ||
