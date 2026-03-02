@@ -23,6 +23,13 @@ export const POST = withAuth(async (request: AuthenticatedRequest, context: { pa
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "User belongs to another workspace") {
+      return Response.json(
+        { error: "User already belongs to another workspace", code: "CONFLICT" },
+        { status: 409 },
+      );
+    }
+
     return handleAPIError(error);
   }
 });

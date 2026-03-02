@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "@/components/ui/toast";
 import { apiFetch } from "@/lib/utils/client-api";
 
 type AdminWorkspace = {
@@ -17,7 +18,7 @@ type AdminWorkspace = {
 function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "—";
+    return "-";
   }
 
   return date.toLocaleString("ru-RU");
@@ -40,13 +41,16 @@ export default function AdminPage(): JSX.Element {
         body: JSON.stringify({ workspaceId }),
       });
       await mutate();
+      toast.success("Статус воркспейса обновлен");
+    } catch (toggleError) {
+      toast.error(toggleError instanceof Error ? toggleError.message : "Не удалось изменить статус");
     } finally {
       setUpdatingWorkspaceId(null);
     }
   };
 
   const errorMessage = error instanceof Error && error.message.toLowerCase().includes("forbidden")
-    ? "Доступ запрещён"
+    ? "Доступ запрещен"
     : "Не удалось загрузить данные";
 
   return (
