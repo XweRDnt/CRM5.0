@@ -290,23 +290,39 @@ html[data-app-theme="dark"] .app-ios-shell aside nav a.sidebar-nav-item-active {
   color: #bfdbfe !important;
 }
 
-html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .ui-input {
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-form .ui-input {
   background: #ffffff !important;
   border-color: #d1d5db !important;
   color: #111827 !important;
 }
 
-html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .ui-input::placeholder {
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-form .ui-input::placeholder {
   color: #9ca3af !important;
 }
 
-html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .bg-neutral-50,
-html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .bg-blue-50 {
-  background-color: #ffffff !important;
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-form .ui-btn[data-variant="outline"] {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #374151 !important;
 }
 
-html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .border-neutral-200,
-html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .border-neutral-300 {
-  border-color: #d1d5db !important;
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-form .ui-btn[data-variant="outline"]:hover {
+  background: #f9fafb !important;
+}
+
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-form .version-upload-dropzone,
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-form .version-upload-status {
+  background: #ffffff !important;
+  border-color: #e5e7eb !important;
+}
+
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-form .version-upload-dropzone-active {
+  background: #eff6ff !important;
+  border-color: #3b82f6 !important;
+}
+
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-form .version-upload-conflict {
+  background: #fffbeb !important;
+  border-color: #fcd34d !important;
 }
 

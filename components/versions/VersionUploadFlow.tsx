@@ -508,7 +508,7 @@ export function VersionUploadFlow({
         {hasVersionConflict ? (
           <div
             id={`versionNoError-${projectId}`}
-            className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200"
+            className="version-upload-conflict rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200"
           >
             <p>Этот номер уже используется.</p>
             <Button type="button" variant="outline" size="sm" className="mt-2" onClick={applySuggestedVersion}>
@@ -522,8 +522,8 @@ export function VersionUploadFlow({
         <label className="block text-sm font-medium text-neutral-800 dark:text-neutral-200">Видеофайл</label>
         <div
           className={cn(
-            "rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 transition-colors dark:border-neutral-700 dark:bg-neutral-900/40",
-            isDragActive && "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/20",
+            "version-upload-dropzone rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 transition-colors dark:border-neutral-700 dark:bg-neutral-900/40",
+            isDragActive && "version-upload-dropzone-active border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/20",
           )}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -555,7 +555,7 @@ export function VersionUploadFlow({
       </div>
 
       <div
-        className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900/40"
+        className="version-upload-status rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900/40"
         aria-live="polite"
       >
         <p className="text-sm text-neutral-700 dark:text-neutral-300">Статус: {statusLabel[stage]}</p>
