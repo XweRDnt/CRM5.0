@@ -70,13 +70,13 @@ function normalizeProcessingStatus(status: VideoProcessingStatus | undefined): V
 
 function getFileValidationError(file: File): string | null {
   if (file.size <= 0) {
-    return "Р¤Р°Р№Р» РїСѓСЃС‚РѕР№. Р’С‹Р±РµСЂРёС‚Рµ РєРѕСЂСЂРµРєС‚РЅС‹Р№ РІРёРґРµРѕС„Р°Р№Р».";
+    return "Файл пустой. Выберите корректный видеофайл.";
   }
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return "Р¤Р°Р№Р» СЃР»РёС€РєРѕРј Р±РѕР»СЊС€РѕР№. РњР°РєСЃРёРјР°Р»СЊРЅС‹Р№ СЂР°Р·РјРµСЂ 5GB.";
+    return "Файл слишком большой. Максимальный размер 5GB.";
   }
   if (file.type && !ACCEPTED_TYPES.has(file.type)) {
-    return "РќРµРїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Р№ С„РѕСЂРјР°С‚. Р”РѕСЃС‚СѓРїРЅС‹ MP4, MOV, WEBM Рё AVI.";
+    return "Неподдерживаемый формат. Доступны MP4, MOV, WEBM и AVI.";
   }
   return null;
 }
@@ -272,15 +272,15 @@ export function VersionUploadFlow({
   const canSubmit = stage === "idle" || stage === "canceled";
 
   const statusLabel: Record<UploadStage, string> = {
-    idle: "Р“РѕС‚РѕРІРѕ Рє Р·Р°РіСЂСѓР·РєРµ",
-    preparing: "РџРѕРґРіРѕС‚Р°РІР»РёРІР°РµРј Р·Р°РіСЂСѓР·РєСѓ",
-    uploading: `Р—Р°РіСЂСѓР·РєР° С„Р°Р№Р»Р° ${uploadProgress}%`,
+    idle: "Готово к загрузке",
+    preparing: "Подготавливаем загрузку",
+    uploading: `Загрузка файла ${uploadProgress}%`,
     processing: continueInBackgroundRequested
-      ? "Р“РѕС‚РѕРІРёРј СЃРѕР·РґР°РЅРёРµ РІРµСЂСЃРёРё РІ С„РѕРЅРѕРІРѕРј СЂРµР¶РёРјРµ..."
-      : `РћР¶РёРґР°РЅРёРµ РѕР±СЂР°Р±РѕС‚РєРё РІРёРґРµРѕ ${processingAttempt}/${MAX_CONFIRM_ATTEMPTS}`,
-    submitting: "РЎРѕР·РґР°С‘Рј РІРµСЂСЃРёСЋ",
-    done: "Р“РѕС‚РѕРІРѕ",
-    canceled: "Р—Р°РіСЂСѓР·РєР° РѕС‚РјРµРЅРµРЅР°. РњРѕР¶РЅРѕ РїРѕРІС‚РѕСЂРёС‚СЊ.",
+      ? "Готовим создание версии в фоновом режиме..."
+      : `Ожидание обработки видео ${processingAttempt}/${MAX_CONFIRM_ATTEMPTS}`,
+    submitting: "Создаем версию",
+    done: "Готово",
+    canceled: "Загрузка отменена. Можно повторить.",
   };
 
   const progressValue = useMemo(() => {
@@ -394,15 +394,15 @@ export function VersionUploadFlow({
     event.preventDefault();
 
     if (!selectedFile) {
-      setErrorMessage("Р’С‹Р±РµСЂРёС‚Рµ РІРёРґРµРѕС„Р°Р№Р» РґР»СЏ Р·Р°РіСЂСѓР·РєРё.");
+      setErrorMessage("Выберите видеофайл для загрузки.");
       return;
     }
     if (!isVersionNoValid) {
-      setErrorMessage("РЈРєР°Р¶РёС‚Рµ РєРѕСЂСЂРµРєС‚РЅС‹Р№ РЅРѕРјРµСЂ РІРµСЂСЃРёРё.");
+      setErrorMessage("Укажите корректный номер версии.");
       return;
     }
     if (hasVersionConflict) {
-      setErrorMessage("Р’РµСЂСЃРёСЏ СЃ С‚Р°РєРёРј РЅРѕРјРµСЂРѕРј СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚.");
+      setErrorMessage("Версия с таким номером уже существует.");
       return;
     }
     if (!canSubmit) {
@@ -467,7 +467,7 @@ export function VersionUploadFlow({
 
       const confirmResult = latestConfirmRef.current;
       if (confirmResult?.processingStatus === "FAILED") {
-        throw new Error(confirmResult.processingError ?? "РћР±СЂР°Р±РѕС‚РєР° РІРёРґРµРѕ Р·Р°РІРµСЂС€РёР»Р°СЃСЊ СЃ РѕС€РёР±РєРѕР№.");
+        throw new Error(confirmResult.processingError ?? "Обработка видео завершилась с ошибкой.");
       }
 
       setStage("submitting");
@@ -480,16 +480,16 @@ export function VersionUploadFlow({
     } catch (submitError) {
       if (submitError instanceof UploadCanceledError) {
         setStage("canceled");
-        setErrorMessage("Р—Р°РіСЂСѓР·РєР° РѕС‚РјРµРЅРµРЅР°. РќР°Р¶РјРёС‚Рµ В«РџРѕРІС‚РѕСЂРёС‚СЊ Р·Р°РіСЂСѓР·РєСѓВ», С‡С‚РѕР±С‹ РїРѕРїСЂРѕР±РѕРІР°С‚СЊ СЃРЅРѕРІР°.");
+        setErrorMessage("Загрузка отменена. Нажмите «Повторить загрузку», чтобы попробовать снова.");
       } else if (submitError instanceof ApiRequestError && submitError.status === 409) {
         const payload = submitError.payload as VersionConflictResponse | undefined;
         setConflictSuggestion(typeof payload?.suggestedVersionNo === "number" ? payload.suggestedVersionNo : null);
-        setErrorMessage("Р’РµСЂСЃРёСЏ СЃ С‚Р°РєРёРј РЅРѕРјРµСЂРѕРј СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚.");
+        setErrorMessage("Версия с таким номером уже существует.");
         await mutateMeta();
         setStage("idle");
       } else {
         setStage("idle");
-        setErrorMessage(submitError instanceof Error ? submitError.message : "РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РІРµСЂСЃРёСЋ.");
+        setErrorMessage(submitError instanceof Error ? submitError.message : "Не удалось загрузить версию.");
       }
     } finally {
       activeUploadCancelRef.current = null;
@@ -500,7 +500,7 @@ export function VersionUploadFlow({
     }
   };
 
-  const primaryButtonLabel = stage === "canceled" ? "РџРѕРІС‚РѕСЂРёС‚СЊ Р·Р°РіСЂСѓР·РєСѓ" : "Р—Р°РіСЂСѓР·РёС‚СЊ РІРµСЂСЃРёСЋ";
+  const primaryButtonLabel = stage === "canceled" ? "Повторить загрузку" : "Загрузить версию";
 
   const isLightTheme = appTheme === "light";
   const inputClassName = isLightTheme
@@ -517,7 +517,7 @@ export function VersionUploadFlow({
     <form className="version-upload-form space-y-4" onSubmit={handleSubmit}>
       <div className="space-y-2">
         <label htmlFor={`versionNo-${projectId}`} className={cn("block text-sm font-medium", labelClassName)}>
-          РќРѕРјРµСЂ РІРµСЂСЃРёРё
+          Номер версии
         </label>
         <Input
           id={`versionNo-${projectId}`}
@@ -532,7 +532,7 @@ export function VersionUploadFlow({
           aria-describedby={`versionNoHelp-${projectId} versionNoError-${projectId}`}
         />
         <p id={`versionNoHelp-${projectId}`} className={cn("text-xs", mutedTextClassName)}>
-          РџРѕРґСЃС‚Р°РІР»СЏРµС‚СЃСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё, РЅРѕ РІС‹ РјРѕР¶РµС‚Рµ РёР·РјРµРЅРёС‚СЊ РІСЂСѓС‡РЅСѓСЋ.
+          Подставляется автоматически, но вы можете изменить вручную.
         </p>
         {hasVersionConflict ? (
           <div
@@ -542,16 +542,16 @@ export function VersionUploadFlow({
               isLightTheme ? "border-amber-300 bg-amber-50 text-amber-900" : "border-amber-500/40 bg-amber-950/30 text-amber-200",
             )}
           >
-            <p>Р­С‚РѕС‚ РЅРѕРјРµСЂ СѓР¶Рµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ.</p>
+            <p>Этот номер уже используется.</p>
             <Button type="button" variant="outline" size="sm" className={cn("mt-2", outlineButtonClassName)} onClick={applySuggestedVersion}>
-              РџСЂРёРјРµРЅРёС‚СЊ v{activeConflictSuggestion}
+              Применить v{activeConflictSuggestion}
             </Button>
           </div>
         ) : null}
       </div>
 
       <div className="space-y-2">
-        <label className={cn("block text-sm font-medium", labelClassName)}>Р’РёРґРµРѕС„Р°Р№Р»</label>
+        <label className={cn("block text-sm font-medium", labelClassName)}>Видеофайл</label>
         <div
           className={cn(
             "version-upload-dropzone rounded-lg border border-dashed p-4 transition-colors",
@@ -572,8 +572,8 @@ export function VersionUploadFlow({
           />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className={cn("text-sm", bodyTextClassName)}>РџРµСЂРµС‚Р°С‰РёС‚Рµ С„Р°Р№Р» СЃСЋРґР° РёР»Рё РІС‹Р±РµСЂРёС‚Рµ РµРіРѕ РІСЂСѓС‡РЅСѓСЋ.</p>
-              <p className={cn("mt-1 text-xs", mutedTextClassName)}>Р¤РѕСЂРјР°С‚С‹: MP4, MOV, WEBM, AVI. РњР°РєСЃРёРјСѓРј 5GB.</p>
+              <p className={cn("text-sm", bodyTextClassName)}>Перетащите файл сюда или выберите его вручную.</p>
+              <p className={cn("mt-1 text-xs", mutedTextClassName)}>Форматы: MP4, MOV, WEBM, AVI. Максимум 5GB.</p>
               {selectedFile ? (
                 <p className={cn("mt-2 text-sm font-medium", isLightTheme ? "text-neutral-900" : "text-neutral-100")}>
                   {selectedFile.name} ({formatFileSize(selectedFile.size)})
@@ -581,7 +581,7 @@ export function VersionUploadFlow({
               ) : null}
             </div>
             <Button type="button" variant="outline" className={outlineButtonClassName} onClick={() => fileInputRef.current?.click()} disabled={isBusy}>
-              Р’С‹Р±СЂР°С‚СЊ С„Р°Р№Р»
+              Выбрать файл
             </Button>
           </div>
         </div>
@@ -591,7 +591,7 @@ export function VersionUploadFlow({
         className={cn("version-upload-status rounded-md border px-3 py-2", isLightTheme ? "border-neutral-200 bg-white" : "border-neutral-700 bg-neutral-900/40")}
         aria-live="polite"
       >
-        <p className={cn("text-sm", bodyTextClassName)}>РЎС‚Р°С‚СѓСЃ: {statusLabel[stage]}</p>
+        <p className={cn("text-sm", bodyTextClassName)}>Статус: {statusLabel[stage]}</p>
         {progressValue !== null ? (
           <div className={cn("mt-2 h-2 rounded", isLightTheme ? "bg-neutral-200" : "bg-neutral-700")} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressValue}>
             <div className="h-2 rounded bg-blue-500 transition-all" style={{ width: `${progressValue}%` }} />
@@ -604,17 +604,17 @@ export function VersionUploadFlow({
       <div className={cn("flex flex-col gap-2", surface === "dialog" ? "sm:flex-row sm:justify-end" : "sm:flex-row")}>
         {surface === "dialog" && onCancel ? (
           <Button type="button" variant="outline" className={outlineButtonClassName} onClick={onCancel} disabled={isBusy}>
-            Р—Р°РєСЂС‹С‚СЊ
+            Закрыть
           </Button>
         ) : null}
         {stage === "uploading" ? (
           <Button type="button" variant="outline" className={outlineButtonClassName} onClick={handleCancelUpload}>
-            РћС‚РјРµРЅРёС‚СЊ Р·Р°РіСЂСѓР·РєСѓ
+            Отменить загрузку
           </Button>
         ) : null}
         {stage === "processing" ? (
           <Button type="button" variant="outline" className={outlineButtonClassName} onClick={handleContinueInBackground} disabled={continueInBackgroundRequested}>
-            РџСЂРѕРґРѕР»Р¶РёС‚СЊ РІ С„РѕРЅРµ
+            Продолжить в фоне
           </Button>
         ) : null}
         <Button type="submit" className={cn(surface === "page" ? "w-full sm:w-auto" : "")} disabled={!canSubmit || isBusy || !selectedFile || !isVersionNoValid || hasVersionConflict}>
