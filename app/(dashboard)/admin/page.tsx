@@ -180,6 +180,23 @@ function usageTone(percent: number | null): string {
   return "text-emerald-600";
 }
 
+function formatEventType(type: WorkspaceSubscriptionEventType): string {
+  switch (type) {
+    case WorkspaceSubscriptionEventType.PLAN_ASSIGNED:
+      return "Тариф назначен";
+    case WorkspaceSubscriptionEventType.PAYMENT_RECORDED:
+      return "Платеж зафиксирован";
+    case WorkspaceSubscriptionEventType.WORKSPACE_BLOCKED:
+      return "Рабочее пространство заблокировано";
+    case WorkspaceSubscriptionEventType.WORKSPACE_UNBLOCKED:
+      return "Рабочее пространство разблокировано";
+    case WorkspaceSubscriptionEventType.LIMIT_BLOCKED:
+      return "Действие заблокировано лимитом";
+    default:
+      return type;
+  }
+}
+
 export default function AdminPage(): JSX.Element {
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState<"ALL" | BillingPlanCode>("ALL");
@@ -298,9 +315,9 @@ export default function AdminPage(): JSX.Element {
         }),
       });
       await mutateWorkspaces();
-      toast.success(`Plan ${draft.name} updated`);
+      toast.success(`Тариф "${draft.name}" обновлен`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update plan");
+      toast.error(error instanceof Error ? error.message : "Не удалось обновить тариф");
     } finally {
       setSavingPlanCode(null);
     }
@@ -320,9 +337,9 @@ export default function AdminPage(): JSX.Element {
         }),
       });
       await Promise.all([mutateWorkspaces(), mutateDetail()]);
-      toast.success(detail.workspace.isBlocked ? "Workspace unblocked" : "Workspace blocked");
+      toast.success(detail.workspace.isBlocked ? "Рабочее пространство разблокировано" : "Рабочее пространство заблокировано");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update workspace status");
+      toast.error(error instanceof Error ? error.message : "Не удалось изменить статус рабочего пространства");
     } finally {
       setUpdatingBlock(false);
     }
@@ -337,9 +354,9 @@ export default function AdminPage(): JSX.Element {
     try {
       await apiFetch(`/api/admin/workspaces/${detail.workspace.workspaceId}/usage?force=1`);
       await Promise.all([mutateWorkspaces(), mutateDetail()]);
-      toast.success("Usage refreshed");
+      toast.success("Использование обновлено");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to refresh usage");
+      toast.error(error instanceof Error ? error.message : "Не удалось обновить использование");
     } finally {
       setRefreshingUsage(false);
     }
@@ -352,17 +369,17 @@ export default function AdminPage(): JSX.Element {
 
     const amountRub = Number(paymentAmountRub);
     if (!Number.isFinite(amountRub) || amountRub < 0) {
-      toast.error("Enter a valid payment amount");
+      toast.error("Введите корректную сумму платежа");
       return;
     }
 
     if (!paymentAt) {
-      toast.error("Select payment date and time");
+      toast.error("Выберите дату и время платежа");
       return;
     }
 
     if (!paymentComment.trim()) {
-      toast.error("Payment comment is required");
+      toast.error("Комментарий к платежу обязателен");
       return;
     }
 
@@ -380,9 +397,9 @@ export default function AdminPage(): JSX.Element {
       });
 
       await Promise.all([mutateWorkspaces(), mutateDetail()]);
-      toast.success("Plan updated");
+      toast.success("Тариф обновлен");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update subscription");
+      toast.error(error instanceof Error ? error.message : "Не удалось обновить подписку");
     } finally {
       setAssigningPlan(false);
     }
@@ -391,22 +408,22 @@ export default function AdminPage(): JSX.Element {
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Admin Control Center</h1>
-        <p className="text-sm text-neutral-500">Manual pricing, workspace billing usage, and launch control for first paid users.</p>
+        <h1 className="text-2xl font-semibold">Центр управления</h1>
+        <p className="text-sm text-neutral-500">Ручные тарифы, использование Kinescope по рабочим пространствам и контроль запуска первых платных пользователей.</p>
       </header>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Filters</CardTitle>
+          <CardTitle className="text-base">Фильтры</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search workspace" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск рабочего пространства" />
           <Select value={planFilter} onValueChange={(value) => setPlanFilter(value as typeof planFilter)}>
             <SelectTrigger>
-              <SelectValue placeholder="Plan" />
+              <SelectValue placeholder="Тариф" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All plans</SelectItem>
+              <SelectItem value="ALL">Все тарифы</SelectItem>
               {plans.map((plan) => (
                 <SelectItem key={plan.code} value={plan.code}>
                   {plan.name}
@@ -416,12 +433,12 @@ export default function AdminPage(): JSX.Element {
           </Select>
           <Select value={blockFilter} onValueChange={(value) => setBlockFilter(value as typeof blockFilter)}>
             <SelectTrigger>
-              <SelectValue placeholder="Workspace status" />
+              <SelectValue placeholder="Статус рабочего пространства" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All statuses</SelectItem>
-              <SelectItem value="false">Active</SelectItem>
-              <SelectItem value="true">Blocked</SelectItem>
+              <SelectItem value="ALL">Все статусы</SelectItem>
+              <SelectItem value="false">Активен</SelectItem>
+              <SelectItem value="true">Заблокирован</SelectItem>
             </SelectContent>
           </Select>
         </CardContent>
@@ -430,11 +447,11 @@ export default function AdminPage(): JSX.Element {
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
         <Card className="xl:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Billing Plans</CardTitle>
+            <CardTitle className="text-base">Тарифы</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {!planDrafts ? (
-              <p className="text-sm text-neutral-600">Loading plans...</p>
+              <p className="text-sm text-neutral-600">Загрузка тарифов...</p>
             ) : (
               plans.map((plan) => {
                 const draft = planDrafts[plan.code];
@@ -445,11 +462,11 @@ export default function AdminPage(): JSX.Element {
                 return (
                   <div key={plan.code} className="grid gap-2 rounded-lg border border-neutral-200 p-3 lg:grid-cols-7">
                     <div className="space-y-1">
-                      <Label>Name</Label>
+                      <Label>Название</Label>
                       <Input value={draft.name} onChange={(event) => updatePlanDraft(plan.code, "name", event.target.value)} />
                     </div>
                     <div className="space-y-1">
-                      <Label>Price (minor)</Label>
+                      <Label>Цена (в копейках)</Label>
                       <Input
                         type="number"
                         min={0}
@@ -458,7 +475,7 @@ export default function AdminPage(): JSX.Element {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Projects</Label>
+                      <Label>Проекты</Label>
                       <Input
                         value={draft.maxProjects ?? ""}
                         onChange={(event) =>
@@ -471,7 +488,7 @@ export default function AdminPage(): JSX.Element {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Members</Label>
+                      <Label>Участники</Label>
                       <Input
                         value={draft.maxMembers ?? ""}
                         onChange={(event) =>
@@ -484,7 +501,7 @@ export default function AdminPage(): JSX.Element {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Traffic GB</Label>
+                      <Label>Трафик, ГБ</Label>
                       <Input
                         value={draft.maxTrafficGb ?? ""}
                         onChange={(event) =>
@@ -497,7 +514,7 @@ export default function AdminPage(): JSX.Element {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Storage GB</Label>
+                      <Label>Хранилище, ГБ</Label>
                       <Input
                         value={draft.maxStorageGb ?? ""}
                         onChange={(event) =>
@@ -510,7 +527,7 @@ export default function AdminPage(): JSX.Element {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Transcoding min</Label>
+                      <Label>Транскодинг, мин</Label>
                       <Input
                         value={draft.maxTranscodingMinutes ?? ""}
                         onChange={(event) =>
@@ -529,10 +546,10 @@ export default function AdminPage(): JSX.Element {
                           checked={draft.isActive}
                           onChange={(event) => updatePlanDraft(plan.code, "isActive", event.target.checked)}
                         />
-                        Active
+                        Активен
                       </label>
                       <Button size="sm" onClick={() => void handleSavePlan(plan.code)} disabled={savingPlanCode === plan.code}>
-                        {savingPlanCode === plan.code ? "Saving..." : "Save plan"}
+                        {savingPlanCode === plan.code ? "Сохранение..." : "Сохранить тариф"}
                       </Button>
                     </div>
                   </div>
@@ -544,24 +561,24 @@ export default function AdminPage(): JSX.Element {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Workspaces</CardTitle>
+            <CardTitle className="text-base">Рабочие пространства</CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             {workspacesLoading ? (
-              <p className="text-sm text-neutral-600">Loading workspaces...</p>
+              <p className="text-sm text-neutral-600">Загрузка рабочих пространств...</p>
             ) : listError ? (
-              <p className="text-sm text-red-600">{listError instanceof Error ? listError.message : "Failed to load workspaces"}</p>
+              <p className="text-sm text-red-600">{listError instanceof Error ? listError.message : "Не удалось загрузить список рабочих пространств"}</p>
             ) : workspaces.length === 0 ? (
-              <p className="text-sm text-neutral-600">No workspaces found.</p>
+              <p className="text-sm text-neutral-600">Рабочие пространства не найдены.</p>
             ) : (
               <table className="min-w-full text-sm">
                 <thead className="bg-neutral-50 text-left">
                   <tr>
-                    <th className="px-3 py-2">Workspace</th>
-                    <th className="px-3 py-2">Plan</th>
-                    <th className="px-3 py-2">Status</th>
-                    <th className="px-3 py-2">Traffic</th>
-                    <th className="px-3 py-2">Updated</th>
+                    <th className="px-3 py-2">Рабочее пространство</th>
+                    <th className="px-3 py-2">Тариф</th>
+                    <th className="px-3 py-2">Статус</th>
+                    <th className="px-3 py-2">Трафик</th>
+                    <th className="px-3 py-2">Обновлено</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -581,7 +598,7 @@ export default function AdminPage(): JSX.Element {
                           <p className="text-xs text-neutral-500">{workspace.owner.email}</p>
                         </td>
                         <td className="px-3 py-2">{workspace.subscription.plan.name}</td>
-                        <td className="px-3 py-2">{workspace.isBlocked ? "Blocked" : "Active"}</td>
+                        <td className="px-3 py-2">{workspace.isBlocked ? "Заблокирован" : "Активен"}</td>
                         <td className="px-3 py-2">{workspace.usage ? `${workspace.usage.trafficGb.toFixed(2)} GB` : "-"}</td>
                         <td className="px-3 py-2">{workspace.usage ? formatDate(workspace.usage.fetchedAt) : "-"}</td>
                       </tr>
@@ -595,75 +612,75 @@ export default function AdminPage(): JSX.Element {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Workspace Details</CardTitle>
+            <CardTitle className="text-base">Детали рабочего пространства</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {!selectedWorkspaceId ? (
-              <p className="text-sm text-neutral-600">Select a workspace from the table.</p>
+              <p className="text-sm text-neutral-600">Выберите рабочее пространство в таблице.</p>
             ) : detailLoading ? (
-              <p className="text-sm text-neutral-600">Loading details...</p>
+              <p className="text-sm text-neutral-600">Загрузка деталей...</p>
             ) : detailError ? (
-              <p className="text-sm text-red-600">{detailError instanceof Error ? detailError.message : "Failed to load details"}</p>
+              <p className="text-sm text-red-600">{detailError instanceof Error ? detailError.message : "Не удалось загрузить детали"}</p>
             ) : !detail ? (
-              <p className="text-sm text-neutral-600">No details available.</p>
+              <p className="text-sm text-neutral-600">Нет данных для отображения.</p>
             ) : (
               <>
                 <div className="space-y-1 rounded-lg border border-neutral-200 p-3 text-sm">
                   <p className="font-medium">{detail.workspace.workspaceName}</p>
-                  <p className="text-neutral-600">Owner: {detail.workspace.owner.email}</p>
-                  <p className="text-neutral-600">Projects: {detail.workspace.projectCount}</p>
-                  <p className="text-neutral-600">Members: {detail.workspace.memberCount}</p>
-                  <p className="text-neutral-600">Registered: {formatDate(detail.workspace.registeredAt)}</p>
-                  <p className="text-neutral-600">Kinescope project: {detail.workspace.kinescopeProjectId ?? "not provisioned"}</p>
+                  <p className="text-neutral-600">Владелец: {detail.workspace.owner.email}</p>
+                  <p className="text-neutral-600">Проекты: {detail.workspace.projectCount}</p>
+                  <p className="text-neutral-600">Участники: {detail.workspace.memberCount}</p>
+                  <p className="text-neutral-600">Дата регистрации: {formatDate(detail.workspace.registeredAt)}</p>
+                  <p className="text-neutral-600">Проект Kinescope: {detail.workspace.kinescopeProjectId ?? "не создан"}</p>
                   {detail.workspace.isLegacy ? (
-                    <p className="text-amber-700">Legacy mode: exact billing starts from tracking enablement date.</p>
+                    <p className="text-amber-700">Legacy-режим: точный биллинг по workspace доступен с даты запуска трекинга.</p>
                   ) : null}
                 </div>
 
                 <div className="space-y-1 rounded-lg border border-neutral-200 p-3 text-sm">
-                  <p className="font-medium">Current Plan: {detail.subscription.plan.name}</p>
-                  <p className="text-neutral-600">Period: {formatDate(detail.subscription.currentPeriodStart)} - {formatDate(detail.subscription.currentPeriodEnd)}</p>
-                  <p className="text-neutral-600">Price: {formatMoney(detail.subscription.plan.priceMinor, detail.subscription.plan.currency)}</p>
-                  <p className="text-neutral-600">Projects limit: {formatLimit(detail.subscription.plan.maxProjects, "pcs")}</p>
-                  <p className="text-neutral-600">Members limit: {formatLimit(detail.subscription.plan.maxMembers, "pcs")}</p>
-                  <p className="text-neutral-600">Traffic limit: {formatLimit(detail.subscription.plan.maxTrafficGb, "GB")}</p>
-                  <p className="text-neutral-600">Storage limit: {formatLimit(detail.subscription.plan.maxStorageGb, "GB")}</p>
-                  <p className="text-neutral-600">Transcoding limit: {formatLimit(detail.subscription.plan.maxTranscodingMinutes, "min")}</p>
-                  <p className="text-neutral-600">Last payment: {formatMoney(detail.subscription.lastPayment.amountMinor, detail.subscription.lastPayment.currency ?? "RUB")}</p>
-                  <p className="text-neutral-600">Last payment at: {formatDate(detail.subscription.lastPayment.at)}</p>
+                  <p className="font-medium">Текущий тариф: {detail.subscription.plan.name}</p>
+                  <p className="text-neutral-600">Период: {formatDate(detail.subscription.currentPeriodStart)} - {formatDate(detail.subscription.currentPeriodEnd)}</p>
+                  <p className="text-neutral-600">Цена: {formatMoney(detail.subscription.plan.priceMinor, detail.subscription.plan.currency)}</p>
+                  <p className="text-neutral-600">Лимит проектов: {formatLimit(detail.subscription.plan.maxProjects, "шт.")}</p>
+                  <p className="text-neutral-600">Лимит участников: {formatLimit(detail.subscription.plan.maxMembers, "шт.")}</p>
+                  <p className="text-neutral-600">Лимит трафика: {formatLimit(detail.subscription.plan.maxTrafficGb, "ГБ")}</p>
+                  <p className="text-neutral-600">Лимит хранилища: {formatLimit(detail.subscription.plan.maxStorageGb, "ГБ")}</p>
+                  <p className="text-neutral-600">Лимит транскодинга: {formatLimit(detail.subscription.plan.maxTranscodingMinutes, "мин")}</p>
+                  <p className="text-neutral-600">Последний платеж: {formatMoney(detail.subscription.lastPayment.amountMinor, detail.subscription.lastPayment.currency ?? "RUB")}</p>
+                  <p className="text-neutral-600">Дата платежа: {formatDate(detail.subscription.lastPayment.at)}</p>
                 </div>
 
                 <div className="space-y-2 rounded-lg border border-neutral-200 p-3 text-sm">
-                  <p className="font-medium">Usage (Kinescope billing)</p>
+                  <p className="font-medium">Использование (billing Kinescope)</p>
                   <p className={usageTone(usagePercent(detail.usage?.trafficGb ?? 0, detail.subscription.plan.maxTrafficGb))}>
-                    Traffic: {(detail.usage?.trafficGb ?? 0).toFixed(2)} GB
+                    Трафик: {(detail.usage?.trafficGb ?? 0).toFixed(2)} GB
                     {detail.subscription.plan.maxTrafficGb !== null ? ` / ${detail.subscription.plan.maxTrafficGb.toFixed(2)} GB` : " / ∞"}
                   </p>
                   <p className={usageTone(usagePercent(detail.usage?.storageGb ?? 0, detail.subscription.plan.maxStorageGb))}>
-                    Storage: {(detail.usage?.storageGb ?? 0).toFixed(2)} GB
+                    Хранилище: {(detail.usage?.storageGb ?? 0).toFixed(2)} GB
                     {detail.subscription.plan.maxStorageGb !== null ? ` / ${detail.subscription.plan.maxStorageGb.toFixed(2)} GB` : " / ∞"}
                   </p>
                   <p className={usageTone(usagePercent(detail.usage?.transcodingMinutes ?? 0, detail.subscription.plan.maxTranscodingMinutes))}>
-                    Transcoding: {(detail.usage?.transcodingMinutes ?? 0).toFixed(2)} min
+                    Транскодинг: {(detail.usage?.transcodingMinutes ?? 0).toFixed(2)} мин
                     {detail.subscription.plan.maxTranscodingMinutes !== null
-                      ? ` / ${detail.subscription.plan.maxTranscodingMinutes.toFixed(2)} min`
+                      ? ` / ${detail.subscription.plan.maxTranscodingMinutes.toFixed(2)} мин`
                       : " / ∞"}
                   </p>
-                  <p>Estimated amount: {formatMoney(detail.usage?.amountMinor, "RUB")}</p>
-                  <p className="text-neutral-600">Fetched at: {formatDate(detail.usage?.fetchedAt)}</p>
+                  <p>Оценочная сумма: {formatMoney(detail.usage?.amountMinor, "RUB")}</p>
+                  <p className="text-neutral-600">Синхронизировано: {formatDate(detail.usage?.fetchedAt)}</p>
                   <Button variant="outline" size="sm" onClick={() => void handleRefreshUsage()} disabled={refreshingUsage}>
-                    {refreshingUsage ? "Refreshing..." : "Refresh usage"}
+                    {refreshingUsage ? "Обновление..." : "Обновить использование"}
                   </Button>
                 </div>
 
                 <div className="space-y-3 rounded-lg border border-neutral-200 p-3 text-sm">
-                  <p className="font-medium">Manual Plan Assignment</p>
+                  <p className="font-medium">Ручное назначение тарифа</p>
                   <div className="grid gap-3">
                     <div className="space-y-1">
-                      <Label>Plan</Label>
+                      <Label>Тариф</Label>
                       <Select value={resolvedNextPlanCode ?? ""} onValueChange={(value) => setNextPlanCode(value as BillingPlanCode)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select plan" />
+                          <SelectValue placeholder="Выберите тариф" />
                         </SelectTrigger>
                         <SelectContent>
                           {planOptions.map((plan) => (
@@ -676,7 +693,7 @@ export default function AdminPage(): JSX.Element {
                     </div>
 
                     <div className="space-y-1">
-                      <Label>Payment amount (RUB)</Label>
+                      <Label>Сумма платежа (RUB)</Label>
                       <Input
                         type="number"
                         min={0}
@@ -688,46 +705,46 @@ export default function AdminPage(): JSX.Element {
                     </div>
 
                     <div className="space-y-1">
-                      <Label>Payment currency</Label>
+                      <Label>Валюта платежа</Label>
                       <Input value={paymentCurrency} onChange={(event) => setPaymentCurrency(event.target.value.toUpperCase())} placeholder="RUB" />
                     </div>
 
                     <div className="space-y-1">
-                      <Label>Payment date</Label>
+                      <Label>Дата платежа</Label>
                       <Input type="datetime-local" value={paymentAt} onChange={(event) => setPaymentAt(event.target.value)} />
                     </div>
 
                     <div className="space-y-1">
-                      <Label>Comment</Label>
+                      <Label>Комментарий</Label>
                       <Textarea value={paymentComment} onChange={(event) => setPaymentComment(event.target.value)} rows={3} />
                     </div>
                   </div>
                   <Button onClick={() => void handleAssignPlan()} disabled={assigningPlan}>
-                    {assigningPlan ? "Saving..." : "Apply plan"}
+                    {assigningPlan ? "Сохранение..." : "Применить тариф"}
                   </Button>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                   <Button variant={detail.workspace.isBlocked ? "outline" : "destructive"} onClick={() => void handleToggleWorkspace()} disabled={updatingBlock}>
-                    {updatingBlock ? "Updating..." : detail.workspace.isBlocked ? "Unblock workspace" : "Block workspace"}
+                    {updatingBlock ? "Обновление..." : detail.workspace.isBlocked ? "Разблокировать рабочее пространство" : "Заблокировать рабочее пространство"}
                   </Button>
                 </div>
 
                 <div className="space-y-2 rounded-lg border border-neutral-200 p-3 text-sm">
-                  <p className="font-medium">Subscription events</p>
+                  <p className="font-medium">События подписки</p>
                   {detail.events.length === 0 ? (
-                    <p className="text-neutral-600">No events yet.</p>
+                    <p className="text-neutral-600">Событий пока нет.</p>
                   ) : (
                     <div className="max-h-56 space-y-2 overflow-auto">
                       {detail.events.map((event) => (
                         <article key={event.id} className="rounded border border-neutral-200 p-2">
-                          <p className="font-medium">{event.type}</p>
+                          <p className="font-medium">{formatEventType(event.type)}</p>
                           <p className="text-xs text-neutral-500">{formatDate(event.createdAt)}</p>
                           <p className="text-xs text-neutral-600">
                             {event.oldPlanCode ?? "-"} {"->"} {event.newPlanCode ?? "-"}
                           </p>
                           <p className="text-xs text-neutral-600">
-                            Payment: {formatMoney(event.paymentAmountMinor, event.paymentCurrency ?? "RUB")}
+                            Платеж: {formatMoney(event.paymentAmountMinor, event.paymentCurrency ?? "RUB")}
                           </p>
                           {event.comment ? <p className="text-xs text-neutral-700">{event.comment}</p> : null}
                         </article>
