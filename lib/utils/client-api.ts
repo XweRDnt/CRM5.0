@@ -1,3 +1,14 @@
+export class ApiRequestError<TPayload = unknown> extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public payload?: TPayload,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 export function getAuthToken(): string {
   if (typeof window === "undefined") {
     return "";
@@ -30,8 +41,10 @@ export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     let message = "Request failed";
+    let payload: unknown;
     try {
       const errorJson = (await res.json()) as { error?: { message?: string } | string };
+      payload = errorJson;
       if (typeof errorJson.error === "string") {
         message = errorJson.error;
       } else if (errorJson.error?.message) {
@@ -40,7 +53,7 @@ export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
     } catch {
       // ignore parse error
     }
-    throw new Error(message);
+    throw new ApiRequestError(message, res.status, payload);
   }
 
   return (await res.json()) as T;

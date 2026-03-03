@@ -1,10 +1,22 @@
-import { VersionStatus, VideoProcessingStatus, VideoProvider, type PrismaClient } from "@prisma/client";
+import { Prisma, VersionStatus, VideoProcessingStatus, VideoProvider, type PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
 import type { AssetVersionResponse, CreateVersionInput, ServiceContext } from "@/types";
 
 type VersionListContext = {
   tenantId: string;
 };
+
+export type ProjectVersionMeta = {
+  usedVersionNumbers: number[];
+  nextVersionNumber: number;
+};
+
+export class VersionConflictError extends Error {
+  constructor(public suggestedVersionNo: number) {
+    super("Version already exists");
+    this.name = "VersionConflictError";
+  }
+}
 
 type AssetVersionWithUploader = {
   id: string;
@@ -111,12 +123,7 @@ export class AssetService {
 
     let versionNo = requestedVersionNo;
     if (versionNo === undefined) {
-      const lastVersion = await this.prismaClient.assetVersion.findFirst({
-        where: { projectId },
-        orderBy: { versionNo: "desc" },
-        select: { versionNo: true },
-      });
-      versionNo = (lastVersion?.versionNo ?? 0) + 1;
+      versionNo = await this.getNextVersionNumber(projectId);
     }
 
     if (versionNo <= 0) {
@@ -132,7 +139,7 @@ export class AssetService {
     });
 
     if (existingVersion) {
-      throw new Error("Version already exists");
+      throw new VersionConflictError(await this.getNextVersionNumber(projectId));
     }
 
     if (videoProvider === VideoProvider.KINESCOPE) {
@@ -155,36 +162,44 @@ export class AssetService {
     const resolvedFileUrl =
       videoProvider === VideoProvider.KINESCOPE ? (streamUrl ?? `https://kinescope.io/${kinescopeVideoId}`) : (fileUrl as string);
 
-    const version = await this.prismaClient.assetVersion.create({
-      data: {
-        projectId,
-        versionNo,
-        fileUrl: resolvedFileUrl,
-        fileKey: resolvedFileKey,
-        fileName,
-        fileSize,
-        durationSec: durationSec ?? null,
-        uploadedByUserId,
-        uploadedByLegacy: uploadedByUserId,
-        notes: notes ?? null,
-        videoProvider,
-        kinescopeVideoId: kinescopeVideoId ?? null,
-        kinescopeAssetId: kinescopeAssetId ?? null,
-        kinescopeProjectId: kinescopeProjectId ?? null,
-        streamUrl: streamUrl ?? null,
-        processingStatus,
-        processingError: processingError ?? null,
-      },
-      include: {
-        uploadedBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
+    let version: AssetVersionWithUploader;
+    try {
+      version = await this.prismaClient.assetVersion.create({
+        data: {
+          projectId,
+          versionNo,
+          fileUrl: resolvedFileUrl,
+          fileKey: resolvedFileKey,
+          fileName,
+          fileSize,
+          durationSec: durationSec ?? null,
+          uploadedByUserId,
+          uploadedByLegacy: uploadedByUserId,
+          notes: notes ?? null,
+          videoProvider,
+          kinescopeVideoId: kinescopeVideoId ?? null,
+          kinescopeAssetId: kinescopeAssetId ?? null,
+          kinescopeProjectId: kinescopeProjectId ?? null,
+          streamUrl: streamUrl ?? null,
+          processingStatus,
+          processingError: processingError ?? null,
+        },
+        include: {
+          uploadedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new VersionConflictError(await this.getNextVersionNumber(projectId));
+      }
+      throw error;
+    }
 
     return this.mapAssetVersionResponse(version);
   }
@@ -227,6 +242,22 @@ export class AssetService {
     }
 
     return versions.map((version) => this.mapAssetVersionResponse(version));
+  }
+
+  async getVersionMeta(projectId: string, tenantId: string): Promise<ProjectVersionMeta> {
+    const project = await this.prismaClient.project.findFirst({
+      where: {
+        id: projectId,
+        tenantId,
+      },
+      select: { id: true },
+    });
+
+    if (!project) {
+      throw new Error("Project not found in this tenant");
+    }
+
+    return this.buildVersionMeta(projectId);
   }
 
   async getVersionById(versionId: string, tenantId: string): Promise<AssetVersionResponse> {
@@ -404,6 +435,29 @@ export class AssetService {
       projectId: (tenantIdOrInput as { projectId: string }).projectId,
       tenantId: (projectIdOrContext as VersionListContext).tenantId,
     };
+  }
+
+  private async buildVersionMeta(projectId: string): Promise<ProjectVersionMeta> {
+    const versions = await this.prismaClient.assetVersion.findMany({
+      where: { projectId },
+      orderBy: { versionNo: "asc" },
+      select: { versionNo: true },
+    });
+    const usedVersionNumbers = versions.map((version) => version.versionNo);
+    const nextVersionNumber = usedVersionNumbers.length > 0 ? usedVersionNumbers[usedVersionNumbers.length - 1] + 1 : 1;
+    return {
+      usedVersionNumbers,
+      nextVersionNumber,
+    };
+  }
+
+  private async getNextVersionNumber(projectId: string): Promise<number> {
+    const lastVersion = await this.prismaClient.assetVersion.findFirst({
+      where: { projectId },
+      orderBy: { versionNo: "desc" },
+      select: { versionNo: true },
+    });
+    return (lastVersion?.versionNo ?? 0) + 1;
   }
 
   private mapAssetVersionResponse(version: AssetVersionWithUploader): AssetVersionResponse {

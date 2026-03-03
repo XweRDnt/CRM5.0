@@ -2,7 +2,6 @@
 
 import useSWR from "swr";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
@@ -10,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
+import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -328,9 +328,13 @@ export default function VersionDetailPage(): JSX.Element {
               );
             })}
 
-            <Button asChild variant="outline" size="sm" className="w-full basis-full sm:w-auto sm:basis-auto sm:whitespace-nowrap">
-              <Link href={`/projects/${projectId}/versions/new`}>+ Создать новую версию</Link>
-            </Button>
+            <VersionUploadDialog
+              projectId={projectId}
+              triggerText="+ Создать новую версию"
+              triggerVariant="outline"
+              triggerSize="sm"
+              triggerClassName="w-full basis-full sm:w-auto sm:basis-auto sm:whitespace-nowrap"
+            />
           </div>
         </div>
       </header>

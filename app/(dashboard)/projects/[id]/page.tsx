@@ -9,6 +9,7 @@ import type { ProjectStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
+import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
@@ -277,9 +278,7 @@ export default function ProjectDetailPage(): JSX.Element {
             <Button variant="outline" onClick={handleResetPublicLink} disabled={resettingPortalLink} className="w-full sm:w-auto">
               {resettingPortalLink ? "Reset..." : "Reset link"}
             </Button>
-            <Button asChild className="w-full sm:w-auto">
-              <Link href={`/projects/${projectId}/versions/new`}>+ Добавить версию</Link>
-            </Button>
+            <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" triggerClassName="w-full sm:w-auto" />
           </div>
         </div>
       </section>

@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
 import { apiFetch } from "@/lib/utils/client-api";
 import type { AssetVersionResponse } from "@/types";
 
@@ -59,9 +60,7 @@ export default function ProjectVersionsPage(): JSX.Element {
       <Card>
         <CardContent className="space-y-3 py-6">
           <p className="text-sm text-neutral-400">Пока нет версий. Добавьте первую версию.</p>
-          <Button asChild>
-            <Link href={`/projects/${projectId}/versions/new`}>+ Добавить версию</Link>
-          </Button>
+          <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" />
         </CardContent>
       </Card>
     );

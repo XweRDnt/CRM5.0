@@ -406,6 +406,16 @@ export interface AssetVersionResponse {
   createdAt: Date;
 }
 
+export interface VersionMetaResponse {
+  usedVersionNumbers: number[];
+  nextVersionNumber: number;
+}
+
+export interface VersionConflictResponse {
+  error: string;
+  suggestedVersionNo: number;
+}
+
 export type CreateAssetVersionInput = {
   projectId: string;
   versionNo: number;

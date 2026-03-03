@@ -1,6 +1,6 @@
 import { VideoProcessingStatus, VideoProvider } from "@prisma/client";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
-import { assetService } from "@/lib/services/asset.service";
+import { assetService, VersionConflictError } from "@/lib/services/asset.service";
 import { assertProjectAccess } from "@/lib/services/access-control.service";
 import { z } from "zod";
 import { handleAPIError } from "@/lib/utils/api-error";
@@ -10,7 +10,7 @@ const paramsSchema = z.object({
 });
 
 const createVersionSchema = z.object({
-  versionNo: z.number().int().min(1),
+  versionNo: z.number().int().min(1).optional(),
   fileUrl: z.string().url().optional(),
   fileKey: z.string().min(1).optional(),
   fileName: z.string().min(1).max(255),
@@ -65,6 +65,15 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context: { params
 
     return Response.json(version, { status: 201 });
   } catch (error) {
+    if (error instanceof VersionConflictError) {
+      return Response.json(
+        {
+          error: error.message,
+          suggestedVersionNo: error.suggestedVersionNo,
+        },
+        { status: 409 },
+      );
+    }
     return handleAPIError(error);
   }
 });

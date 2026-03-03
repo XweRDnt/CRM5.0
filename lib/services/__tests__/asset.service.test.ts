@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
-import { AssetService } from "@/lib/services/asset.service";
+import { AssetService, VersionConflictError } from "@/lib/services/asset.service";
 
 async function createTenant(slugPrefix: string) {
   return prisma.tenant.create({
@@ -117,6 +117,41 @@ describe("AssetService.createVersion", () => {
     expect(v3.versionNumber).toBe(3);
   });
 
+  it("should return conflict with suggested next version", async () => {
+    const tenant = await createTenant("agency-asset-conflict");
+    const user = await createUser(tenant.id, "user-conflict@test.com");
+    const client = await createClient(tenant.id, "client-conflict@test.com");
+    const project = await createProject(tenant.id, client.id, "Project");
+
+    await assetService.createVersion({
+      projectId: project.id,
+      tenantId: tenant.id,
+      versionNo: 1,
+      fileUrl: "https://s3.amazonaws.com/v1.mp4",
+      fileKey: `tenants/${tenant.id}/projects/${project.id}/versions/v1.mp4`,
+      fileName: "v1.mp4",
+      fileSize: 1000,
+      uploadedByUserId: user.id,
+    });
+
+    try {
+      await assetService.createVersion({
+        projectId: project.id,
+        tenantId: tenant.id,
+        versionNo: 1,
+        fileUrl: "https://s3.amazonaws.com/v1-duplicate.mp4",
+        fileKey: `tenants/${tenant.id}/projects/${project.id}/versions/v1-duplicate.mp4`,
+        fileName: "v1-duplicate.mp4",
+        fileSize: 1000,
+        uploadedByUserId: user.id,
+      });
+      throw new Error("Expected conflict error");
+    } catch (error) {
+      expect(error).toBeInstanceOf(VersionConflictError);
+      expect((error as VersionConflictError).suggestedVersionNo).toBe(2);
+    }
+  });
+
   it("should fail if project does not exist", async () => {
     const tenant = await createTenant("agency-asset-3");
     const user = await createUser(tenant.id, "user3@test.com");
@@ -228,6 +263,59 @@ describe("AssetService.createVersion", () => {
         uploadedByUserId: user.id,
       }),
     ).rejects.toThrow("File size must be greater than 0");
+  });
+});
+
+describe("AssetService.getVersionMeta", () => {
+  let assetService: AssetService;
+
+  beforeEach(async () => {
+    await cleanup();
+    assetService = new AssetService();
+  });
+
+  it("should return next version for empty project", async () => {
+    const tenant = await createTenant("agency-asset-meta-empty");
+    const client = await createClient(tenant.id, "client-meta-empty@test.com");
+    const project = await createProject(tenant.id, client.id, "Project");
+
+    const meta = await assetService.getVersionMeta(project.id, tenant.id);
+
+    expect(meta.usedVersionNumbers).toEqual([]);
+    expect(meta.nextVersionNumber).toBe(1);
+  });
+
+  it("should return used versions and next number", async () => {
+    const tenant = await createTenant("agency-asset-meta");
+    const user = await createUser(tenant.id, "user-meta@test.com");
+    const client = await createClient(tenant.id, "client-meta@test.com");
+    const project = await createProject(tenant.id, client.id, "Project");
+
+    await assetService.createVersion({
+      projectId: project.id,
+      tenantId: tenant.id,
+      versionNo: 1,
+      fileUrl: "https://s3.amazonaws.com/v1.mp4",
+      fileKey: `tenants/${tenant.id}/projects/${project.id}/versions/v1.mp4`,
+      fileName: "v1.mp4",
+      fileSize: 1000,
+      uploadedByUserId: user.id,
+    });
+    await assetService.createVersion({
+      projectId: project.id,
+      tenantId: tenant.id,
+      versionNo: 2,
+      fileUrl: "https://s3.amazonaws.com/v2.mp4",
+      fileKey: `tenants/${tenant.id}/projects/${project.id}/versions/v2.mp4`,
+      fileName: "v2.mp4",
+      fileSize: 1000,
+      uploadedByUserId: user.id,
+    });
+
+    const meta = await assetService.getVersionMeta(project.id, tenant.id);
+
+    expect(meta.usedVersionNumbers).toEqual([1, 2]);
+    expect(meta.nextVersionNumber).toBe(3);
   });
 });
 
