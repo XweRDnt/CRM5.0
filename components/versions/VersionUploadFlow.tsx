@@ -486,7 +486,7 @@ export function VersionUploadFlow({
   const primaryButtonLabel = stage === "canceled" ? "Повторить загрузку" : "Загрузить версию";
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
+    <form className="version-upload-form space-y-4" onSubmit={handleSubmit}>
       <div className="space-y-2">
         <label htmlFor={`versionNo-${projectId}`} className="block text-sm font-medium text-neutral-800 dark:text-neutral-200">
           Номер версии

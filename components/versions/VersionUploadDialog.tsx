@@ -49,8 +49,8 @@ export function VersionUploadDialog({
       <DialogContent
         className={
           appTheme === "dark"
-            ? "max-w-2xl !border-slate-700 !bg-slate-900/95 !text-neutral-100"
-            : "max-w-2xl !border-neutral-200 !bg-white !text-neutral-900"
+            ? "version-upload-dialog max-w-2xl !border-slate-700 !bg-slate-900/95 !text-neutral-100"
+            : "version-upload-dialog max-w-2xl !border-neutral-200 !bg-white !text-neutral-900"
         }
       >
         <DialogHeader>

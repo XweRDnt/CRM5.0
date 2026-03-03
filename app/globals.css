@@ -290,3 +290,23 @@ html[data-app-theme="dark"] .app-ios-shell aside nav a.sidebar-nav-item-active {
   color: #bfdbfe !important;
 }
 
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .ui-input {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #111827 !important;
+}
+
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .ui-input::placeholder {
+  color: #9ca3af !important;
+}
+
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .bg-neutral-50,
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .bg-blue-50 {
+  background-color: #ffffff !important;
+}
+
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .border-neutral-200,
+html[data-app-theme="light"] [data-app-shell="ios"] .version-upload-dialog .version-upload-form .border-neutral-300 {
+  border-color: #d1d5db !important;
+}
+
