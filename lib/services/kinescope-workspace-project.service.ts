@@ -7,8 +7,25 @@ type KinescopeProjectItem = {
   title?: string;
 };
 
+type KinescopeProjectPrivacyType = "anywhere" | "nowhere" | "custom";
+
 function normalizeProjectName(workspaceId: string): string {
   return `workspace-${workspaceId}`;
+}
+
+function resolveProjectPrivacyType(): KinescopeProjectPrivacyType {
+  const raw = (process.env.KINESCOPE_PROJECT_PRIVACY_TYPE ?? "anywhere").trim().toLowerCase();
+
+  // Backward compatibility with the legacy invalid value used before this fix.
+  if (raw === "all") {
+    return "anywhere";
+  }
+
+  if (raw === "anywhere" || raw === "nowhere" || raw === "custom") {
+    return raw;
+  }
+
+  return "anywhere";
 }
 
 function readProjectId(payload: unknown): string | null {
@@ -53,10 +70,12 @@ function extractProjectItems(payload: unknown): KinescopeProjectItem[] {
 export class KinescopeWorkspaceProjectService {
   private readonly baseUrl: string;
   private readonly apiToken: string;
+  private readonly projectPrivacyType: KinescopeProjectPrivacyType;
 
   constructor() {
     this.baseUrl = (process.env.KINESCOPE_BASE_URL ?? "https://api.kinescope.io/v1").replace(/\/+$/, "");
     this.apiToken = (process.env.KINESCOPE_API_TOKEN ?? "").trim();
+    this.projectPrivacyType = resolveProjectPrivacyType();
   }
 
   async ensureWorkspaceProjectForTenant(tenantId: string): Promise<string> {
@@ -131,7 +150,7 @@ export class KinescopeWorkspaceProjectService {
       },
       body: JSON.stringify({
         name: projectName,
-        privacy_type: "all",
+        privacy_type: this.projectPrivacyType,
         description: `Workspace: ${workspaceName}`,
       }),
       cache: "no-store",
@@ -157,4 +176,3 @@ export class KinescopeWorkspaceProjectService {
 }
 
 export const kinescopeWorkspaceProjectService = new KinescopeWorkspaceProjectService();
-
