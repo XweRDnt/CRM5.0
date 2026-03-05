@@ -124,7 +124,17 @@ export default function MarketingPage(): JSX.Element {
               >
                 Попробовать
               </Link>
-              <p className="text-sm text-slate-300">Или напишите нам в Telegram: @creative3228</p>
+              <p className="text-sm text-slate-300">
+                Или напишите нам в Telegram:{" "}
+                <a
+                  href="https://t.me/creative3228"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-blue-300 underline decoration-blue-400/70 underline-offset-4 transition hover:text-blue-200"
+                >
+                  @creative3228
+                </a>
+              </p>
             </div>
           </div>
         </section>
