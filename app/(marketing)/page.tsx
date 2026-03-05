@@ -1,212 +1,150 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import Link from "next/link";
-import { Bot, Clock3, MessageSquareText, ShieldCheck, Sparkles, Video } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { CTASection, FAQ, Features, Footer, Hero, HowItWorks, Pricing } from "@/components/landing";
 import { LandingAutoRedirectGate } from "@/components/landing/LandingAutoRedirectGate";
-import { LoginEntryButton } from "@/components/landing/LoginEntryButton";
+
+const inter = Inter({
+  subsets: ["latin", "cyrillic"],
+});
 
 export const metadata: Metadata = {
-  title: "VideoFeedback - Ускорьте согласование видео",
+  title: "VideoFeedback — Согласование видео без хаоса",
   description:
-    "Собирайте комментарии по таймкодам, автоматизируйте задачи и закрывайте проекты быстрее с VideoFeedback.",
-  keywords: ["видеофидбек", "согласование видео", "клиентские правки", "video crm"],
+    "Сервис согласования видео для агентств и фрилансеров: правки по таймкоду, все версии по одной ссылке, клиент без регистрации.",
   openGraph: {
-    title: "VideoFeedback - Ускорьте согласование видео",
+    title: "VideoFeedback — Согласование видео без хаоса",
     description:
-      "Платформа для студий и агентств: комментарии по таймкоду, AI-резюме правок и прозрачный процесс согласования.",
+      "Клиент открывает ссылку, оставляет правки по таймкоду — команда сразу видит, что и когда менять.",
     type: "website",
   },
 };
 
 const features = [
-  {
-    icon: <Video className="h-6 w-6" aria-hidden="true" />,
-    title: "Комментарии по таймкоду",
-    description: "Клиенты оставляют фидбек прямо на нужной секунде ролика без лишних переписок.",
-  },
-  {
-    icon: <Bot className="h-6 w-6" aria-hidden="true" />,
-    title: "AI-разбор правок",
-    description: "Система автоматически выделяет задачи и помогает команде быстрее перейти к исполнению.",
-  },
-  {
-    icon: <Clock3 className="h-6 w-6" aria-hidden="true" />,
-    title: "Контроль сроков",
-    description: "Следите за статусами этапов и не допускайте просрочек в производственном цикле.",
-  },
-  {
-    icon: <ShieldCheck className="h-6 w-6" aria-hidden="true" />,
-    title: "Безопасный доступ",
-    description: "Разделяйте доступы для команды и клиентов, сохраняя контроль над проектом.",
-  },
-  {
-    icon: <MessageSquareText className="h-6 w-6" aria-hidden="true" />,
-    title: "Единая лента обсуждений",
-    description: "Все комментарии, решения и ответы собраны в одном месте и не теряются в чатах.",
-  },
-  {
-    icon: <Sparkles className="h-6 w-6" aria-hidden="true" />,
-    title: "Прозрачность для клиента",
-    description: "Покажите прогресс, историю версий и текущие задачи в понятном клиентском портале.",
-  },
+  "Комментарии по таймкоду",
+  "Все версии по одной ссылке",
+  "Клиент заходит без регистрации",
 ];
 
 const steps = [
-  {
-    title: "Загрузите версию видео",
-    description: "Добавьте новый ролик в проект и отправьте ссылку клиенту за пару кликов.",
-  },
-  {
-    title: "Соберите фидбек",
-    description: "Клиент оставляет комментарии по таймкоду, а команда видит всё в структурированном виде.",
-  },
-  {
-    title: "Закройте задачи",
-    description: "Преобразуйте правки в задачи и проведите проект до финального согласования быстрее.",
-  },
-];
-
-const plans = [
-  {
-    name: "Старт",
-    description: "Для небольших продакшен-команд",
-    price: 29,
-    cta: { text: "Начать", href: "/signup" },
-    features: ["До 5 активных проектов", "Комментарии по таймкоду", "Базовые роли доступа"],
-  },
-  {
-    name: "Рост",
-    description: "Для агентств с постоянным потоком задач",
-    price: 79,
-    highlighted: true,
-    cta: { text: "Выбрать Рост", href: "/signup" },
-    features: ["До 25 активных проектов", "AI-разбор фидбека", "Отчёты по workflow"],
-  },
-  {
-    name: "Бизнес",
-    description: "Для масштабных команд и нескольких PM",
-    price: 149,
-    cta: { text: "Связаться с нами", href: "/signup" },
-    features: ["Безлимитные проекты", "Приоритетная поддержка", "Расширенные права и аудит"],
-  },
+  "Загрузите видео и отправьте ссылку клиенту",
+  "Клиент оставляет правки по таймкоду",
+  "Команда видит все правки и делает новую версию",
 ];
 
 const faqItems = [
   {
-    question: "Можно ли пригласить клиента без регистрации?",
-    answer: "Да. Вы можете отправить защищённую ссылку на просмотр и комментирование конкретной версии видео.",
+    question: "Нужна ли клиенту регистрация?",
+    answer: "Нет. Клиент получает ссылку и сразу оставляет правки.",
   },
   {
-    question: "Подходит ли сервис для нескольких команд?",
-    answer: "Да, в тарифах Рост и Бизнес можно параллельно вести несколько команд и клиентов.",
+    question: "Где хранятся видео?",
+    answer: "На российских серверах через Кинескоп.",
   },
   {
-    question: "Где хранятся видеофайлы?",
-    answer: "Файлы хранятся в облачном S3-хранилище с контролем доступа и безопасной выдачей ссылок.",
-  },
-  {
-    question: "Есть ли бесплатный период?",
-    answer: "Да, после регистрации вы получаете пробный доступ и можете оценить процесс на реальном проекте.",
-  },
-];
-
-const footerGroups = [
-  {
-    title: "Продукт",
-    links: [
-      { label: "Возможности", href: "#features" },
-      { label: "Как это работает", href: "#how-it-works" },
-      { label: "Тарифы", href: "#pricing" },
-    ],
-  },
-  {
-    title: "Компания",
-    links: [
-      { label: "О нас", href: "#" },
-      { label: "Контакты", href: "#" },
-      { label: "Политика", href: "#" },
-    ],
-  },
-  {
-    title: "Поддержка",
-    links: [
-      { label: "FAQ", href: "#faq" },
-      { label: "Документация", href: "#" },
-      { label: "Помощь", href: "#" },
-    ],
+    question: "Подходит ли для фрилансеров?",
+    answer: "Да. Есть тариф для одного человека.",
   },
 ];
 
 export default function MarketingPage(): JSX.Element {
   return (
     <LandingAutoRedirectGate>
-      <main className="min-h-screen bg-neutral-50">
-        <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/90 backdrop-blur">
-          <div className="container mx-auto flex items-center justify-between px-4 py-3">
-            <Link href="/" className="text-lg font-semibold text-neutral-900">
+      <main className={`${inter.className} relative min-h-screen overflow-hidden bg-[#070b14] text-slate-100`}>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_12%,rgba(59,130,246,0.22),transparent_32%),radial-gradient(circle_at_86%_0%,rgba(139,92,246,0.2),transparent_34%),radial-gradient(circle_at_40%_100%,rgba(37,99,235,0.12),transparent_42%)]"
+        />
+
+        <header className="sticky top-0 z-20 border-b border-white/10 bg-[#070b14]/85 backdrop-blur">
+          <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+            <Link href="/" className="text-base font-semibold tracking-tight text-white sm:text-lg">
               VideoFeedback
             </Link>
-            <nav className="hidden items-center gap-5 text-sm text-neutral-700 md:flex">
-              <a href="#features" className="hover:text-neutral-900">
-                Возможности
-              </a>
-              <a href="#pricing" className="hover:text-neutral-900">
-                Тарифы
-              </a>
-              <a href="#faq" className="hover:text-neutral-900">
-                FAQ
-              </a>
-            </nav>
-            <div className="flex items-center gap-2">
-              <LoginEntryButton />
-              <Button size="sm" asChild>
-                <Link href="/signup">Регистрация</Link>
-              </Button>
-            </div>
+            <Link
+              href="/signup"
+              className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            >
+              Попробовать
+            </Link>
           </div>
         </header>
 
-        <Hero
-          headline="Ведите видеопроекты без хаоса в правках"
-          subheadline="Собирайте комментарии по таймкоду, превращайте фидбек в задачи и ускоряйте согласование между командой и клиентом."
-          primaryCTA={{ text: "Начать бесплатно", href: "/signup" }}
-          secondaryCTA={{ text: "Смотреть демо", href: "#how-it-works" }}
-        />
+        <section className="relative mx-auto w-full max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pt-24 lg:px-8 lg:pb-24">
+          <div className="max-w-3xl">
+            <h1 className="text-3xl font-semibold leading-tight text-white sm:text-5xl">
+              Согласуйте видео с клиентом без хаоса в Telegram
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+              Клиент открывает ссылку, оставляет правки по таймкоду — вы сразу видите что и когда менять. Без
+              регистрации, без переписок.
+            </p>
+            <div className="mt-8">
+              <Link
+                href="/signup"
+                className="inline-flex rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-7 py-3 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
+                Попробовать
+              </Link>
+            </div>
+          </div>
+        </section>
 
-        <Features
-          title="Все инструменты согласования в одном месте"
-          subtitle="От первого комментария до финальной версии: прозрачный процесс для команды и клиента."
-          features={features}
-        />
+        <section id="features" className="relative mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="grid gap-4 md:grid-cols-3">
+            {features.map((feature) => (
+              <article
+                key={feature}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.03)_inset]"
+              >
+                <h2 className="text-lg font-medium text-white">{feature}</h2>
+              </article>
+            ))}
+          </div>
+        </section>
 
-        <HowItWorks
-          title="Как это работает"
-          subtitle="Три шага, чтобы ускорить производство и не терять важные правки."
-          steps={steps}
-        />
+        <section id="how-it-works" className="relative mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-semibold text-white sm:text-3xl">Как это работает</h2>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {steps.map((step, index) => (
+              <article key={step} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+                <p className="text-sm font-semibold text-blue-300">Шаг {index + 1}</p>
+                <p className="mt-3 text-base leading-relaxed text-slate-200">{step}</p>
+              </article>
+            ))}
+          </div>
+        </section>
 
-        <Pricing
-          title="Тарифы для команд любого размера"
-          subtitle="Выберите план под текущую нагрузку и масштабируйтесь по мере роста студии."
-          plans={plans}
-        />
+        <section className="relative mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="rounded-3xl border border-blue-400/30 bg-gradient-to-br from-blue-500/15 to-violet-500/15 p-8 sm:p-10">
+            <h2 className="text-2xl font-semibold text-white sm:text-3xl">Готовы попробовать?</h2>
+            <div className="mt-6 flex flex-col items-start gap-4">
+              <Link
+                href="/signup"
+                className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 px-7 py-3 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
+                Попробовать
+              </Link>
+              <p className="text-sm text-slate-300">Или напишите нам в Telegram: @creative3228</p>
+            </div>
+          </div>
+        </section>
 
-        <FAQ title="Частые вопросы" subtitle="Коротко о запуске, доступах и хранении данных." items={faqItems} />
+        <section id="faq" className="relative mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-semibold text-white sm:text-3xl">FAQ</h2>
+          <div className="mt-8 space-y-4">
+            {faqItems.map((item) => (
+              <article key={item.question} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+                <h3 className="text-lg font-medium text-white">{item.question}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-300">{item.answer}</p>
+              </article>
+            ))}
+          </div>
+        </section>
 
-        <CTASection
-          title="Готовы ускорить согласование видео?"
-          description="Создайте аккаунт и запустите первый проект уже сегодня."
-          primaryCTA={{ text: "Перейти к регистрации", href: "/signup" }}
-        />
-
-        <Footer
-          brandName="VideoFeedback"
-          description="Платформа для агентств и продакшен-команд, которые хотят сдавать проекты быстрее."
-          linkGroups={footerGroups}
-        />
+        <footer className="relative border-t border-white/10 px-4 py-8 text-center text-sm text-slate-400 sm:px-6 lg:px-8">
+          © 2026 VideoFeedback
+        </footer>
       </main>
     </LandingAutoRedirectGate>
   );
 }
-
