@@ -1,20 +1,58 @@
-﻿-- Create billing enums
-CREATE TYPE "BillingPlanCode" AS ENUM ('FREE', 'START', 'GROWTH', 'BUSINESS');
-CREATE TYPE "WorkspaceSubscriptionStatus" AS ENUM ('ACTIVE', 'PAUSED', 'CANCELLED');
-CREATE TYPE "WorkspaceBillingCycle" AS ENUM ('CALENDAR_MONTH');
-CREATE TYPE "WorkspaceSubscriptionEventType" AS ENUM ('PLAN_ASSIGNED', 'PAYMENT_RECORDED', 'WORKSPACE_BLOCKED', 'WORKSPACE_UNBLOCKED', 'LIMIT_BLOCKED');
+-- Create billing enums (idempotent for reruns after partial failures)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'BillingPlanCode'
+      AND n.nspname = current_schema()
+  ) THEN
+    CREATE TYPE "BillingPlanCode" AS ENUM ('FREE', 'START', 'GROWTH', 'BUSINESS');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'WorkspaceSubscriptionStatus'
+      AND n.nspname = current_schema()
+  ) THEN
+    CREATE TYPE "WorkspaceSubscriptionStatus" AS ENUM ('ACTIVE', 'PAUSED', 'CANCELLED');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'WorkspaceBillingCycle'
+      AND n.nspname = current_schema()
+  ) THEN
+    CREATE TYPE "WorkspaceBillingCycle" AS ENUM ('CALENDAR_MONTH');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'WorkspaceSubscriptionEventType'
+      AND n.nspname = current_schema()
+  ) THEN
+    CREATE TYPE "WorkspaceSubscriptionEventType" AS ENUM ('PLAN_ASSIGNED', 'PAYMENT_RECORDED', 'WORKSPACE_BLOCKED', 'WORKSPACE_UNBLOCKED', 'LIMIT_BLOCKED');
+  END IF;
+END $$;
 
 -- Extend workspace for Kinescope billing tracking
 ALTER TABLE "workspaces"
-ADD COLUMN "kinescopeProjectId" TEXT,
-ADD COLUMN "kinescopeProjectName" TEXT,
-ADD COLUMN "kinescopeProjectProvisionedAt" TIMESTAMP(3),
-ADD COLUMN "billingTrackingStartedAt" TIMESTAMP(3);
+ADD COLUMN IF NOT EXISTS "kinescopeProjectId" TEXT,
+ADD COLUMN IF NOT EXISTS "kinescopeProjectName" TEXT,
+ADD COLUMN IF NOT EXISTS "kinescopeProjectProvisionedAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "billingTrackingStartedAt" TIMESTAMP(3);
 
-CREATE UNIQUE INDEX "workspaces_kinescopeProjectId_key" ON "workspaces"("kinescopeProjectId");
+CREATE UNIQUE INDEX IF NOT EXISTS "workspaces_kinescopeProjectId_key" ON "workspaces"("kinescopeProjectId");
 
 -- Billing plan catalog
-CREATE TABLE "BillingPlan" (
+CREATE TABLE IF NOT EXISTS "BillingPlan" (
     "code" "BillingPlanCode" NOT NULL,
     "name" TEXT NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'RUB',
@@ -31,10 +69,10 @@ CREATE TABLE "BillingPlan" (
     CONSTRAINT "BillingPlan_pkey" PRIMARY KEY ("code")
 );
 
-CREATE INDEX "BillingPlan_isActive_sortOrder_idx" ON "BillingPlan"("isActive", "sortOrder");
+CREATE INDEX IF NOT EXISTS "BillingPlan_isActive_sortOrder_idx" ON "BillingPlan"("isActive", "sortOrder");
 
 -- Workspace subscriptions
-CREATE TABLE "WorkspaceSubscription" (
+CREATE TABLE IF NOT EXISTS "WorkspaceSubscription" (
     "id" TEXT NOT NULL,
     "workspaceId" TEXT NOT NULL,
     "planCode" "BillingPlanCode" NOT NULL,
@@ -52,20 +90,46 @@ CREATE TABLE "WorkspaceSubscription" (
     CONSTRAINT "WorkspaceSubscription_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "WorkspaceSubscription_workspaceId_key" ON "WorkspaceSubscription"("workspaceId");
-CREATE INDEX "WorkspaceSubscription_planCode_idx" ON "WorkspaceSubscription"("planCode");
-CREATE INDEX "WorkspaceSubscription_status_idx" ON "WorkspaceSubscription"("status");
-CREATE INDEX "WorkspaceSubscription_currentPeriodStart_currentPeriodEnd_idx" ON "WorkspaceSubscription"("currentPeriodStart", "currentPeriodEnd");
+CREATE UNIQUE INDEX IF NOT EXISTS "WorkspaceSubscription_workspaceId_key" ON "WorkspaceSubscription"("workspaceId");
+CREATE INDEX IF NOT EXISTS "WorkspaceSubscription_planCode_idx" ON "WorkspaceSubscription"("planCode");
+CREATE INDEX IF NOT EXISTS "WorkspaceSubscription_status_idx" ON "WorkspaceSubscription"("status");
+CREATE INDEX IF NOT EXISTS "WorkspaceSubscription_currentPeriodStart_currentPeriodEnd_idx" ON "WorkspaceSubscription"("currentPeriodStart", "currentPeriodEnd");
 
-ALTER TABLE "WorkspaceSubscription"
-ADD CONSTRAINT "WorkspaceSubscription_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "WorkspaceSubscription"
-ADD CONSTRAINT "WorkspaceSubscription_planCode_fkey" FOREIGN KEY ("planCode") REFERENCES "BillingPlan"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "WorkspaceSubscription"
-ADD CONSTRAINT "WorkspaceSubscription_assignedByUserId_fkey" FOREIGN KEY ("assignedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'WorkspaceSubscription_workspaceId_fkey'
+      AND conrelid = '"WorkspaceSubscription"'::regclass
+  ) THEN
+    ALTER TABLE "WorkspaceSubscription"
+    ADD CONSTRAINT "WorkspaceSubscription_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'WorkspaceSubscription_planCode_fkey'
+      AND conrelid = '"WorkspaceSubscription"'::regclass
+  ) THEN
+    ALTER TABLE "WorkspaceSubscription"
+    ADD CONSTRAINT "WorkspaceSubscription_planCode_fkey" FOREIGN KEY ("planCode") REFERENCES "BillingPlan"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'WorkspaceSubscription_assignedByUserId_fkey'
+      AND conrelid = '"WorkspaceSubscription"'::regclass
+  ) THEN
+    ALTER TABLE "WorkspaceSubscription"
+    ADD CONSTRAINT "WorkspaceSubscription_assignedByUserId_fkey" FOREIGN KEY ("assignedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- Workspace subscription events
-CREATE TABLE "WorkspaceSubscriptionEvent" (
+CREATE TABLE IF NOT EXISTS "WorkspaceSubscriptionEvent" (
     "id" TEXT NOT NULL,
     "workspaceId" TEXT NOT NULL,
     "workspaceSubscriptionId" TEXT NOT NULL,
@@ -82,19 +146,45 @@ CREATE TABLE "WorkspaceSubscriptionEvent" (
     CONSTRAINT "WorkspaceSubscriptionEvent_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "WorkspaceSubscriptionEvent_workspaceId_createdAt_idx" ON "WorkspaceSubscriptionEvent"("workspaceId", "createdAt");
-CREATE INDEX "WorkspaceSubscriptionEvent_workspaceSubscriptionId_createdAt_idx" ON "WorkspaceSubscriptionEvent"("workspaceSubscriptionId", "createdAt");
-CREATE INDEX "WorkspaceSubscriptionEvent_type_idx" ON "WorkspaceSubscriptionEvent"("type");
+CREATE INDEX IF NOT EXISTS "WorkspaceSubscriptionEvent_workspaceId_createdAt_idx" ON "WorkspaceSubscriptionEvent"("workspaceId", "createdAt");
+CREATE INDEX IF NOT EXISTS "WorkspaceSubscriptionEvent_workspaceSubscriptionId_createdAt_idx" ON "WorkspaceSubscriptionEvent"("workspaceSubscriptionId", "createdAt");
+CREATE INDEX IF NOT EXISTS "WorkspaceSubscriptionEvent_type_idx" ON "WorkspaceSubscriptionEvent"("type");
 
-ALTER TABLE "WorkspaceSubscriptionEvent"
-ADD CONSTRAINT "WorkspaceSubscriptionEvent_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "WorkspaceSubscriptionEvent"
-ADD CONSTRAINT "WorkspaceSubscriptionEvent_workspaceSubscriptionId_fkey" FOREIGN KEY ("workspaceSubscriptionId") REFERENCES "WorkspaceSubscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "WorkspaceSubscriptionEvent"
-ADD CONSTRAINT "WorkspaceSubscriptionEvent_actorUserId_fkey" FOREIGN KEY ("actorUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'WorkspaceSubscriptionEvent_workspaceId_fkey'
+      AND conrelid = '"WorkspaceSubscriptionEvent"'::regclass
+  ) THEN
+    ALTER TABLE "WorkspaceSubscriptionEvent"
+    ADD CONSTRAINT "WorkspaceSubscriptionEvent_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'WorkspaceSubscriptionEvent_workspaceSubscriptionId_fkey'
+      AND conrelid = '"WorkspaceSubscriptionEvent"'::regclass
+  ) THEN
+    ALTER TABLE "WorkspaceSubscriptionEvent"
+    ADD CONSTRAINT "WorkspaceSubscriptionEvent_workspaceSubscriptionId_fkey" FOREIGN KEY ("workspaceSubscriptionId") REFERENCES "WorkspaceSubscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'WorkspaceSubscriptionEvent_actorUserId_fkey'
+      AND conrelid = '"WorkspaceSubscriptionEvent"'::regclass
+  ) THEN
+    ALTER TABLE "WorkspaceSubscriptionEvent"
+    ADD CONSTRAINT "WorkspaceSubscriptionEvent_actorUserId_fkey" FOREIGN KEY ("actorUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- Usage cache snapshots
-CREATE TABLE "KinescopeUsageSnapshot" (
+CREATE TABLE IF NOT EXISTS "KinescopeUsageSnapshot" (
     "id" TEXT NOT NULL,
     "workspaceId" TEXT NOT NULL,
     "periodStart" TIMESTAMP(3) NOT NULL,
@@ -111,11 +201,21 @@ CREATE TABLE "KinescopeUsageSnapshot" (
     CONSTRAINT "KinescopeUsageSnapshot_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "KinescopeUsageSnapshot_workspaceId_periodStart_periodEnd_key" ON "KinescopeUsageSnapshot"("workspaceId", "periodStart", "periodEnd");
-CREATE INDEX "KinescopeUsageSnapshot_workspaceId_expiresAt_idx" ON "KinescopeUsageSnapshot"("workspaceId", "expiresAt");
+CREATE UNIQUE INDEX IF NOT EXISTS "KinescopeUsageSnapshot_workspaceId_periodStart_periodEnd_key" ON "KinescopeUsageSnapshot"("workspaceId", "periodStart", "periodEnd");
+CREATE INDEX IF NOT EXISTS "KinescopeUsageSnapshot_workspaceId_expiresAt_idx" ON "KinescopeUsageSnapshot"("workspaceId", "expiresAt");
 
-ALTER TABLE "KinescopeUsageSnapshot"
-ADD CONSTRAINT "KinescopeUsageSnapshot_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'KinescopeUsageSnapshot_workspaceId_fkey'
+      AND conrelid = '"KinescopeUsageSnapshot"'::regclass
+  ) THEN
+    ALTER TABLE "KinescopeUsageSnapshot"
+    ADD CONSTRAINT "KinescopeUsageSnapshot_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- Seed editable default billing plans
 INSERT INTO "BillingPlan" (
