@@ -85,6 +85,10 @@ export const GET = withAuth(async (request: AuthenticatedRequest, context: { par
               periodEnd: usage.periodEnd,
               fetchedAt: usage.fetchedAt,
               expiresAt: usage.expiresAt,
+              reason:
+                usage.rawJson && typeof usage.rawJson === "object" && !Array.isArray(usage.rawJson)
+                  ? (((usage.rawJson as Record<string, unknown>).reason as string | undefined) ?? null)
+                  : null,
             }
           : null,
         events,

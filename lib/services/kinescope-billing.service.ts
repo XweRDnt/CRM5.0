@@ -3,6 +3,7 @@ import { prisma } from "@/lib/utils/db";
 import { APIError } from "@/lib/utils/api-error";
 
 const USAGE_CACHE_TTL_MS = 15 * 60 * 1000;
+const DECIMAL_BYTES_PER_GB = 1_000_000_000;
 
 type UsagePeriod = {
   from: Date;
@@ -74,6 +75,10 @@ function parseAmountMinor(source: Record<string, unknown>): number | null {
   return null;
 }
 
+function toGigabytes(bytes: number): number {
+  return bytes / DECIMAL_BYTES_PER_GB;
+}
+
 function extractRows(payload: unknown): Array<Record<string, unknown>> {
   if (!payload) {
     return [];
@@ -128,6 +133,45 @@ function resolveProjectId(row: Record<string, unknown>): string | null {
   }
 
   return null;
+}
+
+function resolveUsageProduct(row: Record<string, unknown>): "traffic" | "storage" | "transcoding" | null {
+  const candidates = [row.product, row.product_type, row.productType, row.metric, row.resource, row.type];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") {
+      continue;
+    }
+
+    const normalized = candidate.trim().toLowerCase();
+    if (!normalized) {
+      continue;
+    }
+
+    if (normalized === "cdn" || normalized === "traffic" || normalized === "bandwidth") {
+      return "traffic";
+    }
+
+    if (normalized === "storage") {
+      return "storage";
+    }
+
+    if (normalized === "encoding" || normalized === "transcoding") {
+      return "transcoding";
+    }
+  }
+
+  return null;
+}
+
+function selectRelevantRows(rows: Array<Record<string, unknown>>, projectId: string): Array<Record<string, unknown>> {
+  const directMatches = rows.filter((row) => resolveProjectId(row) === projectId);
+  if (directMatches.length > 0) {
+    return [...directMatches, ...rows.filter((row) => resolveProjectId(row) === null)];
+  }
+
+  const hasExplicitProjectIds = rows.some((row) => resolveProjectId(row) !== null);
+  return hasExplicitProjectIds ? [] : rows;
 }
 
 function mapSnapshot(snapshot: {
@@ -307,6 +351,7 @@ export class KinescopeBillingService {
       from: toIsoDay(period.from),
       to: toIsoDay(period.to),
       group_by: "project_id",
+      project_id: projectId,
     });
 
     const response = await fetch(`${this.baseUrl}/billing/usage?${params.toString()}`, {
@@ -325,7 +370,38 @@ export class KinescopeBillingService {
 
     const payload = (await response.json().catch(() => null)) as unknown;
     const rows = extractRows(payload);
-    const matched = rows.filter((row) => resolveProjectId(row) === projectId);
+    const matched = selectRelevantRows(rows, projectId);
+    const hasProductUsageRows = matched.some((row) => resolveUsageProduct(row) !== null && pickNumber(row, ["usage", "value", "count"]) !== null);
+
+    if (hasProductUsageRows) {
+      return matched.reduce<UsageMetrics>(
+        (acc, row) => {
+          const product = resolveUsageProduct(row);
+          const usage = pickNumber(row, ["usage", "value", "count"]);
+          const amountMinor = parseAmountMinor(row);
+
+          if (product !== null && usage !== null) {
+            if (product === "traffic") {
+              acc.trafficGb = (acc.trafficGb ?? 0) + toGigabytes(usage);
+            } else if (product === "storage") {
+              acc.storageGb = (acc.storageGb ?? 0) + toGigabytes(usage);
+            } else {
+              acc.transcodingMinutes = (acc.transcodingMinutes ?? 0) + usage;
+            }
+          }
+
+          acc.amountMinor = (acc.amountMinor ?? 0) + (amountMinor ?? 0);
+          return acc;
+        },
+        {
+          trafficGb: 0,
+          storageGb: 0,
+          transcodingMinutes: 0,
+          amountMinor: 0,
+          rawJson: payload,
+        },
+      );
+    }
 
     const aggregate = matched.reduce<UsageMetrics>(
       (acc, row) => {

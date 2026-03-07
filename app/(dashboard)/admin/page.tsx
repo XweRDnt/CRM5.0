@@ -115,6 +115,7 @@ type WorkspaceDetail = {
     periodEnd: string;
     fetchedAt: string;
     expiresAt: string;
+    reason: string | null;
   } | null;
   events: Array<{
     id: string;
@@ -194,6 +195,21 @@ function formatEventType(type: WorkspaceSubscriptionEventType): string {
       return "Действие заблокировано лимитом";
     default:
       return type;
+  }
+}
+
+function formatUsageReason(reason: string | null | undefined): string | null {
+  if (!reason) {
+    return null;
+  }
+
+  switch (reason) {
+    case "KINESCOPE_API_TOKEN is missing":
+      return "Kinescope billing недоступен: не задан KINESCOPE_API_TOKEN.";
+    case "Workspace Kinescope project is not configured":
+      return "Kinescope billing недоступен: у рабочего пространства нет выделенного Kinescope project.";
+    default:
+      return reason;
   }
 }
 
@@ -652,6 +668,7 @@ export default function AdminPage(): JSX.Element {
 
                 <div className="space-y-2 rounded-lg border border-neutral-200 p-3 text-sm">
                   <p className="font-medium">Использование (billing Kinescope)</p>
+                  {detail.usage?.reason ? <p className="text-amber-700">{formatUsageReason(detail.usage.reason)}</p> : null}
                   <p className={usageTone(usagePercent(detail.usage?.trafficGb ?? 0, detail.subscription.plan.maxTrafficGb))}>
                     Трафик: {(detail.usage?.trafficGb ?? 0).toFixed(2)} GB
                     {detail.subscription.plan.maxTrafficGb !== null ? ` / ${detail.subscription.plan.maxTrafficGb.toFixed(2)} GB` : " / ∞"}
