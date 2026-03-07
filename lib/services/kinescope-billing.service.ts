@@ -18,6 +18,14 @@ type UsageMetrics = {
   rawJson: unknown;
 };
 
+type ProductUsageAccumulator = {
+  trafficBytes: number;
+  storageBytes: number;
+  transcodingMinutes: number;
+  amountMinor: number;
+  latestStorageAt: number | null;
+};
+
 export type KinescopeUsageDebugSummary = {
   rowCount: number;
   projectIds: string[];
@@ -252,6 +260,23 @@ function buildDebugRawJson(input: {
     fallbackWithoutProjectFilter: input.fallbackWithoutProjectFilter,
     reason: input.reason ?? null,
   };
+}
+
+function resolveRowTimestamp(row: Record<string, unknown>): number | null {
+  const candidates = [row.date, row.created_at, row.createdAt, row.timestamp];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || candidate.trim().length === 0) {
+      continue;
+    }
+
+    const parsed = Date.parse(candidate);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
 }
 
 function mapSnapshot(snapshot: {
@@ -498,38 +523,50 @@ export class KinescopeBillingService {
     }
 
     if (hasProductUsageRows) {
-      return matched.reduce<UsageMetrics>(
+      const aggregated = matched.reduce<ProductUsageAccumulator>(
         (acc, row) => {
           const product = resolveUsageProduct(row);
           const usage = pickNumber(row, ["usage", "value", "count"]);
           const amountMinor = parseAmountMinor(row);
+          const rowTimestamp = resolveRowTimestamp(row);
 
           if (product !== null && usage !== null) {
             if (product === "traffic") {
-              acc.trafficGb = (acc.trafficGb ?? 0) + toGigabytes(usage);
+              acc.trafficBytes += usage;
             } else if (product === "storage") {
-              acc.storageGb = (acc.storageGb ?? 0) + toGigabytes(usage);
+              if (acc.latestStorageAt === null || rowTimestamp === null || rowTimestamp >= acc.latestStorageAt) {
+                acc.storageBytes = usage;
+                acc.latestStorageAt = rowTimestamp;
+              }
             } else {
-              acc.transcodingMinutes = (acc.transcodingMinutes ?? 0) + usage;
+              acc.transcodingMinutes += usage;
             }
           }
 
-          acc.amountMinor = (acc.amountMinor ?? 0) + (amountMinor ?? 0);
+          acc.amountMinor += amountMinor ?? 0;
           return acc;
         },
         {
-          trafficGb: 0,
-          storageGb: 0,
+          trafficBytes: 0,
+          storageBytes: 0,
           transcodingMinutes: 0,
           amountMinor: 0,
-          rawJson: buildDebugRawJson({
-            rows,
-            requestedProjectId: projectId,
-            filteredRowCount: filtered.rows.length,
-            fallbackWithoutProjectFilter,
-          }),
+          latestStorageAt: null,
         },
       );
+
+      return {
+        trafficGb: toGigabytes(aggregated.trafficBytes),
+        storageGb: toGigabytes(aggregated.storageBytes),
+        transcodingMinutes: aggregated.transcodingMinutes,
+        amountMinor: aggregated.amountMinor,
+        rawJson: buildDebugRawJson({
+          rows,
+          requestedProjectId: projectId,
+          filteredRowCount: filtered.rows.length,
+          fallbackWithoutProjectFilter,
+        }),
+      };
     }
 
     const aggregate = matched.reduce<UsageMetrics>(

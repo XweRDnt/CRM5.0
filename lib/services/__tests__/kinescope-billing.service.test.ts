@@ -155,4 +155,61 @@ describe("KinescopeBillingService", () => {
     expect(snapshot.storageGb).toBeCloseTo(0.75, 5);
     expect(snapshot.transcodingMinutes).toBeCloseTo(12, 5);
   });
+
+  it("uses the latest storage snapshot instead of summing daily storage rows", async () => {
+    const prisma = createPrismaMock();
+
+    prisma.workspace.findUnique.mockResolvedValue({
+      id: "ws_3",
+      kinescopeProjectId: "project_3",
+      billingTrackingStartedAt: new Date("2026-03-01T00:00:00.000Z"),
+    });
+    prisma.kinescopeUsageSnapshot.findUnique.mockResolvedValue(null);
+    prisma.kinescopeUsageSnapshot.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
+      workspaceId: create.workspaceId,
+      periodStart: create.periodStart,
+      periodEnd: create.periodEnd,
+      trafficGb: create.trafficGb,
+      storageGb: create.storageGb,
+      transcodingMinutes: create.transcodingMinutes,
+      amountMinor: create.amountMinor,
+      fetchedAt: new Date("2026-03-07T15:00:00.000Z"),
+      expiresAt: create.expiresAt,
+    }));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                date: "2026-03-05T00:00:00Z",
+                usage: 100_000_000,
+                product: "storage",
+                project_id: "project_3",
+              },
+              {
+                date: "2026-03-06T00:00:00Z",
+                usage: 100_000_000,
+                product: "storage",
+                project_id: "project_3",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    const service = new KinescopeBillingService(prisma as never);
+    const snapshot = await service.getWorkspaceUsageSnapshot({
+      workspaceId: "ws_3",
+      from: new Date("2026-03-01T00:00:00.000Z"),
+      to: new Date("2026-04-01T00:00:00.000Z"),
+      forceRefresh: true,
+    });
+
+    expect(snapshot.storageGb).toBeCloseTo(0.1, 5);
+  });
 });
