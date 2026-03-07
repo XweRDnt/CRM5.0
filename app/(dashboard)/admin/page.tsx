@@ -213,6 +213,13 @@ function formatUsageReason(reason: string | null | undefined): string | null {
   }
 }
 
+type UsageRefreshResponse = {
+  usage: {
+    source: "cache" | "live" | "stale" | "unavailable";
+    reason: string | null;
+  };
+};
+
 export default function AdminPage(): JSX.Element {
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState<"ALL" | BillingPlanCode>("ALL");
@@ -368,9 +375,21 @@ export default function AdminPage(): JSX.Element {
 
     setRefreshingUsage(true);
     try {
-      await apiFetch(`/api/admin/workspaces/${detail.workspace.workspaceId}/usage?force=1`);
+      const response = await apiFetch<UsageRefreshResponse>(`/api/admin/workspaces/${detail.workspace.workspaceId}/usage?force=1`);
       await Promise.all([mutateWorkspaces(), mutateDetail()]);
-      toast.success("Использование обновлено");
+      const usageMessage = formatUsageReason(response.usage.reason);
+
+      if (response.usage.source === "unavailable") {
+        toast.error(usageMessage ?? "Kinescope billing сейчас недоступен");
+        return;
+      }
+
+      if (response.usage.source === "stale") {
+        toast.error(usageMessage ?? "Использование не обновилось, показан устаревший снапшот");
+        return;
+      }
+
+      toast.success(response.usage.source === "live" ? "Использование обновлено из Kinescope" : "Показан кэшированный usage snapshot");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось обновить использование");
     } finally {

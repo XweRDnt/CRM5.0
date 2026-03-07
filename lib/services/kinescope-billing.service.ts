@@ -29,6 +29,7 @@ export type WorkspaceUsageSnapshotDTO = {
   fetchedAt: Date;
   expiresAt: Date;
   source: "cache" | "live" | "stale" | "unavailable";
+  reason: string | null;
   isLegacy: boolean;
   legacyMessage: string | null;
 };
@@ -174,6 +175,15 @@ function selectRelevantRows(rows: Array<Record<string, unknown>>, projectId: str
   return hasExplicitProjectIds ? [] : rows;
 }
 
+function extractReason(rawJson: unknown): string | null {
+  if (!rawJson || typeof rawJson !== "object" || Array.isArray(rawJson)) {
+    return null;
+  }
+
+  const reason = (rawJson as Record<string, unknown>).reason;
+  return typeof reason === "string" && reason.trim().length > 0 ? reason.trim() : null;
+}
+
 function mapSnapshot(snapshot: {
   workspaceId: string;
   periodStart: Date;
@@ -182,6 +192,7 @@ function mapSnapshot(snapshot: {
   storageGb: Prisma.Decimal | null;
   transcodingMinutes: Prisma.Decimal | null;
   amountMinor: number | null;
+  rawJson: Prisma.JsonValue;
   fetchedAt: Date;
   expiresAt: Date;
 }, source: WorkspaceUsageSnapshotDTO["source"], isLegacy: boolean, legacyMessage: string | null): WorkspaceUsageSnapshotDTO {
@@ -196,6 +207,7 @@ function mapSnapshot(snapshot: {
     fetchedAt: snapshot.fetchedAt,
     expiresAt: snapshot.expiresAt,
     source,
+    reason: extractReason(snapshot.rawJson),
     isLegacy,
     legacyMessage,
   };
