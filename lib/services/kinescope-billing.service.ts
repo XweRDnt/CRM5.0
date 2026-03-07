@@ -1,9 +1,13 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma, VideoProcessingStatus, type PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
 import { APIError } from "@/lib/utils/api-error";
 
 const USAGE_CACHE_TTL_MS = 15 * 60 * 1000;
 const DECIMAL_BYTES_PER_GB = 1_000_000_000;
+const ACCOUNT_LEVEL_ONLY_REASON = "Billing rows are only account-level and cannot be safely assigned to a workspace";
+const PROJECT_MISMATCH_REASON = "Billing rows returned, but none matched workspace Kinescope project id";
+const LOCAL_ACCOUNT_LEVEL_ESTIMATE_REASON = "Using local workspace estimate because Kinescope billing API returned only account-level rows";
+const LOCAL_PROJECT_MISMATCH_ESTIMATE_REASON = "Using local workspace estimate because Kinescope billing rows did not match workspace project id";
 
 type UsagePeriod = {
   from: Date;
@@ -42,7 +46,7 @@ export type WorkspaceUsageSnapshotDTO = {
   amountMinor: number | null;
   fetchedAt: Date;
   expiresAt: Date;
-  source: "cache" | "live" | "stale" | "unavailable";
+  source: "cache" | "live" | "local" | "stale" | "unavailable";
   reason: string | null;
   debug: KinescopeUsageDebugSummary | null;
   isLegacy: boolean;
@@ -343,6 +347,7 @@ export class KinescopeBillingService {
       where: { id: input.workspaceId },
       select: {
         id: true,
+        tenantId: true,
         kinescopeProjectId: true,
         billingTrackingStartedAt: true,
       },
@@ -408,6 +413,7 @@ export class KinescopeBillingService {
     }
 
     let metrics: UsageMetrics;
+    let snapshotSource: WorkspaceUsageSnapshotDTO["source"] = "live";
     try {
       metrics = await this.fetchUsageMetrics(workspace.kinescopeProjectId, {
         from: periodStart,
@@ -418,6 +424,20 @@ export class KinescopeBillingService {
         return mapSnapshot(cached, "stale", isLegacy, legacyMessage);
       }
       throw error;
+    }
+
+    const upstreamReason = extractReason(metrics.rawJson);
+    if (upstreamReason === ACCOUNT_LEVEL_ONLY_REASON || upstreamReason === PROJECT_MISMATCH_REASON) {
+      metrics = await this.buildLocalWorkspaceUsageMetrics({
+        tenantId: workspace.tenantId,
+        period: {
+          from: periodStart,
+          to: periodEnd,
+        },
+        upstreamRawJson: metrics.rawJson,
+        upstreamReason,
+      });
+      snapshotSource = "local";
     }
 
     const rawJson = (metrics.rawJson ?? {}) as Prisma.InputJsonValue;
@@ -451,7 +471,7 @@ export class KinescopeBillingService {
       },
     });
 
-    return mapSnapshot(refreshed, "live", isLegacy, legacyMessage);
+    return mapSnapshot(refreshed, snapshotSource, isLegacy, legacyMessage);
   }
 
   private async fetchUsageMetrics(projectId: string, period: UsagePeriod): Promise<UsageMetrics> {
@@ -516,8 +536,8 @@ export class KinescopeBillingService {
           filteredRowCount: filtered.rows.length,
           fallbackWithoutProjectFilter,
           reason: fallbackWithoutProjectFilter
-            ? "Billing rows are only account-level and cannot be safely assigned to a workspace"
-            : "Billing rows returned, but none matched workspace Kinescope project id",
+            ? ACCOUNT_LEVEL_ONLY_REASON
+            : PROJECT_MISMATCH_REASON,
         }),
       };
     }
@@ -597,6 +617,76 @@ export class KinescopeBillingService {
     );
 
     return aggregate;
+  }
+
+  private async buildLocalWorkspaceUsageMetrics(input: {
+    tenantId: string;
+    period: UsagePeriod;
+    upstreamRawJson: unknown;
+    upstreamReason: string;
+  }): Promise<UsageMetrics> {
+    const uploads = await this.prismaClient.videoUploadSession.findMany({
+      where: {
+        tenantId: input.tenantId,
+        status: {
+          not: VideoProcessingStatus.FAILED,
+        },
+        createdAt: {
+          lt: input.period.to,
+        },
+      },
+      select: {
+        kinescopeVideoId: true,
+        fileSize: true,
+        durationSec: true,
+        createdAt: true,
+      },
+    });
+
+    const uniqueUploads = new Map<string, { fileSize: number; durationSec: number | null; createdAt: Date }>();
+    for (const upload of uploads) {
+      uniqueUploads.set(upload.kinescopeVideoId, {
+        fileSize: upload.fileSize,
+        durationSec: upload.durationSec,
+        createdAt: upload.createdAt,
+      });
+    }
+
+    let storageBytes = 0;
+    let transcodingMinutes = 0;
+
+    for (const upload of uniqueUploads.values()) {
+      storageBytes += Math.max(0, upload.fileSize);
+
+      if (upload.createdAt >= input.period.from && upload.createdAt < input.period.to && typeof upload.durationSec === "number" && upload.durationSec > 0) {
+        transcodingMinutes += upload.durationSec / 60;
+      }
+    }
+
+    const baseRawJson =
+      input.upstreamRawJson && typeof input.upstreamRawJson === "object" && !Array.isArray(input.upstreamRawJson)
+        ? { ...(input.upstreamRawJson as Record<string, unknown>) }
+        : {};
+
+    return {
+      trafficGb: 0,
+      storageGb: toGigabytes(storageBytes),
+      transcodingMinutes,
+      amountMinor: 0,
+      rawJson: {
+        ...baseRawJson,
+        reason:
+          input.upstreamReason === ACCOUNT_LEVEL_ONLY_REASON
+            ? LOCAL_ACCOUNT_LEVEL_ESTIMATE_REASON
+            : LOCAL_PROJECT_MISMATCH_ESTIMATE_REASON,
+        localEstimate: {
+          uploadCount: uniqueUploads.size,
+          storageBytes,
+          transcodingMinutes,
+          trafficGb: 0,
+        } as unknown as Prisma.InputJsonValue,
+      } as Prisma.InputJsonValue,
+    };
   }
 }
 

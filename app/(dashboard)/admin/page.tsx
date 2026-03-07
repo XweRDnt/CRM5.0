@@ -217,6 +217,10 @@ function formatUsageReason(reason: string | null | undefined): string | null {
       return "Kinescope usage найден, но он приходит на другой project_id, не совпадающий с project_id этого workspace.";
     case "Billing rows are only account-level and cannot be safely assigned to a workspace":
       return "Kinescope billing сейчас приходит только общими цифрами аккаунта, без безопасной привязки к конкретному workspace.";
+    case "Using local workspace estimate because Kinescope billing API returned only account-level rows":
+      return "Показана локальная оценка workspace по нашим загрузкам, потому что Kinescope billing отдает только общие цифры аккаунта.";
+    case "Using local workspace estimate because Kinescope billing rows did not match workspace project id":
+      return "Показана локальная оценка workspace по нашим загрузкам, потому что Kinescope billing не совпал с project_id этого workspace.";
     default:
       return reason;
   }
@@ -224,7 +228,7 @@ function formatUsageReason(reason: string | null | undefined): string | null {
 
 type UsageRefreshResponse = {
   usage: {
-    source: "cache" | "live" | "stale" | "unavailable";
+    source: "cache" | "live" | "local" | "stale" | "unavailable";
     reason: string | null;
     debug: {
       rowCount: number;
@@ -400,6 +404,11 @@ export default function AdminPage(): JSX.Element {
 
       if (response.usage.source === "stale") {
         toast.error(usageMessage ?? "Использование не обновилось, показан устаревший снапшот");
+        return;
+      }
+
+      if (response.usage.source === "local") {
+        toast.success(usageMessage ?? "Показана локальная оценка usage по данным workspace");
         return;
       }
 
