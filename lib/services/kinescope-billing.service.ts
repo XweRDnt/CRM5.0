@@ -226,6 +226,22 @@ export function summarizeKinescopeUsageRawJson(rawJson: unknown): KinescopeUsage
   };
 }
 
+function buildDebugRawJson(input: {
+  rows: Array<Record<string, unknown>>;
+  requestedProjectId: string;
+  filteredRowCount: number;
+  fallbackWithoutProjectFilter: boolean;
+  reason?: string | null;
+}): Prisma.InputJsonValue {
+  return {
+    data: input.rows as unknown as Prisma.InputJsonValue,
+    requestedProjectId: input.requestedProjectId,
+    filteredRowCount: input.filteredRowCount,
+    fallbackWithoutProjectFilter: input.fallbackWithoutProjectFilter,
+    reason: input.reason ?? null,
+  };
+}
+
 function mapSnapshot(snapshot: {
   workspaceId: string;
   periodStart: Date;
@@ -402,31 +418,68 @@ export class KinescopeBillingService {
   }
 
   private async fetchUsageMetrics(projectId: string, period: UsagePeriod): Promise<UsageMetrics> {
-    const params = new URLSearchParams({
-      from: toIsoDay(period.from),
-      to: toIsoDay(period.to),
-      group_by: "project_id",
-      project_id: projectId,
-    });
+    const requestUsage = async (projectIdFilter?: string): Promise<{ rows: Array<Record<string, unknown>>; payload: unknown }> => {
+      const params = new URLSearchParams({
+        from: toIsoDay(period.from),
+        to: toIsoDay(period.to),
+        group_by: "project_id",
+      });
 
-    const response = await fetch(`${this.baseUrl}/billing/usage?${params.toString()}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${this.apiToken}`,
-        "Content-Type": "application/json",
-      },
-      cache: "no-store",
-    });
+      if (projectIdFilter) {
+        params.set("project_id", projectIdFilter);
+      }
 
-    if (!response.ok) {
-      const body = await response.text();
-      throw new APIError(502, `Kinescope billing usage request failed (${response.status}): ${body || response.statusText}`, "UPSTREAM_ERROR");
+      const response = await fetch(`${this.baseUrl}/billing/usage?${params.toString()}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.apiToken}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new APIError(502, `Kinescope billing usage request failed (${response.status}): ${body || response.statusText}`, "UPSTREAM_ERROR");
+      }
+
+      const payload = (await response.json().catch(() => null)) as unknown;
+      return {
+        payload,
+        rows: extractRows(payload),
+      };
+    };
+
+    const filtered = await requestUsage(projectId);
+    let rows = filtered.rows;
+    let fallbackWithoutProjectFilter = false;
+
+    if (rows.length === 0) {
+      const unfiltered = await requestUsage();
+      if (unfiltered.rows.length > 0) {
+        rows = unfiltered.rows;
+        fallbackWithoutProjectFilter = true;
+      }
     }
 
-    const payload = (await response.json().catch(() => null)) as unknown;
-    const rows = extractRows(payload);
     const matched = selectRelevantRows(rows, projectId);
     const hasProductUsageRows = matched.some((row) => resolveUsageProduct(row) !== null && pickNumber(row, ["usage", "value", "count"]) !== null);
+
+    if (matched.length === 0 && rows.length > 0) {
+      return {
+        trafficGb: 0,
+        storageGb: 0,
+        transcodingMinutes: 0,
+        amountMinor: 0,
+        rawJson: buildDebugRawJson({
+          rows,
+          requestedProjectId: projectId,
+          filteredRowCount: filtered.rows.length,
+          fallbackWithoutProjectFilter,
+          reason: "Billing rows returned, but none matched workspace Kinescope project id",
+        }),
+      };
+    }
 
     if (hasProductUsageRows) {
       return matched.reduce<UsageMetrics>(
@@ -453,7 +506,12 @@ export class KinescopeBillingService {
           storageGb: 0,
           transcodingMinutes: 0,
           amountMinor: 0,
-          rawJson: payload,
+          rawJson: buildDebugRawJson({
+            rows,
+            requestedProjectId: projectId,
+            filteredRowCount: filtered.rows.length,
+            fallbackWithoutProjectFilter,
+          }),
         },
       );
     }
@@ -476,7 +534,12 @@ export class KinescopeBillingService {
         storageGb: 0,
         transcodingMinutes: 0,
         amountMinor: 0,
-        rawJson: payload,
+        rawJson: buildDebugRawJson({
+          rows,
+          requestedProjectId: projectId,
+          filteredRowCount: filtered.rows.length,
+          fallbackWithoutProjectFilter,
+        }),
       },
     );
 

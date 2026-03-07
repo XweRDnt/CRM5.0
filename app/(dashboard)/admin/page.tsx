@@ -213,6 +213,8 @@ function formatUsageReason(reason: string | null | undefined): string | null {
       return "Kinescope billing недоступен: не задан KINESCOPE_API_TOKEN.";
     case "Workspace Kinescope project is not configured":
       return "Kinescope billing недоступен: у рабочего пространства нет выделенного Kinescope project.";
+    case "Billing rows returned, but none matched workspace Kinescope project id":
+      return "Kinescope usage найден, но он приходит на другой project_id, не совпадающий с project_id этого workspace.";
     default:
       return reason;
   }
@@ -396,6 +398,11 @@ export default function AdminPage(): JSX.Element {
 
       if (response.usage.source === "stale") {
         toast.error(usageMessage ?? "Использование не обновилось, показан устаревший снапшот");
+        return;
+      }
+
+      if (usageMessage) {
+        toast.error(usageMessage);
         return;
       }
 
