@@ -215,6 +215,8 @@ function formatUsageReason(reason: string | null | undefined): string | null {
       return "Kinescope billing недоступен: у рабочего пространства нет выделенного Kinescope project.";
     case "Billing rows returned, but none matched workspace Kinescope project id":
       return "Kinescope usage найден, но он приходит на другой project_id, не совпадающий с project_id этого workspace.";
+    case "Billing rows are only account-level and cannot be safely assigned to a workspace":
+      return "Kinescope billing сейчас приходит только общими цифрами аккаунта, без безопасной привязки к конкретному workspace.";
     default:
       return reason;
   }

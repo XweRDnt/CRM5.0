@@ -172,14 +172,26 @@ function resolveUsageProduct(row: Record<string, unknown>): "traffic" | "storage
   return null;
 }
 
-function selectRelevantRows(rows: Array<Record<string, unknown>>, projectId: string): Array<Record<string, unknown>> {
+function selectRelevantRows(
+  rows: Array<Record<string, unknown>>,
+  projectId: string,
+  options?: { trustedProjectScope?: boolean },
+): Array<Record<string, unknown>> {
   const directMatches = rows.filter((row) => resolveProjectId(row) === projectId);
   if (directMatches.length > 0) {
-    return [...directMatches, ...rows.filter((row) => resolveProjectId(row) === null)];
+    if (options?.trustedProjectScope) {
+      return [...directMatches, ...rows.filter((row) => resolveProjectId(row) === null)];
+    }
+
+    return directMatches;
   }
 
   const hasExplicitProjectIds = rows.some((row) => resolveProjectId(row) !== null);
-  return hasExplicitProjectIds ? [] : rows;
+  if (options?.trustedProjectScope && !hasExplicitProjectIds) {
+    return rows;
+  }
+
+  return [];
 }
 
 function extractReason(rawJson: unknown): string | null {
@@ -462,7 +474,9 @@ export class KinescopeBillingService {
       }
     }
 
-    const matched = selectRelevantRows(rows, projectId);
+    const matched = fallbackWithoutProjectFilter
+      ? selectRelevantRows(rows, projectId, { trustedProjectScope: false })
+      : selectRelevantRows(rows, projectId, { trustedProjectScope: true });
     const hasProductUsageRows = matched.some((row) => resolveUsageProduct(row) !== null && pickNumber(row, ["usage", "value", "count"]) !== null);
 
     if (matched.length === 0 && rows.length > 0) {
@@ -476,7 +490,9 @@ export class KinescopeBillingService {
           requestedProjectId: projectId,
           filteredRowCount: filtered.rows.length,
           fallbackWithoutProjectFilter,
-          reason: "Billing rows returned, but none matched workspace Kinescope project id",
+          reason: fallbackWithoutProjectFilter
+            ? "Billing rows are only account-level and cannot be safely assigned to a workspace"
+            : "Billing rows returned, but none matched workspace Kinescope project id",
         }),
       };
     }
