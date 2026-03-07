@@ -4,6 +4,7 @@ import { APIError } from "@/lib/utils/api-error";
 
 const USAGE_CACHE_TTL_MS = 15 * 60 * 1000;
 const DECIMAL_BYTES_PER_GB = 1_000_000_000;
+const MAX_LOCAL_VIDEO_METADATA_REFRESH = 25;
 const ACCOUNT_LEVEL_ONLY_REASON = "Billing rows are only account-level and cannot be safely assigned to a workspace";
 const PROJECT_MISMATCH_REASON = "Billing rows returned, but none matched workspace Kinescope project id";
 const LOCAL_ACCOUNT_LEVEL_ESTIMATE_REASON = "Using local workspace estimate because Kinescope billing API returned only account-level rows";
@@ -49,12 +50,25 @@ export type LocalWorkspaceUsageEstimate = {
   uniqueVideoCount: number;
   uploadSessionCount: number;
   assetVersionCount: number;
+  linkedAssetVersionVideoCount: number;
+  standaloneUploadVideoCount: number;
   videosWithDurationCount: number;
   periodTranscodingVideoCount: number;
   storageBytes: number;
   transcodingMinutes: number;
   trafficGb: number;
   sampleVideos: LocalWorkspaceUsageSample[];
+};
+
+type LocalUsageSource = "uploadSession" | "assetVersion";
+
+type AggregatedLocalVideo = {
+  kinescopeVideoId: string;
+  fileName: string;
+  fileSize: number;
+  durationSec: number | null;
+  createdAt: Date;
+  sources: Set<LocalUsageSource>;
 };
 
 export type WorkspaceUsageSnapshotDTO = {
@@ -245,6 +259,61 @@ function toPositiveNumberOrNull(value: unknown): number | null {
   return numeric;
 }
 
+function extractObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function resolveProcessingStatus(value: unknown): VideoProcessingStatus | null {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized.includes("ready") || normalized.includes("done") || normalized.includes("complete")) {
+    return VideoProcessingStatus.READY;
+  }
+  if (normalized.includes("fail") || normalized.includes("error")) {
+    return VideoProcessingStatus.FAILED;
+  }
+  if (normalized.includes("upload")) {
+    return VideoProcessingStatus.UPLOADING;
+  }
+  if (normalized.includes("process") || normalized.includes("encode") || normalized.includes("transcod")) {
+    return VideoProcessingStatus.PROCESSING;
+  }
+
+  return null;
+}
+
+function parseLocalVideoMetadata(payload: unknown): { durationSec: number | null; status: VideoProcessingStatus | null } {
+  const root = extractObject(payload);
+  const data = extractObject(root?.data);
+  const video = extractObject(root?.video);
+  const nestedVideo = extractObject(data?.video);
+  const candidates = [root, data, video, nestedVideo].filter((candidate): candidate is Record<string, unknown> => candidate !== null);
+
+  let durationSec: number | null = null;
+  let status: VideoProcessingStatus | null = null;
+
+  for (const candidate of candidates) {
+    if (durationSec === null) {
+      const duration = pickNumber(candidate, ["duration_sec", "duration"]);
+      durationSec = duration !== null && duration >= 0 ? Math.floor(duration) : null;
+    }
+    if (status === null) {
+      status = resolveProcessingStatus(candidate.status ?? candidate.state);
+    }
+  }
+
+  return {
+    durationSec,
+    status,
+  };
+}
+
 export function extractLocalEstimate(rawJson: unknown): LocalWorkspaceUsageEstimate | null {
   if (!rawJson || typeof rawJson !== "object" || Array.isArray(rawJson)) {
     return null;
@@ -276,6 +345,8 @@ export function extractLocalEstimate(rawJson: unknown): LocalWorkspaceUsageEstim
     uniqueVideoCount: toPositiveNumberOrNull(record.uniqueVideoCount) ?? 0,
     uploadSessionCount: toPositiveNumberOrNull(record.uploadSessionCount) ?? 0,
     assetVersionCount: toPositiveNumberOrNull(record.assetVersionCount) ?? 0,
+    linkedAssetVersionVideoCount: toPositiveNumberOrNull(record.linkedAssetVersionVideoCount) ?? 0,
+    standaloneUploadVideoCount: toPositiveNumberOrNull(record.standaloneUploadVideoCount) ?? 0,
     videosWithDurationCount: toPositiveNumberOrNull(record.videosWithDurationCount) ?? 0,
     periodTranscodingVideoCount: toPositiveNumberOrNull(record.periodTranscodingVideoCount) ?? 0,
     storageBytes: toPositiveNumberOrNull(record.storageBytes) ?? 0,
@@ -406,6 +477,56 @@ export class KinescopeBillingService {
   constructor(private prismaClient: PrismaClient = prisma as PrismaClient) {
     this.baseUrl = (process.env.KINESCOPE_BASE_URL ?? "https://api.kinescope.io/v1").replace(/\/+$/, "");
     this.apiToken = (process.env.KINESCOPE_API_TOKEN ?? "").trim();
+  }
+
+  private async fetchLocalVideoMetadata(kinescopeVideoId: string): Promise<{ durationSec: number | null; status: VideoProcessingStatus | null } | null> {
+    if (!this.apiToken) {
+      return null;
+    }
+
+    const requestMetadata = async (path: string): Promise<{ durationSec: number | null; status: VideoProcessingStatus | null } | null> => {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.apiToken}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }).catch(() => null);
+
+      if (!response || response.status === 404 || !response.ok) {
+        return null;
+      }
+
+      const payload = (await response.json().catch(() => null)) as unknown;
+      const metadata = parseLocalVideoMetadata(payload);
+      if (metadata.durationSec === null && metadata.status === null) {
+        return null;
+      }
+      return metadata;
+    };
+
+    return (await requestMetadata(`/videos/${kinescopeVideoId}`)) ?? (await requestMetadata(`/file-requests/${kinescopeVideoId}`));
+  }
+
+  private async hydrateLocalVideoMetadata(videos: Map<string, AggregatedLocalVideo>): Promise<void> {
+    const candidates = Array.from(videos.values())
+      .filter((video) => video.durationSec === null)
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .slice(0, MAX_LOCAL_VIDEO_METADATA_REFRESH);
+
+    await Promise.all(
+      candidates.map(async (video) => {
+        const metadata = await this.fetchLocalVideoMetadata(video.kinescopeVideoId);
+        if (!metadata) {
+          return;
+        }
+
+        if (typeof metadata.durationSec === "number" && metadata.durationSec > 0) {
+          video.durationSec = metadata.durationSec;
+        }
+      }),
+    );
   }
 
   async getWorkspaceUsageSnapshot(input: {
@@ -700,9 +821,6 @@ export class KinescopeBillingService {
       this.prismaClient.videoUploadSession.findMany({
         where: {
           tenantId: input.tenantId,
-          status: {
-            not: VideoProcessingStatus.FAILED,
-          },
           createdAt: {
             lt: input.period.to,
           },
@@ -711,6 +829,8 @@ export class KinescopeBillingService {
           kinescopeVideoId: true,
           fileName: true,
           fileSize: true,
+          status: true,
+          streamUrl: true,
           durationSec: true,
           createdAt: true,
         },
@@ -738,17 +858,8 @@ export class KinescopeBillingService {
       }),
     ]);
 
-    type LocalUsageSource = "uploadSession" | "assetVersion";
-    type AggregatedLocalVideo = {
-      kinescopeVideoId: string;
-      fileName: string;
-      fileSize: number;
-      durationSec: number | null;
-      createdAt: Date;
-      sources: Set<LocalUsageSource>;
-    };
-
     const uniqueVideos = new Map<string, AggregatedLocalVideo>();
+    const assetVersionIds = new Set(versions.map((version) => version.kinescopeVideoId).filter((value): value is string => Boolean(value)));
     const applyCandidate = (candidate: {
       kinescopeVideoId: string;
       fileName: string;
@@ -790,6 +901,14 @@ export class KinescopeBillingService {
     };
 
     for (const upload of uploads) {
+      const hasLinkedAssetVersion = assetVersionIds.has(upload.kinescopeVideoId);
+      const isConfirmedUpload =
+        upload.status !== VideoProcessingStatus.UPLOADING || Boolean(upload.streamUrl) || (typeof upload.durationSec === "number" && upload.durationSec > 0);
+
+      if (!hasLinkedAssetVersion && !isConfirmedUpload) {
+        continue;
+      }
+
       applyCandidate({
         kinescopeVideoId: upload.kinescopeVideoId,
         fileName: upload.fileName,
@@ -815,8 +934,12 @@ export class KinescopeBillingService {
       });
     }
 
+    await this.hydrateLocalVideoMetadata(uniqueVideos);
+
     let storageBytes = 0;
     let transcodingMinutes = 0;
+    let linkedAssetVersionVideoCount = 0;
+    let standaloneUploadVideoCount = 0;
     let videosWithDurationCount = 0;
     let periodTranscodingVideoCount = 0;
 
@@ -834,6 +957,11 @@ export class KinescopeBillingService {
 
     for (const video of uniqueVideos.values()) {
       storageBytes += video.fileSize;
+      if (video.sources.has("assetVersion")) {
+        linkedAssetVersionVideoCount += 1;
+      } else {
+        standaloneUploadVideoCount += 1;
+      }
 
       if (typeof video.durationSec === "number" && video.durationSec > 0) {
         videosWithDurationCount += 1;
@@ -865,6 +993,8 @@ export class KinescopeBillingService {
           uniqueVideoCount: uniqueVideos.size,
           uploadSessionCount: uploads.length,
           assetVersionCount: versions.length,
+          linkedAssetVersionVideoCount,
+          standaloneUploadVideoCount,
           videosWithDurationCount,
           periodTranscodingVideoCount,
           storageBytes,

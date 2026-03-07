@@ -249,6 +249,8 @@ describe("KinescopeBillingService", () => {
         kinescopeVideoId: "video_a",
         fileName: "video-a.mp4",
         fileSize: 104_857_600,
+        status: "READY",
+        streamUrl: "https://kinescope.io/video_a",
         durationSec: 300,
         createdAt: new Date("2026-03-06T12:00:00.000Z"),
       },
@@ -256,6 +258,8 @@ describe("KinescopeBillingService", () => {
         kinescopeVideoId: "video_b",
         fileName: "video-b.mp4",
         fileSize: 52_428_800,
+        status: "PROCESSING",
+        streamUrl: "https://kinescope.io/video_b",
         durationSec: 120,
         createdAt: new Date("2026-03-07T12:00:00.000Z"),
       },
@@ -312,6 +316,8 @@ describe("KinescopeBillingService", () => {
     expect(snapshot.storageGb).toBeCloseTo(0.1572864, 5);
     expect(snapshot.transcodingMinutes).toBeCloseTo(7, 5);
     expect(snapshot.localEstimate?.uniqueVideoCount).toBe(2);
+    expect(snapshot.localEstimate?.linkedAssetVersionVideoCount).toBe(0);
+    expect(snapshot.localEstimate?.standaloneUploadVideoCount).toBe(2);
     expect(snapshot.localEstimate?.sampleVideos).toHaveLength(2);
   });
 
@@ -330,6 +336,8 @@ describe("KinescopeBillingService", () => {
         kinescopeVideoId: "video_shared",
         fileName: "shared-from-session.mp4",
         fileSize: 80_000_000,
+        status: "READY",
+        streamUrl: "https://kinescope.io/video_shared",
         durationSec: null,
         createdAt: new Date("2026-03-07T09:00:00.000Z"),
       },
@@ -337,6 +345,8 @@ describe("KinescopeBillingService", () => {
         kinescopeVideoId: "video_only_session",
         fileName: "session-only.mp4",
         fileSize: 20_000_000,
+        status: "READY",
+        streamUrl: "https://kinescope.io/video_only_session",
         durationSec: 180,
         createdAt: new Date("2026-02-27T09:00:00.000Z"),
       },
@@ -402,10 +412,96 @@ describe("KinescopeBillingService", () => {
     expect(snapshot.localEstimate?.uniqueVideoCount).toBe(2);
     expect(snapshot.localEstimate?.assetVersionCount).toBe(1);
     expect(snapshot.localEstimate?.uploadSessionCount).toBe(2);
+    expect(snapshot.localEstimate?.linkedAssetVersionVideoCount).toBe(1);
+    expect(snapshot.localEstimate?.standaloneUploadVideoCount).toBe(1);
     expect(snapshot.localEstimate?.videosWithDurationCount).toBe(2);
     expect(snapshot.localEstimate?.periodTranscodingVideoCount).toBe(1);
     expect(snapshot.localEstimate?.sampleVideos[0]?.kinescopeVideoId).toBe("video_shared");
     expect(snapshot.localEstimate?.sampleVideos[0]?.fileSize).toBe(120_000_000);
     expect(snapshot.localEstimate?.sampleVideos[0]?.durationSec).toBe(240);
+  });
+
+  it("ignores stale uploading sessions that were never confirmed or linked to an asset version", async () => {
+    const prisma = createPrismaMock();
+
+    prisma.workspace.findUnique.mockResolvedValue({
+      id: "ws_6",
+      tenantId: "tenant_6",
+      kinescopeProjectId: "project_6",
+      billingTrackingStartedAt: new Date("2026-03-01T00:00:00.000Z"),
+    });
+    prisma.kinescopeUsageSnapshot.findUnique.mockResolvedValue(null);
+    prisma.videoUploadSession.findMany.mockResolvedValue([
+      {
+        kinescopeVideoId: "video_stale",
+        fileName: "stale.mp4",
+        fileSize: 50_000_000,
+        status: "UPLOADING",
+        streamUrl: null,
+        durationSec: null,
+        createdAt: new Date("2026-03-07T09:00:00.000Z"),
+      },
+      {
+        kinescopeVideoId: "video_ready",
+        fileName: "ready.mp4",
+        fileSize: 40_000_000,
+        status: "READY",
+        streamUrl: "https://kinescope.io/video_ready",
+        durationSec: 90,
+        createdAt: new Date("2026-03-07T10:00:00.000Z"),
+      },
+    ]);
+    prisma.assetVersion.findMany.mockResolvedValue([]);
+    prisma.kinescopeUsageSnapshot.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
+      workspaceId: create.workspaceId,
+      periodStart: create.periodStart,
+      periodEnd: create.periodEnd,
+      trafficGb: create.trafficGb,
+      storageGb: create.storageGb,
+      transcodingMinutes: create.transcodingMinutes,
+      amountMinor: create.amountMinor,
+      rawJson: create.rawJson,
+      fetchedAt: new Date("2026-03-07T15:00:00.000Z"),
+      expiresAt: create.expiresAt,
+    }));
+
+    let callCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        callCount += 1;
+
+        if (callCount === 1) {
+          return new Response(JSON.stringify({ data: [] }), { status: 200 });
+        }
+
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                date: "2026-03-07T00:00:00Z",
+                usage: 123,
+                product: "storage",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }),
+    );
+
+    const service = new KinescopeBillingService(prisma as never);
+    const snapshot = await service.getWorkspaceUsageSnapshot({
+      workspaceId: "ws_6",
+      from: new Date("2026-03-01T00:00:00.000Z"),
+      to: new Date("2026-04-01T00:00:00.000Z"),
+      forceRefresh: true,
+    });
+
+    expect(snapshot.source).toBe("local");
+    expect(snapshot.storageGb).toBeCloseTo(0.04, 5);
+    expect(snapshot.transcodingMinutes).toBeCloseTo(1.5, 5);
+    expect(snapshot.localEstimate?.uniqueVideoCount).toBe(1);
+    expect(snapshot.localEstimate?.standaloneUploadVideoCount).toBe(1);
   });
 });

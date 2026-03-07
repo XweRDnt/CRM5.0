@@ -69,6 +69,8 @@ type LocalUsageEstimate = {
   uniqueVideoCount: number;
   uploadSessionCount: number;
   assetVersionCount: number;
+  linkedAssetVersionVideoCount: number;
+  standaloneUploadVideoCount: number;
   videosWithDurationCount: number;
   periodTranscodingVideoCount: number;
   storageBytes: number;
@@ -789,6 +791,10 @@ export default function AdminPage(): JSX.Element {
                         versions.
                       </p>
                       <p>
+                        Из них {detail.usage.localEstimate.linkedAssetVersionVideoCount} видео привязаны к asset version,{" "}
+                        {detail.usage.localEstimate.standaloneUploadVideoCount} остались только в upload session.
+                      </p>
+                      <p>
                         Длительность найдена у {detail.usage.localEstimate.videosWithDurationCount} видео, в текущий период в транскодинг попало{" "}
                         {detail.usage.localEstimate.periodTranscodingVideoCount}.
                       </p>
@@ -797,7 +803,7 @@ export default function AdminPage(): JSX.Element {
                           {detail.usage.localEstimate.sampleVideos.slice(0, 5).map((video) => (
                             <p key={video.kinescopeVideoId}>
                               {video.fileName} · {formatByteSize(video.fileSize)} · {video.durationSec ? `${Math.round(video.durationSec)} сек` : "без длительности"} ·{" "}
-                              {formatDate(video.createdAt)}
+                              {formatDate(video.createdAt)} · {video.sources.join(" + ")}
                             </p>
                           ))}
                         </div>
