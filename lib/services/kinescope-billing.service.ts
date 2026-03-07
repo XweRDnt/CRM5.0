@@ -18,6 +18,12 @@ type UsageMetrics = {
   rawJson: unknown;
 };
 
+export type KinescopeUsageDebugSummary = {
+  rowCount: number;
+  projectIds: string[];
+  products: string[];
+};
+
 export type WorkspaceUsageSnapshotDTO = {
   workspaceId: string;
   periodStart: Date;
@@ -30,6 +36,7 @@ export type WorkspaceUsageSnapshotDTO = {
   expiresAt: Date;
   source: "cache" | "live" | "stale" | "unavailable";
   reason: string | null;
+  debug: KinescopeUsageDebugSummary | null;
   isLegacy: boolean;
   legacyMessage: string | null;
 };
@@ -184,6 +191,41 @@ function extractReason(rawJson: unknown): string | null {
   return typeof reason === "string" && reason.trim().length > 0 ? reason.trim() : null;
 }
 
+export function summarizeKinescopeUsageRawJson(rawJson: unknown): KinescopeUsageDebugSummary | null {
+  const rows = extractRows(rawJson);
+  if (rows.length === 0) {
+    return {
+      rowCount: 0,
+      projectIds: [],
+      products: [],
+    };
+  }
+
+  const projectIds = Array.from(
+    new Set(
+      rows
+        .map((row) => resolveProjectId(row))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+  const products = Array.from(
+    new Set(
+      rows
+        .map((row) => {
+          const product = row.product ?? row.product_type ?? row.productType ?? row.metric ?? row.resource ?? row.type;
+          return typeof product === "string" && product.trim().length > 0 ? product.trim() : null;
+        })
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  return {
+    rowCount: rows.length,
+    projectIds,
+    products,
+  };
+}
+
 function mapSnapshot(snapshot: {
   workspaceId: string;
   periodStart: Date;
@@ -208,6 +250,7 @@ function mapSnapshot(snapshot: {
     expiresAt: snapshot.expiresAt,
     source,
     reason: extractReason(snapshot.rawJson),
+    debug: summarizeKinescopeUsageRawJson(snapshot.rawJson),
     isLegacy,
     legacyMessage,
   };

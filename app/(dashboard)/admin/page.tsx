@@ -116,6 +116,11 @@ type WorkspaceDetail = {
     fetchedAt: string;
     expiresAt: string;
     reason: string | null;
+    debug: {
+      rowCount: number;
+      projectIds: string[];
+      products: string[];
+    } | null;
   } | null;
   events: Array<{
     id: string;
@@ -217,6 +222,11 @@ type UsageRefreshResponse = {
   usage: {
     source: "cache" | "live" | "stale" | "unavailable";
     reason: string | null;
+    debug: {
+      rowCount: number;
+      projectIds: string[];
+      products: string[];
+    } | null;
   };
 };
 
@@ -386,6 +396,11 @@ export default function AdminPage(): JSX.Element {
 
       if (response.usage.source === "stale") {
         toast.error(usageMessage ?? "Использование не обновилось, показан устаревший снапшот");
+        return;
+      }
+
+      if (response.usage.source === "live" && response.usage.debug?.rowCount === 0) {
+        toast.error("Kinescope ответил успешно, но usage за период пустой");
         return;
       }
 
@@ -688,6 +703,12 @@ export default function AdminPage(): JSX.Element {
                 <div className="space-y-2 rounded-lg border border-neutral-200 p-3 text-sm">
                   <p className="font-medium">Использование (billing Kinescope)</p>
                   {detail.usage?.reason ? <p className="text-amber-700">{formatUsageReason(detail.usage.reason)}</p> : null}
+                  {detail.usage?.debug && (detail.usage.reason || detail.usage.debug.rowCount === 0) ? (
+                    <p className="text-neutral-500">
+                      Kinescope debug: rows={detail.usage.debug.rowCount}, products={detail.usage.debug.products.join(", ") || "-"},
+                      projectIds={detail.usage.debug.projectIds.join(", ") || "-"}
+                    </p>
+                  ) : null}
                   <p className={usageTone(usagePercent(detail.usage?.trafficGb ?? 0, detail.subscription.plan.maxTrafficGb))}>
                     Трафик: {(detail.usage?.trafficGb ?? 0).toFixed(2)} GB
                     {detail.subscription.plan.maxTrafficGb !== null ? ` / ${detail.subscription.plan.maxTrafficGb.toFixed(2)} GB` : " / ∞"}
