@@ -4,7 +4,7 @@ import { prisma } from "@/lib/utils/db";
 import { APIError, handleAPIError } from "@/lib/utils/api-error";
 import { assertAdminRequest } from "@/app/api/admin/_helpers";
 import { workspaceSubscriptionService } from "@/lib/services/workspace-subscription.service";
-import { summarizeKinescopeUsageRawJson } from "@/lib/services/kinescope-billing.service";
+import { extractLocalEstimate, summarizeKinescopeUsageRawJson } from "@/lib/services/kinescope-billing.service";
 
 const paramsSchema = z.object({
   workspaceId: z.string().min(1),
@@ -91,6 +91,7 @@ export const GET = withAuth(async (request: AuthenticatedRequest, context: { par
                   ? (((usage.rawJson as Record<string, unknown>).reason as string | undefined) ?? null)
                   : null,
               debug: summarizeKinescopeUsageRawJson(usage.rawJson),
+              localEstimate: extractLocalEstimate(usage.rawJson),
             }
           : null,
         events,

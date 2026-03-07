@@ -13,6 +13,9 @@ type MockedPrisma = {
   videoUploadSession: {
     findMany: ReturnType<typeof vi.fn>;
   };
+  assetVersion: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
 };
 
 function createPrismaMock(): MockedPrisma {
@@ -26,6 +29,9 @@ function createPrismaMock(): MockedPrisma {
       upsert: vi.fn(),
     },
     videoUploadSession: {
+      findMany: vi.fn(),
+    },
+    assetVersion: {
       findMany: vi.fn(),
     },
   };
@@ -52,6 +58,7 @@ describe("KinescopeBillingService", () => {
     });
     prisma.kinescopeUsageSnapshot.findUnique.mockResolvedValue(null);
     prisma.videoUploadSession.findMany.mockResolvedValue([]);
+    prisma.assetVersion.findMany.mockResolvedValue([]);
     prisma.kinescopeUsageSnapshot.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
       workspaceId: create.workspaceId,
       periodStart: create.periodStart,
@@ -122,6 +129,7 @@ describe("KinescopeBillingService", () => {
     });
     prisma.kinescopeUsageSnapshot.findUnique.mockResolvedValue(null);
     prisma.videoUploadSession.findMany.mockResolvedValue([]);
+    prisma.assetVersion.findMany.mockResolvedValue([]);
     prisma.kinescopeUsageSnapshot.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
       workspaceId: create.workspaceId,
       periodStart: create.periodStart,
@@ -177,6 +185,7 @@ describe("KinescopeBillingService", () => {
     });
     prisma.kinescopeUsageSnapshot.findUnique.mockResolvedValue(null);
     prisma.videoUploadSession.findMany.mockResolvedValue([]);
+    prisma.assetVersion.findMany.mockResolvedValue([]);
     prisma.kinescopeUsageSnapshot.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
       workspaceId: create.workspaceId,
       periodStart: create.periodStart,
@@ -238,17 +247,20 @@ describe("KinescopeBillingService", () => {
     prisma.videoUploadSession.findMany.mockResolvedValue([
       {
         kinescopeVideoId: "video_a",
+        fileName: "video-a.mp4",
         fileSize: 104_857_600,
         durationSec: 300,
         createdAt: new Date("2026-03-06T12:00:00.000Z"),
       },
       {
         kinescopeVideoId: "video_b",
+        fileName: "video-b.mp4",
         fileSize: 52_428_800,
         durationSec: 120,
         createdAt: new Date("2026-03-07T12:00:00.000Z"),
       },
     ]);
+    prisma.assetVersion.findMany.mockResolvedValue([]);
     prisma.kinescopeUsageSnapshot.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
       workspaceId: create.workspaceId,
       periodStart: create.periodStart,
@@ -299,5 +311,101 @@ describe("KinescopeBillingService", () => {
     expect(snapshot.reason).toBe("Using local workspace estimate because Kinescope billing API returned only account-level rows");
     expect(snapshot.storageGb).toBeCloseTo(0.1572864, 5);
     expect(snapshot.transcodingMinutes).toBeCloseTo(7, 5);
+    expect(snapshot.localEstimate?.uniqueVideoCount).toBe(2);
+    expect(snapshot.localEstimate?.sampleVideos).toHaveLength(2);
+  });
+
+  it("merges local fallback data from upload sessions and asset versions", async () => {
+    const prisma = createPrismaMock();
+
+    prisma.workspace.findUnique.mockResolvedValue({
+      id: "ws_5",
+      tenantId: "tenant_5",
+      kinescopeProjectId: "project_5",
+      billingTrackingStartedAt: new Date("2026-03-01T00:00:00.000Z"),
+    });
+    prisma.kinescopeUsageSnapshot.findUnique.mockResolvedValue(null);
+    prisma.videoUploadSession.findMany.mockResolvedValue([
+      {
+        kinescopeVideoId: "video_shared",
+        fileName: "shared-from-session.mp4",
+        fileSize: 80_000_000,
+        durationSec: null,
+        createdAt: new Date("2026-03-07T09:00:00.000Z"),
+      },
+      {
+        kinescopeVideoId: "video_only_session",
+        fileName: "session-only.mp4",
+        fileSize: 20_000_000,
+        durationSec: 180,
+        createdAt: new Date("2026-02-27T09:00:00.000Z"),
+      },
+    ]);
+    prisma.assetVersion.findMany.mockResolvedValue([
+      {
+        kinescopeVideoId: "video_shared",
+        fileName: "shared-from-version.mp4",
+        fileSize: 120_000_000,
+        durationSec: 240,
+        createdAt: new Date("2026-03-07T10:00:00.000Z"),
+      },
+    ]);
+    prisma.kinescopeUsageSnapshot.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
+      workspaceId: create.workspaceId,
+      periodStart: create.periodStart,
+      periodEnd: create.periodEnd,
+      trafficGb: create.trafficGb,
+      storageGb: create.storageGb,
+      transcodingMinutes: create.transcodingMinutes,
+      amountMinor: create.amountMinor,
+      rawJson: create.rawJson,
+      fetchedAt: new Date("2026-03-07T15:00:00.000Z"),
+      expiresAt: create.expiresAt,
+    }));
+
+    let callCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        callCount += 1;
+
+        if (callCount === 1) {
+          return new Response(JSON.stringify({ data: [] }), { status: 200 });
+        }
+
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                date: "2026-03-07T00:00:00Z",
+                usage: 123,
+                product: "storage",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }),
+    );
+
+    const service = new KinescopeBillingService(prisma as never);
+    const snapshot = await service.getWorkspaceUsageSnapshot({
+      workspaceId: "ws_5",
+      from: new Date("2026-03-01T00:00:00.000Z"),
+      to: new Date("2026-04-01T00:00:00.000Z"),
+      forceRefresh: true,
+    });
+
+    expect(snapshot.source).toBe("local");
+    expect(snapshot.storageGb).toBeCloseTo(0.14, 5);
+    expect(snapshot.transcodingMinutes).toBeCloseTo(4, 5);
+    expect(snapshot.localEstimate?.uniqueVideoCount).toBe(2);
+    expect(snapshot.localEstimate?.assetVersionCount).toBe(1);
+    expect(snapshot.localEstimate?.uploadSessionCount).toBe(2);
+    expect(snapshot.localEstimate?.videosWithDurationCount).toBe(2);
+    expect(snapshot.localEstimate?.periodTranscodingVideoCount).toBe(1);
+    expect(snapshot.localEstimate?.sampleVideos[0]?.kinescopeVideoId).toBe("video_shared");
+    expect(snapshot.localEstimate?.sampleVideos[0]?.fileSize).toBe(120_000_000);
+    expect(snapshot.localEstimate?.sampleVideos[0]?.durationSec).toBe(240);
   });
 });

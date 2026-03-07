@@ -65,6 +65,25 @@ type WorkspaceRow = {
   } | null;
 };
 
+type LocalUsageEstimate = {
+  uniqueVideoCount: number;
+  uploadSessionCount: number;
+  assetVersionCount: number;
+  videosWithDurationCount: number;
+  periodTranscodingVideoCount: number;
+  storageBytes: number;
+  transcodingMinutes: number;
+  trafficGb: number;
+  sampleVideos: Array<{
+    kinescopeVideoId: string;
+    fileName: string;
+    fileSize: number;
+    durationSec: number | null;
+    createdAt: string;
+    sources: string[];
+  }>;
+};
+
 type WorkspaceDetail = {
   workspace: {
     workspaceId: string;
@@ -121,6 +140,7 @@ type WorkspaceDetail = {
       projectIds: string[];
       products: string[];
     } | null;
+    localEstimate: LocalUsageEstimate | null;
   } | null;
   events: Array<{
     id: string;
@@ -164,6 +184,27 @@ function formatMoney(minor: number | null | undefined, currency = "RUB"): string
 
 function formatLimit(value: number | null, unit: string): string {
   return value === null ? "∞" : `${value.toLocaleString("ru-RU")} ${unit}`;
+}
+
+function formatByteSize(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value) || value < 0) {
+    return "-";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let current = value;
+  let unitIndex = 0;
+
+  while (current >= 1000 && unitIndex < units.length - 1) {
+    current /= 1000;
+    unitIndex += 1;
+  }
+
+  const digits = unitIndex === 0 ? 0 : current >= 100 ? 0 : current >= 10 ? 1 : 2;
+  return `${current.toLocaleString("ru-RU", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })} ${units[unitIndex]}`;
 }
 
 function usagePercent(value: number, limit: number | null): number | null {
@@ -235,6 +276,7 @@ type UsageRefreshResponse = {
       projectIds: string[];
       products: string[];
     } | null;
+    localEstimate: LocalUsageEstimate | null;
   };
 };
 
@@ -408,7 +450,16 @@ export default function AdminPage(): JSX.Element {
       }
 
       if (response.usage.source === "local") {
-        toast.success(usageMessage ?? "Показана локальная оценка usage по данным workspace");
+        const estimate = response.usage.localEstimate;
+        if (estimate) {
+          toast.success(
+            `${usageMessage ?? "Показана локальная оценка usage по данным workspace"} Учтено ${estimate.uniqueVideoCount} видео, ${formatByteSize(
+              estimate.storageBytes,
+            )}.`,
+          );
+        } else {
+          toast.success(usageMessage ?? "Показана локальная оценка usage по данным workspace");
+        }
         return;
       }
 
@@ -726,6 +777,32 @@ export default function AdminPage(): JSX.Element {
                       Kinescope debug: rows={detail.usage.debug.rowCount}, products={detail.usage.debug.products.join(", ") || "-"},
                       projectIds={detail.usage.debug.projectIds.join(", ") || "-"}
                     </p>
+                  ) : null}
+                  {detail.usage?.localEstimate ? (
+                    <div className="space-y-1 rounded-md bg-neutral-50 p-2 text-neutral-600">
+                      <p>
+                        Локально учтено: {detail.usage.localEstimate.uniqueVideoCount} видео, {formatByteSize(detail.usage.localEstimate.storageBytes)} (
+                        {detail.usage.localEstimate.storageBytes.toLocaleString("ru-RU")} байт).
+                      </p>
+                      <p>
+                        Источники: {detail.usage.localEstimate.uploadSessionCount} upload sessions, {detail.usage.localEstimate.assetVersionCount} asset
+                        versions.
+                      </p>
+                      <p>
+                        Длительность найдена у {detail.usage.localEstimate.videosWithDurationCount} видео, в текущий период в транскодинг попало{" "}
+                        {detail.usage.localEstimate.periodTranscodingVideoCount}.
+                      </p>
+                      {detail.usage.localEstimate.sampleVideos.length > 0 ? (
+                        <div className="space-y-1 pt-1 text-xs text-neutral-500">
+                          {detail.usage.localEstimate.sampleVideos.slice(0, 5).map((video) => (
+                            <p key={video.kinescopeVideoId}>
+                              {video.fileName} · {formatByteSize(video.fileSize)} · {video.durationSec ? `${Math.round(video.durationSec)} сек` : "без длительности"} ·{" "}
+                              {formatDate(video.createdAt)}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   ) : null}
                   <p className={usageTone(usagePercent(detail.usage?.trafficGb ?? 0, detail.subscription.plan.maxTrafficGb))}>
                     Трафик: {(detail.usage?.trafficGb ?? 0).toFixed(2)} GB

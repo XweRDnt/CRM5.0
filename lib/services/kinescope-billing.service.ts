@@ -1,4 +1,4 @@
-import { Prisma, VideoProcessingStatus, type PrismaClient } from "@prisma/client";
+import { Prisma, VideoProcessingStatus, VideoProvider, type PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
 import { APIError } from "@/lib/utils/api-error";
 
@@ -36,6 +36,27 @@ export type KinescopeUsageDebugSummary = {
   products: string[];
 };
 
+export type LocalWorkspaceUsageSample = {
+  kinescopeVideoId: string;
+  fileName: string;
+  fileSize: number;
+  durationSec: number | null;
+  createdAt: string;
+  sources: string[];
+};
+
+export type LocalWorkspaceUsageEstimate = {
+  uniqueVideoCount: number;
+  uploadSessionCount: number;
+  assetVersionCount: number;
+  videosWithDurationCount: number;
+  periodTranscodingVideoCount: number;
+  storageBytes: number;
+  transcodingMinutes: number;
+  trafficGb: number;
+  sampleVideos: LocalWorkspaceUsageSample[];
+};
+
 export type WorkspaceUsageSnapshotDTO = {
   workspaceId: string;
   periodStart: Date;
@@ -49,6 +70,7 @@ export type WorkspaceUsageSnapshotDTO = {
   source: "cache" | "live" | "local" | "stale" | "unavailable";
   reason: string | null;
   debug: KinescopeUsageDebugSummary | null;
+  localEstimate: LocalWorkspaceUsageEstimate | null;
   isLegacy: boolean;
   legacyMessage: string | null;
 };
@@ -215,6 +237,54 @@ function extractReason(rawJson: unknown): string | null {
   return typeof reason === "string" && reason.trim().length > 0 ? reason.trim() : null;
 }
 
+function toPositiveNumberOrNull(value: unknown): number | null {
+  const numeric = asNumeric(value);
+  if (numeric === null || numeric < 0) {
+    return null;
+  }
+  return numeric;
+}
+
+export function extractLocalEstimate(rawJson: unknown): LocalWorkspaceUsageEstimate | null {
+  if (!rawJson || typeof rawJson !== "object" || Array.isArray(rawJson)) {
+    return null;
+  }
+
+  const localEstimate = (rawJson as Record<string, unknown>).localEstimate;
+  if (!localEstimate || typeof localEstimate !== "object" || Array.isArray(localEstimate)) {
+    return null;
+  }
+
+  const record = localEstimate as Record<string, unknown>;
+  const sampleVideos = Array.isArray(record.sampleVideos)
+    ? record.sampleVideos
+        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+        .map((item) => ({
+          kinescopeVideoId: typeof item.kinescopeVideoId === "string" ? item.kinescopeVideoId : "",
+          fileName: typeof item.fileName === "string" ? item.fileName : "",
+          fileSize: toPositiveNumberOrNull(item.fileSize) ?? 0,
+          durationSec: toPositiveNumberOrNull(item.durationSec),
+          createdAt: typeof item.createdAt === "string" ? item.createdAt : "",
+          sources: Array.isArray(item.sources)
+            ? item.sources.filter((source): source is string => typeof source === "string" && source.trim().length > 0)
+            : [],
+        }))
+        .filter((item) => item.kinescopeVideoId.length > 0)
+    : [];
+
+  return {
+    uniqueVideoCount: toPositiveNumberOrNull(record.uniqueVideoCount) ?? 0,
+    uploadSessionCount: toPositiveNumberOrNull(record.uploadSessionCount) ?? 0,
+    assetVersionCount: toPositiveNumberOrNull(record.assetVersionCount) ?? 0,
+    videosWithDurationCount: toPositiveNumberOrNull(record.videosWithDurationCount) ?? 0,
+    periodTranscodingVideoCount: toPositiveNumberOrNull(record.periodTranscodingVideoCount) ?? 0,
+    storageBytes: toPositiveNumberOrNull(record.storageBytes) ?? 0,
+    transcodingMinutes: toPositiveNumberOrNull(record.transcodingMinutes) ?? 0,
+    trafficGb: toPositiveNumberOrNull(record.trafficGb) ?? 0,
+    sampleVideos,
+  };
+}
+
 export function summarizeKinescopeUsageRawJson(rawJson: unknown): KinescopeUsageDebugSummary | null {
   const rows = extractRows(rawJson);
   if (rows.length === 0) {
@@ -308,6 +378,7 @@ function mapSnapshot(snapshot: {
     source,
     reason: extractReason(snapshot.rawJson),
     debug: summarizeKinescopeUsageRawJson(snapshot.rawJson),
+    localEstimate: extractLocalEstimate(snapshot.rawJson),
     isLegacy,
     legacyMessage,
   };
@@ -625,41 +696,152 @@ export class KinescopeBillingService {
     upstreamRawJson: unknown;
     upstreamReason: string;
   }): Promise<UsageMetrics> {
-    const uploads = await this.prismaClient.videoUploadSession.findMany({
-      where: {
-        tenantId: input.tenantId,
-        status: {
-          not: VideoProcessingStatus.FAILED,
+    const [uploads, versions] = await Promise.all([
+      this.prismaClient.videoUploadSession.findMany({
+        where: {
+          tenantId: input.tenantId,
+          status: {
+            not: VideoProcessingStatus.FAILED,
+          },
+          createdAt: {
+            lt: input.period.to,
+          },
         },
-        createdAt: {
-          lt: input.period.to,
+        select: {
+          kinescopeVideoId: true,
+          fileName: true,
+          fileSize: true,
+          durationSec: true,
+          createdAt: true,
         },
-      },
-      select: {
-        kinescopeVideoId: true,
-        fileSize: true,
-        durationSec: true,
-        createdAt: true,
-      },
-    });
+      }),
+      this.prismaClient.assetVersion.findMany({
+        where: {
+          project: {
+            tenantId: input.tenantId,
+          },
+          videoProvider: VideoProvider.KINESCOPE,
+          kinescopeVideoId: {
+            not: null,
+          },
+          createdAt: {
+            lt: input.period.to,
+          },
+        },
+        select: {
+          kinescopeVideoId: true,
+          fileName: true,
+          fileSize: true,
+          durationSec: true,
+          createdAt: true,
+        },
+      }),
+    ]);
 
-    const uniqueUploads = new Map<string, { fileSize: number; durationSec: number | null; createdAt: Date }>();
+    type LocalUsageSource = "uploadSession" | "assetVersion";
+    type AggregatedLocalVideo = {
+      kinescopeVideoId: string;
+      fileName: string;
+      fileSize: number;
+      durationSec: number | null;
+      createdAt: Date;
+      sources: Set<LocalUsageSource>;
+    };
+
+    const uniqueVideos = new Map<string, AggregatedLocalVideo>();
+    const applyCandidate = (candidate: {
+      kinescopeVideoId: string;
+      fileName: string;
+      fileSize: number;
+      durationSec: number | null;
+      createdAt: Date;
+      source: LocalUsageSource;
+    }): void => {
+      const normalizedFileSize = Math.max(0, candidate.fileSize);
+      const normalizedDuration = typeof candidate.durationSec === "number" && candidate.durationSec > 0 ? candidate.durationSec : null;
+      const existing = uniqueVideos.get(candidate.kinescopeVideoId);
+
+      if (!existing) {
+        uniqueVideos.set(candidate.kinescopeVideoId, {
+          kinescopeVideoId: candidate.kinescopeVideoId,
+          fileName: candidate.fileName.trim().length > 0 ? candidate.fileName : candidate.kinescopeVideoId,
+          fileSize: normalizedFileSize,
+          durationSec: normalizedDuration,
+          createdAt: candidate.createdAt,
+          sources: new Set([candidate.source]),
+        });
+        return;
+      }
+
+      if ((!existing.fileName || existing.fileName === existing.kinescopeVideoId) && candidate.fileName.trim().length > 0) {
+        existing.fileName = candidate.fileName;
+      }
+      existing.fileSize = Math.max(existing.fileSize, normalizedFileSize);
+      existing.durationSec =
+        normalizedDuration === null
+          ? existing.durationSec
+          : existing.durationSec === null
+            ? normalizedDuration
+            : Math.max(existing.durationSec, normalizedDuration);
+      if (candidate.createdAt < existing.createdAt) {
+        existing.createdAt = candidate.createdAt;
+      }
+      existing.sources.add(candidate.source);
+    };
+
     for (const upload of uploads) {
-      uniqueUploads.set(upload.kinescopeVideoId, {
+      applyCandidate({
+        kinescopeVideoId: upload.kinescopeVideoId,
+        fileName: upload.fileName,
         fileSize: upload.fileSize,
         durationSec: upload.durationSec,
         createdAt: upload.createdAt,
+        source: "uploadSession",
+      });
+    }
+
+    for (const version of versions) {
+      if (!version.kinescopeVideoId) {
+        continue;
+      }
+
+      applyCandidate({
+        kinescopeVideoId: version.kinescopeVideoId,
+        fileName: version.fileName,
+        fileSize: version.fileSize,
+        durationSec: version.durationSec,
+        createdAt: version.createdAt,
+        source: "assetVersion",
       });
     }
 
     let storageBytes = 0;
     let transcodingMinutes = 0;
+    let videosWithDurationCount = 0;
+    let periodTranscodingVideoCount = 0;
 
-    for (const upload of uniqueUploads.values()) {
-      storageBytes += Math.max(0, upload.fileSize);
+    const sampleVideos = Array.from(uniqueVideos.values())
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+      .slice(0, 10)
+      .map<LocalWorkspaceUsageSample>((video) => ({
+        kinescopeVideoId: video.kinescopeVideoId,
+        fileName: video.fileName,
+        fileSize: video.fileSize,
+        durationSec: video.durationSec,
+        createdAt: video.createdAt.toISOString(),
+        sources: Array.from(video.sources).sort(),
+      }));
 
-      if (upload.createdAt >= input.period.from && upload.createdAt < input.period.to && typeof upload.durationSec === "number" && upload.durationSec > 0) {
-        transcodingMinutes += upload.durationSec / 60;
+    for (const video of uniqueVideos.values()) {
+      storageBytes += video.fileSize;
+
+      if (typeof video.durationSec === "number" && video.durationSec > 0) {
+        videosWithDurationCount += 1;
+      }
+
+      if (video.createdAt >= input.period.from && video.createdAt < input.period.to && typeof video.durationSec === "number" && video.durationSec > 0) {
+        transcodingMinutes += video.durationSec / 60;
+        periodTranscodingVideoCount += 1;
       }
     }
 
@@ -680,10 +862,15 @@ export class KinescopeBillingService {
             ? LOCAL_ACCOUNT_LEVEL_ESTIMATE_REASON
             : LOCAL_PROJECT_MISMATCH_ESTIMATE_REASON,
         localEstimate: {
-          uploadCount: uniqueUploads.size,
+          uniqueVideoCount: uniqueVideos.size,
+          uploadSessionCount: uploads.length,
+          assetVersionCount: versions.length,
+          videosWithDurationCount,
+          periodTranscodingVideoCount,
           storageBytes,
           transcodingMinutes,
           trafficGb: 0,
+          sampleVideos,
         } as unknown as Prisma.InputJsonValue,
       } as Prisma.InputJsonValue,
     };
