@@ -53,6 +53,19 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+function formatDuration(seconds: number): string {
+  const safeSeconds = Math.max(1, Math.round(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const secs = safeSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${secs.toString().padStart(2, "0")}`;
+}
+
 function suggestNextAvailableVersion(usedVersionNumbers: Set<number>, startFrom: number): number {
   let candidate = Math.max(1, startFrom);
   while (usedVersionNumbers.has(candidate)) {
@@ -79,6 +92,45 @@ function getFileValidationError(file: File): string | null {
     return "Неподдерживаемый формат. Доступны MP4, MOV, WEBM и AVI.";
   }
   return null;
+}
+
+async function readVideoDurationSec(file: File): Promise<number> {
+  if (typeof document === "undefined" || typeof URL.createObjectURL !== "function" || typeof URL.revokeObjectURL !== "function") {
+    throw new Error("Браузер не поддерживает чтение метаданных видео.");
+  }
+
+  return await new Promise<number>((resolve, reject) => {
+    const video = document.createElement("video");
+    const objectUrl = URL.createObjectURL(file);
+
+    const cleanup = (): void => {
+      video.onloadedmetadata = null;
+      video.onerror = null;
+      video.removeAttribute("src");
+      if (typeof video.load === "function") {
+        video.load();
+      }
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      const durationSec = Math.ceil(video.duration);
+      cleanup();
+
+      if (!Number.isFinite(durationSec) || durationSec <= 0) {
+        reject(new Error("Не удалось определить длительность видео. Выберите другой файл."));
+        return;
+      }
+
+      resolve(durationSec);
+    };
+    video.onerror = () => {
+      cleanup();
+      reject(new Error("Не удалось прочитать метаданные видео. Выберите другой файл."));
+    };
+    video.src = objectUrl;
+  });
 }
 
 function createTusUploadTask(
@@ -205,10 +257,13 @@ export function VersionUploadFlow({
   const pollingAbortControllerRef = useRef<AbortController | null>(null);
   const continueInBackgroundRef = useRef(false);
   const latestConfirmRef = useRef<ConfirmUploadResponse | null>(null);
+  const fileSelectionTokenRef = useRef(0);
 
   const [versionNoValue, setVersionNoValue] = useState("1");
   const [versionTouchedByUser, setVersionTouchedByUser] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFileDurationSec, setSelectedFileDurationSec] = useState<number | null>(null);
+  const [readingFileMetadata, setReadingFileMetadata] = useState(false);
   const [stage, setStage] = useState<UploadStage>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingAttempt, setProcessingAttempt] = useState(0);
@@ -296,19 +351,48 @@ export function VersionUploadFlow({
     return null;
   }, [stage, uploadProgress, processingAttempt]);
 
-  const applyFileSelection = (file: File | null): void => {
+  const applyFileSelection = async (file: File | null): Promise<void> => {
+    fileSelectionTokenRef.current += 1;
+
     if (!file) {
+      setSelectedFile(null);
+      setSelectedFileDurationSec(null);
+      setReadingFileMetadata(false);
       return;
     }
 
     const validationError = getFileValidationError(file);
     if (validationError) {
+      setSelectedFile(null);
+      setSelectedFileDurationSec(null);
+      setReadingFileMetadata(false);
       setErrorMessage(validationError);
       return;
     }
 
+    const token = fileSelectionTokenRef.current;
     setSelectedFile(file);
+    setSelectedFileDurationSec(null);
+    setReadingFileMetadata(true);
     setErrorMessage("");
+
+    try {
+      const durationSec = await readVideoDurationSec(file);
+      if (fileSelectionTokenRef.current !== token) {
+        return;
+      }
+      setSelectedFileDurationSec(durationSec);
+    } catch (error) {
+      if (fileSelectionTokenRef.current !== token) {
+        return;
+      }
+      setSelectedFileDurationSec(null);
+      setErrorMessage(error instanceof Error ? error.message : "Не удалось определить длительность видео.");
+    } finally {
+      if (fileSelectionTokenRef.current === token) {
+        setReadingFileMetadata(false);
+      }
+    }
   };
 
   const resetTransientState = (): void => {
@@ -379,7 +463,7 @@ export function VersionUploadFlow({
         versionNo,
         fileName: file.name,
         fileSize: file.size,
-        durationSec: confirmResult?.durationSec ?? undefined,
+        durationSec: confirmResult?.durationSec ?? selectedFileDurationSec ?? undefined,
         videoProvider: "KINESCOPE",
         kinescopeVideoId,
         streamUrl,
@@ -405,6 +489,14 @@ export function VersionUploadFlow({
       setErrorMessage("Версия с таким номером уже существует.");
       return;
     }
+    if (readingFileMetadata) {
+      setErrorMessage("Подождите, пока мы определим длительность видео.");
+      return;
+    }
+    if (selectedFileDurationSec === null) {
+      setErrorMessage("Не удалось определить длительность видео. Выберите другой файл.");
+      return;
+    }
     if (!canSubmit) {
       return;
     }
@@ -421,6 +513,7 @@ export function VersionUploadFlow({
           fileName: selectedFile.name,
           fileType: selectedFile.type || "application/octet-stream",
           fileSize: selectedFile.size,
+          durationSec: selectedFileDurationSec,
         }),
       });
 
@@ -575,9 +668,18 @@ export function VersionUploadFlow({
               <p className={cn("text-sm", bodyTextClassName)}>Перетащите файл сюда или выберите его вручную.</p>
               <p className={cn("mt-1 text-xs", mutedTextClassName)}>Форматы: MP4, MOV, WEBM, AVI. Максимум 5GB.</p>
               {selectedFile ? (
-                <p className={cn("mt-2 text-sm font-medium", isLightTheme ? "text-neutral-900" : "text-neutral-100")}>
-                  {selectedFile.name} ({formatFileSize(selectedFile.size)})
-                </p>
+                <div className="mt-2 space-y-1">
+                  <p className={cn("text-sm font-medium", isLightTheme ? "text-neutral-900" : "text-neutral-100")}>
+                    {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                  </p>
+                  <p className={cn("text-xs", mutedTextClassName)}>
+                    {readingFileMetadata
+                      ? "Определяем длительность видео..."
+                      : selectedFileDurationSec !== null
+                        ? `Длительность: ${formatDuration(selectedFileDurationSec)}`
+                        : "Длительность не определена"}
+                  </p>
+                </div>
               ) : null}
             </div>
             <Button type="button" variant="outline" className={outlineButtonClassName} onClick={() => fileInputRef.current?.click()} disabled={isBusy}>
@@ -617,7 +719,11 @@ export function VersionUploadFlow({
             Продолжить в фоне
           </Button>
         ) : null}
-        <Button type="submit" className={cn(surface === "page" ? "w-full sm:w-auto" : "")} disabled={!canSubmit || isBusy || !selectedFile || !isVersionNoValid || hasVersionConflict}>
+        <Button
+          type="submit"
+          className={cn(surface === "page" ? "w-full sm:w-auto" : "")}
+          disabled={!canSubmit || isBusy || !selectedFile || !isVersionNoValid || hasVersionConflict || readingFileMetadata || selectedFileDurationSec === null}
+        >
           {primaryButtonLabel}
         </Button>
       </div>

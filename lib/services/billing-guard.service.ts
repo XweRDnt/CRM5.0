@@ -4,15 +4,10 @@ import { APIError } from "@/lib/utils/api-error";
 import { kinescopeBillingService } from "@/lib/services/kinescope-billing.service";
 import { workspaceSubscriptionService } from "@/lib/services/workspace-subscription.service";
 
+const DECIMAL_BYTES_PER_GB = 1_000_000_000;
+
 function createLimitError(message: string): APIError {
   return new APIError(402, message, "PLAN_LIMIT_EXCEEDED");
-}
-
-function normalizeMetric(value: number | null): number {
-  if (value === null || !Number.isFinite(value)) {
-    return 0;
-  }
-  return value;
 }
 
 export class BillingGuardService {
@@ -77,9 +72,13 @@ export class BillingGuardService {
     }
   }
 
-  async assertCanUploadToKinescope(tenantId: string): Promise<void> {
+  async assertCanUploadToKinescope(input: {
+    tenantId: string;
+    incomingFileSize: number;
+    incomingDurationSec?: number;
+  }): Promise<void> {
     const workspace = await prisma.workspace.findUnique({
-      where: { tenantId },
+      where: { tenantId: input.tenantId },
       select: { id: true },
     });
 
@@ -89,23 +88,35 @@ export class BillingGuardService {
 
     const subscription = await workspaceSubscriptionService.getWorkspaceSubscription(workspace.id);
     const limits = subscription.plan;
-    if (limits.maxTrafficGb === null && limits.maxStorageGb === null && limits.maxTranscodingMinutes === null) {
+    if (limits.maxStorageGb === null && limits.maxTranscodingMinutes === null) {
       return;
     }
 
-    const snapshot = await kinescopeBillingService.getWorkspaceUsageSnapshot({
-      workspaceId: workspace.id,
-      from: subscription.currentPeriodStart,
-      to: subscription.currentPeriodEnd,
-      forceRefresh: false,
+    if (limits.maxTranscodingMinutes !== null) {
+      if (!Number.isInteger(input.incomingDurationSec) || (input.incomingDurationSec ?? 0) <= 0) {
+        throw new APIError(
+          400,
+          "Video duration is required to enforce the monthly upload minutes limit.",
+          "BAD_REQUEST",
+        );
+      }
+    }
+
+    const localUsage = await kinescopeBillingService.getLocalWorkspaceUsageEstimate({
+      tenantId: input.tenantId,
+      period: {
+        from: subscription.currentPeriodStart,
+        to: subscription.currentPeriodEnd,
+      },
+      hydrateMissingMetadata: true,
     });
 
-    const traffic = normalizeMetric(snapshot.trafficGb);
-    const storage = normalizeMetric(snapshot.storageGb);
-    const transcoding = normalizeMetric(snapshot.transcodingMinutes);
+    const projectedStorageGb = (localUsage.storageBytes + input.incomingFileSize) / DECIMAL_BYTES_PER_GB;
+    const projectedTranscodingMinutes = (localUsage.periodTranscodingSeconds + (input.incomingDurationSec ?? 0)) / 60;
 
-    if (limits.maxTrafficGb !== null && traffic >= limits.maxTrafficGb) {
-      const message = `Traffic limit reached for current plan (${traffic.toFixed(2)} GB / ${limits.maxTrafficGb.toFixed(2)} GB). Uploads are blocked.`;
+    if (limits.maxStorageGb !== null && projectedStorageGb > limits.maxStorageGb) {
+      const currentStorageGb = localUsage.storageBytes / DECIMAL_BYTES_PER_GB;
+      const message = `Storage limit would be exceeded for current plan (${currentStorageGb.toFixed(2)} GB + ${(input.incomingFileSize / DECIMAL_BYTES_PER_GB).toFixed(2)} GB > ${limits.maxStorageGb.toFixed(2)} GB). Uploads are blocked.`;
       await this.appendLimitEvent({
         workspaceId: workspace.id,
         workspaceSubscriptionId: subscription.subscriptionId,
@@ -114,18 +125,9 @@ export class BillingGuardService {
       throw createLimitError(message);
     }
 
-    if (limits.maxStorageGb !== null && storage >= limits.maxStorageGb) {
-      const message = `Storage limit reached for current plan (${storage.toFixed(2)} GB / ${limits.maxStorageGb.toFixed(2)} GB). Uploads are blocked.`;
-      await this.appendLimitEvent({
-        workspaceId: workspace.id,
-        workspaceSubscriptionId: subscription.subscriptionId,
-        message,
-      });
-      throw createLimitError(message);
-    }
-
-    if (limits.maxTranscodingMinutes !== null && transcoding >= limits.maxTranscodingMinutes) {
-      const message = `Transcoding limit reached for current plan (${transcoding.toFixed(2)} min / ${limits.maxTranscodingMinutes.toFixed(2)} min). Uploads are blocked.`;
+    if (limits.maxTranscodingMinutes !== null && projectedTranscodingMinutes > limits.maxTranscodingMinutes) {
+      const currentTranscodingMinutes = localUsage.periodTranscodingSeconds / 60;
+      const message = `Monthly upload minutes limit would be exceeded for current plan (${currentTranscodingMinutes.toFixed(2)} min + ${((input.incomingDurationSec ?? 0) / 60).toFixed(2)} min > ${limits.maxTranscodingMinutes.toFixed(2)} min). Uploads are blocked.`;
       await this.appendLimitEvent({
         workspaceId: workspace.id,
         workspaceSubscriptionId: subscription.subscriptionId,

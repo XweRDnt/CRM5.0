@@ -54,6 +54,7 @@ export type LocalWorkspaceUsageEstimate = {
   standaloneUploadVideoCount: number;
   videosWithDurationCount: number;
   periodTranscodingVideoCount: number;
+  periodTranscodingSeconds: number;
   storageBytes: number;
   transcodingMinutes: number;
   trafficGb: number;
@@ -349,6 +350,7 @@ export function extractLocalEstimate(rawJson: unknown): LocalWorkspaceUsageEstim
     standaloneUploadVideoCount: toPositiveNumberOrNull(record.standaloneUploadVideoCount) ?? 0,
     videosWithDurationCount: toPositiveNumberOrNull(record.videosWithDurationCount) ?? 0,
     periodTranscodingVideoCount: toPositiveNumberOrNull(record.periodTranscodingVideoCount) ?? 0,
+    periodTranscodingSeconds: toPositiveNumberOrNull(record.periodTranscodingSeconds) ?? 0,
     storageBytes: toPositiveNumberOrNull(record.storageBytes) ?? 0,
     transcodingMinutes: toPositiveNumberOrNull(record.transcodingMinutes) ?? 0,
     trafficGb: toPositiveNumberOrNull(record.trafficGb) ?? 0,
@@ -529,6 +531,18 @@ export class KinescopeBillingService {
     );
   }
 
+  async getLocalWorkspaceUsageEstimate(input: {
+    tenantId: string;
+    period: UsagePeriod;
+    hydrateMissingMetadata?: boolean;
+  }): Promise<LocalWorkspaceUsageEstimate> {
+    return this.collectLocalWorkspaceUsage({
+      tenantId: input.tenantId,
+      period: input.period,
+      hydrateMissingMetadata: input.hydrateMissingMetadata ?? true,
+    });
+  }
+
   async getWorkspaceUsageSnapshot(input: {
     workspaceId: string;
     from?: Date;
@@ -552,6 +566,10 @@ export class KinescopeBillingService {
     const defaults = getUtcMonthPeriod();
     const periodStart = input.from ?? defaults.from;
     const periodEnd = input.to ?? defaults.to;
+    const usagePeriod = {
+      from: periodStart,
+      to: periodEnd,
+    } satisfies UsagePeriod;
 
     if (!(periodStart instanceof Date) || Number.isNaN(periodStart.getTime())) {
       throw new APIError(400, "Invalid period start", "BAD_REQUEST");
@@ -581,6 +599,12 @@ export class KinescopeBillingService {
       return mapSnapshot(cached, "cache", isLegacy, legacyMessage);
     }
 
+    const localUsage = await this.getLocalWorkspaceUsageEstimate({
+      tenantId: workspace.tenantId,
+      period: usagePeriod,
+      hydrateMissingMetadata: true,
+    });
+
     if (!workspace.kinescopeProjectId || !this.apiToken) {
       if (cached) {
         return mapSnapshot(cached, "stale", isLegacy, legacyMessage);
@@ -592,16 +616,17 @@ export class KinescopeBillingService {
           periodStart,
           periodEnd,
           trafficGb: new Prisma.Decimal(0),
-          storageGb: new Prisma.Decimal(0),
-          transcodingMinutes: new Prisma.Decimal(0),
+          storageGb: new Prisma.Decimal(toGigabytes(localUsage.storageBytes)),
+          transcodingMinutes: new Prisma.Decimal(localUsage.transcodingMinutes),
           amountMinor: 0,
           rawJson: {
             reason: !this.apiToken ? "KINESCOPE_API_TOKEN is missing" : "Workspace Kinescope project is not configured",
+            localEstimate: localUsage as unknown as Prisma.InputJsonValue,
           },
           expiresAt: new Date(now.getTime() + USAGE_CACHE_TTL_MS),
         },
       });
-      return mapSnapshot(fallback, "unavailable", isLegacy, legacyMessage);
+      return mapSnapshot(fallback, "local", isLegacy, legacyMessage);
     }
 
     let metrics: UsageMetrics;
@@ -622,14 +647,28 @@ export class KinescopeBillingService {
     if (upstreamReason === ACCOUNT_LEVEL_ONLY_REASON || upstreamReason === PROJECT_MISMATCH_REASON) {
       metrics = await this.buildLocalWorkspaceUsageMetrics({
         tenantId: workspace.tenantId,
-        period: {
-          from: periodStart,
-          to: periodEnd,
-        },
+        period: usagePeriod,
         upstreamRawJson: metrics.rawJson,
         upstreamReason,
       });
       snapshotSource = "local";
+    }
+
+    if (snapshotSource !== "local" && localUsage.uniqueVideoCount > 0) {
+      const baseRawJson =
+        metrics.rawJson && typeof metrics.rawJson === "object" && !Array.isArray(metrics.rawJson)
+          ? { ...(metrics.rawJson as Record<string, unknown>) }
+          : {};
+
+      metrics = {
+        ...metrics,
+        storageGb: toGigabytes(localUsage.storageBytes),
+        transcodingMinutes: localUsage.transcodingMinutes,
+        rawJson: {
+          ...baseRawJson,
+          localEstimate: localUsage as unknown as Prisma.InputJsonValue,
+        } as Prisma.InputJsonValue,
+      };
     }
 
     const rawJson = (metrics.rawJson ?? {}) as Prisma.InputJsonValue;
@@ -817,6 +856,38 @@ export class KinescopeBillingService {
     upstreamRawJson: unknown;
     upstreamReason: string;
   }): Promise<UsageMetrics> {
+    const localEstimate = await this.collectLocalWorkspaceUsage({
+      tenantId: input.tenantId,
+      period: input.period,
+      hydrateMissingMetadata: true,
+    });
+
+    const baseRawJson =
+      input.upstreamRawJson && typeof input.upstreamRawJson === "object" && !Array.isArray(input.upstreamRawJson)
+        ? { ...(input.upstreamRawJson as Record<string, unknown>) }
+        : {};
+
+    return {
+      trafficGb: 0,
+      storageGb: toGigabytes(localEstimate.storageBytes),
+      transcodingMinutes: localEstimate.transcodingMinutes,
+      amountMinor: 0,
+      rawJson: {
+        ...baseRawJson,
+        reason:
+          input.upstreamReason === ACCOUNT_LEVEL_ONLY_REASON
+            ? LOCAL_ACCOUNT_LEVEL_ESTIMATE_REASON
+            : LOCAL_PROJECT_MISMATCH_ESTIMATE_REASON,
+        localEstimate: localEstimate as unknown as Prisma.InputJsonValue,
+      } as Prisma.InputJsonValue,
+    };
+  }
+
+  private async collectLocalWorkspaceUsage(input: {
+    tenantId: string;
+    period: UsagePeriod;
+    hydrateMissingMetadata: boolean;
+  }): Promise<LocalWorkspaceUsageEstimate> {
     const [uploads, versions] = await Promise.all([
       this.prismaClient.videoUploadSession.findMany({
         where: {
@@ -903,7 +974,8 @@ export class KinescopeBillingService {
     for (const upload of uploads) {
       const hasLinkedAssetVersion = assetVersionIds.has(upload.kinescopeVideoId);
       const isConfirmedUpload =
-        upload.status !== VideoProcessingStatus.UPLOADING || Boolean(upload.streamUrl) || (typeof upload.durationSec === "number" && upload.durationSec > 0);
+        upload.status !== VideoProcessingStatus.FAILED &&
+        (upload.status !== VideoProcessingStatus.UPLOADING || Boolean(upload.streamUrl) || (typeof upload.durationSec === "number" && upload.durationSec > 0));
 
       if (!hasLinkedAssetVersion && !isConfirmedUpload) {
         continue;
@@ -934,10 +1006,12 @@ export class KinescopeBillingService {
       });
     }
 
-    await this.hydrateLocalVideoMetadata(uniqueVideos);
+    if (input.hydrateMissingMetadata) {
+      await this.hydrateLocalVideoMetadata(uniqueVideos);
+    }
 
     let storageBytes = 0;
-    let transcodingMinutes = 0;
+    let periodTranscodingSeconds = 0;
     let linkedAssetVersionVideoCount = 0;
     let standaloneUploadVideoCount = 0;
     let videosWithDurationCount = 0;
@@ -968,41 +1042,24 @@ export class KinescopeBillingService {
       }
 
       if (video.createdAt >= input.period.from && video.createdAt < input.period.to && typeof video.durationSec === "number" && video.durationSec > 0) {
-        transcodingMinutes += video.durationSec / 60;
+        periodTranscodingSeconds += video.durationSec;
         periodTranscodingVideoCount += 1;
       }
     }
 
-    const baseRawJson =
-      input.upstreamRawJson && typeof input.upstreamRawJson === "object" && !Array.isArray(input.upstreamRawJson)
-        ? { ...(input.upstreamRawJson as Record<string, unknown>) }
-        : {};
-
     return {
+      uniqueVideoCount: uniqueVideos.size,
+      uploadSessionCount: uploads.length,
+      assetVersionCount: versions.length,
+      linkedAssetVersionVideoCount,
+      standaloneUploadVideoCount,
+      videosWithDurationCount,
+      periodTranscodingVideoCount,
+      periodTranscodingSeconds,
+      storageBytes,
+      transcodingMinutes: periodTranscodingSeconds / 60,
       trafficGb: 0,
-      storageGb: toGigabytes(storageBytes),
-      transcodingMinutes,
-      amountMinor: 0,
-      rawJson: {
-        ...baseRawJson,
-        reason:
-          input.upstreamReason === ACCOUNT_LEVEL_ONLY_REASON
-            ? LOCAL_ACCOUNT_LEVEL_ESTIMATE_REASON
-            : LOCAL_PROJECT_MISMATCH_ESTIMATE_REASON,
-        localEstimate: {
-          uniqueVideoCount: uniqueVideos.size,
-          uploadSessionCount: uploads.length,
-          assetVersionCount: versions.length,
-          linkedAssetVersionVideoCount,
-          standaloneUploadVideoCount,
-          videosWithDurationCount,
-          periodTranscodingVideoCount,
-          storageBytes,
-          transcodingMinutes,
-          trafficGb: 0,
-          sampleVideos,
-        } as unknown as Prisma.InputJsonValue,
-      } as Prisma.InputJsonValue,
+      sampleVideos,
     };
   }
 }

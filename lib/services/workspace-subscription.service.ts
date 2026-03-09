@@ -161,6 +161,20 @@ export class WorkspaceSubscriptionService {
     });
 
     if (existing) {
+      if (existing.currentPeriodEnd <= new Date()) {
+        const { start, end } = getCurrentMonthPeriod();
+        const rolledOver = await prisma.workspaceSubscription.update({
+          where: { id: existing.id },
+          data: {
+            currentPeriodStart: start,
+            currentPeriodEnd: end,
+            cycle: WorkspaceBillingCycle.CALENDAR_MONTH,
+          },
+          include: { plan: true },
+        });
+        return mapSubscription(rolledOver);
+      }
+
       return mapSubscription(existing);
     }
 

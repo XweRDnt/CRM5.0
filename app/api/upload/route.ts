@@ -11,13 +11,18 @@ const getUploadUrlSchema = z.object({
   fileName: z.string().min(1).max(255),
   fileType: z.string().min(1),
   fileSize: z.number().int().positive(),
+  durationSec: z.number().int().positive().optional(),
 });
 
 export const POST = withAuth(async (req) => {
   try {
     const payload = getUploadUrlSchema.parse(await req.json());
     await assertProjectAccess(req.user, payload.projectId);
-    await billingGuardService.assertCanUploadToKinescope(req.user.tenantId);
+    await billingGuardService.assertCanUploadToKinescope({
+      tenantId: req.user.tenantId,
+      incomingFileSize: payload.fileSize,
+      incomingDurationSec: payload.durationSec,
+    });
 
     const workspaceProjectId = await kinescopeWorkspaceProjectService.ensureWorkspaceProjectForTenant(req.user.tenantId);
     const kinescopeService = getKinescopeService();

@@ -12,6 +12,7 @@ type CreateUploadSessionInput = {
   fileName: string;
   fileType: string;
   fileSize: number;
+  durationSec?: number;
   kinescopeParentId?: string;
 };
 
@@ -179,6 +180,7 @@ export class KinescopeService {
         fileName: input.fileName,
         fileType: input.fileType,
         fileSize: input.fileSize,
+        durationSec: input.durationSec ?? null,
         status: VideoProcessingStatus.UPLOADING,
         errorMessage: null,
       },
@@ -189,6 +191,7 @@ export class KinescopeService {
         fileName: input.fileName,
         fileType: input.fileType,
         fileSize: input.fileSize,
+        durationSec: input.durationSec ?? null,
         status: VideoProcessingStatus.UPLOADING,
       },
     });
@@ -400,6 +403,9 @@ export class KinescopeService {
     }
     if (input.fileSize <= 0 || input.fileSize > MAX_FILE_SIZE_BYTES) {
       throw new Error("File size exceeds maximum of 5GB");
+    }
+    if (input.durationSec !== undefined && (!Number.isInteger(input.durationSec) || input.durationSec <= 0)) {
+      throw new Error("Invalid video duration");
     }
   }
 

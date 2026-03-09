@@ -234,6 +234,87 @@ describe("KinescopeBillingService", () => {
     expect(snapshot.storageGb).toBeCloseTo(0.1, 5);
   });
 
+  it("uses local workspace data as the source of truth for storage and monthly minutes when local videos exist", async () => {
+    const prisma = createPrismaMock();
+
+    prisma.workspace.findUnique.mockResolvedValue({
+      id: "ws_local_truth",
+      tenantId: "tenant_local_truth",
+      kinescopeProjectId: "project_local_truth",
+      billingTrackingStartedAt: new Date("2026-03-01T00:00:00.000Z"),
+    });
+    prisma.kinescopeUsageSnapshot.findUnique.mockResolvedValue(null);
+    prisma.videoUploadSession.findMany.mockResolvedValue([
+      {
+        kinescopeVideoId: "video_local_1",
+        fileName: "video-local-1.mp4",
+        fileSize: 120_000_000,
+        status: "READY",
+        streamUrl: "https://kinescope.io/video_local_1",
+        durationSec: 240,
+        createdAt: new Date("2026-03-07T12:00:00.000Z"),
+      },
+    ]);
+    prisma.assetVersion.findMany.mockResolvedValue([]);
+    prisma.kinescopeUsageSnapshot.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
+      workspaceId: create.workspaceId,
+      periodStart: create.periodStart,
+      periodEnd: create.periodEnd,
+      trafficGb: create.trafficGb,
+      storageGb: create.storageGb,
+      transcodingMinutes: create.transcodingMinutes,
+      amountMinor: create.amountMinor,
+      rawJson: create.rawJson,
+      fetchedAt: new Date("2026-03-07T15:00:00.000Z"),
+      expiresAt: create.expiresAt,
+    }));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                date: "2026-03-07T00:00:00Z",
+                usage: 900_000_000,
+                product: "storage",
+                project_id: "project_local_truth",
+              },
+              {
+                date: "2026-03-07T00:00:00Z",
+                usage: 30,
+                product: "encoding",
+                project_id: "project_local_truth",
+              },
+              {
+                date: "2026-03-07T00:00:00Z",
+                usage: 2_500_000_000,
+                product: "cdn",
+                project_id: "project_local_truth",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    const service = new KinescopeBillingService(prisma as never);
+    const snapshot = await service.getWorkspaceUsageSnapshot({
+      workspaceId: "ws_local_truth",
+      from: new Date("2026-03-01T00:00:00.000Z"),
+      to: new Date("2026-04-01T00:00:00.000Z"),
+      forceRefresh: true,
+    });
+
+    expect(snapshot.source).toBe("live");
+    expect(snapshot.trafficGb).toBeCloseTo(2.5, 5);
+    expect(snapshot.storageGb).toBeCloseTo(0.12, 5);
+    expect(snapshot.transcodingMinutes).toBeCloseTo(4, 5);
+    expect(snapshot.localEstimate?.uniqueVideoCount).toBe(1);
+  });
+
   it("falls back to local workspace usage when Kinescope returns only account-level rows", async () => {
     const prisma = createPrismaMock();
 

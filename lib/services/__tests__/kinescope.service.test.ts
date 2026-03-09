@@ -105,6 +105,7 @@ describe("KinescopeService", () => {
         fileName: "v1.mp4",
         fileType: "video/mp4",
         fileSize: 1000,
+        durationSec: 30,
       },
     );
 
@@ -115,6 +116,7 @@ describe("KinescopeService", () => {
     expect(dbSession?.tenantId).toBe(tenant.id);
     expect(dbSession?.projectId).toBe(project.id);
     expect(dbSession?.status).toBe(VideoProcessingStatus.UPLOADING);
+    expect(dbSession?.durationSec).toBe(30);
   });
 
   it("confirms upload and maps READY status", async () => {
@@ -131,6 +133,7 @@ describe("KinescopeService", () => {
         fileName: "v2.mp4",
         fileType: "video/mp4",
         fileSize: 1000,
+        durationSec: 30,
       },
     });
 
@@ -160,6 +163,8 @@ describe("KinescopeService", () => {
     expect(result.processingStatus).toBe(VideoProcessingStatus.READY);
     expect(result.durationSec).toBe(42);
     expect(result.streamUrl).toContain("kinescope.io");
+    const updated = await prisma.videoUploadSession.findUnique({ where: { kinescopeVideoId: "video_456" } });
+    expect(updated?.durationSec).toBe(42);
   });
 
   it("updates linked versions on webhook sync", async () => {

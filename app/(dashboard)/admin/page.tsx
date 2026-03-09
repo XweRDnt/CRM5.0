@@ -73,6 +73,7 @@ type LocalUsageEstimate = {
   standaloneUploadVideoCount: number;
   videosWithDurationCount: number;
   periodTranscodingVideoCount: number;
+  periodTranscodingSeconds: number;
   storageBytes: number;
   transcodingMinutes: number;
   trafficGb: number;
@@ -772,7 +773,7 @@ export default function AdminPage(): JSX.Element {
                 </div>
 
                 <div className="space-y-2 rounded-lg border border-neutral-200 p-3 text-sm">
-                  <p className="font-medium">Использование (billing Kinescope)</p>
+                  <p className="font-medium">Использование workspace</p>
                   {detail.usage?.reason ? <p className="text-amber-700">{formatUsageReason(detail.usage.reason)}</p> : null}
                   {detail.usage?.debug && (detail.usage.reason || detail.usage.debug.rowCount === 0) ? (
                     <p className="text-neutral-500">
@@ -796,7 +797,7 @@ export default function AdminPage(): JSX.Element {
                       </p>
                       <p>
                         Длительность найдена у {detail.usage.localEstimate.videosWithDurationCount} видео, в текущий период в транскодинг попало{" "}
-                        {detail.usage.localEstimate.periodTranscodingVideoCount}.
+                        {detail.usage.localEstimate.periodTranscodingVideoCount} на {detail.usage.localEstimate.transcodingMinutes.toFixed(2)} мин.
                       </p>
                       {detail.usage.localEstimate.sampleVideos.length > 0 ? (
                         <div className="space-y-1 pt-1 text-xs text-neutral-500">
@@ -810,8 +811,8 @@ export default function AdminPage(): JSX.Element {
                       ) : null}
                     </div>
                   ) : null}
-                  <p className={usageTone(usagePercent(detail.usage?.trafficGb ?? 0, detail.subscription.plan.maxTrafficGb))}>
-                    Трафик: {(detail.usage?.trafficGb ?? 0).toFixed(2)} GB
+                  <p className="text-neutral-600">
+                    Трафик (справочно, лимит не применяется): {(detail.usage?.trafficGb ?? 0).toFixed(2)} GB
                     {detail.subscription.plan.maxTrafficGb !== null ? ` / ${detail.subscription.plan.maxTrafficGb.toFixed(2)} GB` : " / ∞"}
                   </p>
                   <p className={usageTone(usagePercent(detail.usage?.storageGb ?? 0, detail.subscription.plan.maxStorageGb))}>
@@ -819,7 +820,7 @@ export default function AdminPage(): JSX.Element {
                     {detail.subscription.plan.maxStorageGb !== null ? ` / ${detail.subscription.plan.maxStorageGb.toFixed(2)} GB` : " / ∞"}
                   </p>
                   <p className={usageTone(usagePercent(detail.usage?.transcodingMinutes ?? 0, detail.subscription.plan.maxTranscodingMinutes))}>
-                    Транскодинг: {(detail.usage?.transcodingMinutes ?? 0).toFixed(2)} мин
+                    Минуты видео за период: {(detail.usage?.transcodingMinutes ?? 0).toFixed(2)} мин
                     {detail.subscription.plan.maxTranscodingMinutes !== null
                       ? ` / ${detail.subscription.plan.maxTranscodingMinutes.toFixed(2)} мин`
                       : " / ∞"}

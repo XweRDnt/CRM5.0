@@ -11,6 +11,8 @@ const routerReplaceMock = vi.fn();
 const routerRefreshMock = vi.fn();
 
 let tusBehavior: "pending" | "success" = "success";
+let videoMetadataMode: "success" | "error" = "success";
+let videoDurationSec = 120;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -60,8 +62,8 @@ vi.mock("@/lib/utils/client-api", () => ({
   },
 }));
 
-function renderFlow(): void {
-  render(
+function renderFlow() {
+  return render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <VersionUploadFlow projectId="project-1" />
     </SWRConfig>,
@@ -76,12 +78,77 @@ function getFileInput(container: HTMLElement): HTMLInputElement {
   return input;
 }
 
+function getVersionNumberInput(container: HTMLElement): HTMLInputElement {
+  const input = container.querySelector('input[type="number"]');
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("Version number input not found");
+  }
+  return input;
+}
+
+function getSubmitButton(container: HTMLElement): HTMLButtonElement {
+  const button = container.querySelector('button[type="submit"]');
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error("Submit button not found");
+  }
+  return button;
+}
+
+async function selectVideoFile(container: HTMLElement, file: File): Promise<void> {
+  fireEvent.change(getFileInput(container), { target: { files: [file] } });
+  await waitFor(() => {
+    expect(screen.getByText(/Длительность:/)).toBeTruthy();
+  });
+}
+
 describe("VersionUploadFlow", () => {
   beforeEach(() => {
     tusBehavior = "success";
+    videoMetadataMode = "success";
+    videoDurationSec = 120;
     apiFetchMock.mockReset();
     routerReplaceMock.mockReset();
     routerRefreshMock.mockReset();
+
+    Object.defineProperty(globalThis.URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:video"),
+    });
+    Object.defineProperty(globalThis.URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation(((tagName: string) => {
+      if (tagName.toLowerCase() !== "video") {
+        return originalCreateElement(tagName);
+      }
+
+      const video = originalCreateElement("video") as HTMLVideoElement;
+      Object.defineProperty(video, "duration", {
+        configurable: true,
+        get: () => videoDurationSec,
+      });
+      video.load = vi.fn();
+      Object.defineProperty(video, "src", {
+        configurable: true,
+        get: () => "blob:video",
+        set: () => {
+          setTimeout(() => {
+            if (videoMetadataMode === "success") {
+              video.onloadedmetadata?.(new Event("loadedmetadata"));
+              return;
+            }
+
+            video.onerror?.(new Event("error"));
+          }, 0);
+        },
+      });
+
+      return video;
+    }) as typeof document.createElement);
+
     apiFetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/versions/meta")) {
         return {
@@ -120,25 +187,32 @@ describe("VersionUploadFlow", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("auto-fills next version number from meta", async () => {
-    renderFlow();
+    const rendered = renderFlow();
 
     await waitFor(() => {
-      const input = screen.getByLabelText("Номер версии") as HTMLInputElement;
-      expect(input.value).toBe("3");
+      expect(getVersionNumberInput(rendered.container).value).toBe("3");
     });
   });
 
   it("shows instant conflict warning and applies suggested number", async () => {
-    renderFlow();
+    const rendered = renderFlow();
+    const input = getVersionNumberInput(rendered.container);
 
-    const input = (await screen.findByLabelText("Номер версии")) as HTMLInputElement;
+    await waitFor(() => {
+      expect(input.value).toBe("3");
+    });
+
     fireEvent.change(input, { target: { value: "2" } });
 
     expect(await screen.findByText("Этот номер уже используется.")).toBeTruthy();
-    const applyButton = screen.getByRole("button", { name: "Применить v3" });
+    const applyButton = screen.getAllByRole("button").find((button) => button.textContent?.includes("v3"));
+    if (!applyButton) {
+      throw new Error("Apply suggestion button not found");
+    }
     fireEvent.click(applyButton);
 
     await waitFor(() => {
@@ -149,33 +223,30 @@ describe("VersionUploadFlow", () => {
   it("does not render duration and notes fields", async () => {
     renderFlow();
 
-    await screen.findByLabelText("Номер версии");
+    await screen.findByText("Подставляется автоматически, но вы можете изменить вручную.");
     expect(screen.queryByText("Длительность (сек, опционально)")).toBeNull();
     expect(screen.queryByText("Заметки (опционально)")).toBeNull();
   });
 
   it("cancels upload and shows retry state", async () => {
     tusBehavior = "pending";
-    const rendered = render(
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-        <VersionUploadFlow projectId="project-1" />
-      </SWRConfig>,
-    );
+    const rendered = renderFlow();
 
-    await screen.findByLabelText("Номер версии");
-    const fileInput = getFileInput(rendered.container);
-    const file = new File(["video"], "video.mp4", { type: "video/mp4" });
-    fireEvent.change(fileInput, { target: { files: [file] } });
+    await waitFor(() => {
+      expect(getVersionNumberInput(rendered.container).value).toBe("3");
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "Загрузить версию" }));
+    await selectVideoFile(rendered.container, new File(["video"], "video.mp4", { type: "video/mp4" }));
+    fireEvent.click(getSubmitButton(rendered.container));
+
     const cancelButton = await screen.findByRole("button", { name: "Отменить загрузку" });
     fireEvent.click(cancelButton);
 
     expect(await screen.findByText("Загрузка отменена. Нажмите «Повторить загрузку», чтобы попробовать снова.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Повторить загрузку" })).toBeTruthy();
+    expect(getSubmitButton(rendered.container).textContent).toBe("Повторить загрузку");
   });
 
-  it("continues in background during processing and creates version", async () => {
+  it("continues in background during processing and creates version with the detected duration", async () => {
     apiFetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/versions/meta")) {
         return {
@@ -211,17 +282,13 @@ describe("VersionUploadFlow", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
 
-    const rendered = render(
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-        <VersionUploadFlow projectId="project-1" />
-      </SWRConfig>,
-    );
-    await screen.findByLabelText("Номер версии");
+    const rendered = renderFlow();
+    await waitFor(() => {
+      expect(getVersionNumberInput(rendered.container).value).toBe("2");
+    });
 
-    const fileInput = getFileInput(rendered.container);
-    const file = new File(["video"], "video.mp4", { type: "video/mp4" });
-    fireEvent.change(fileInput, { target: { files: [file] } });
-    fireEvent.click(screen.getByRole("button", { name: "Загрузить версию" }));
+    await selectVideoFile(rendered.container, new File(["video"], "video.mp4", { type: "video/mp4" }));
+    fireEvent.click(getSubmitButton(rendered.container));
 
     const continueButton = await screen.findByRole("button", { name: "Продолжить в фоне" });
     fireEvent.click(continueButton);
@@ -229,10 +296,42 @@ describe("VersionUploadFlow", () => {
     await waitFor(() => {
       const postCall = apiFetchMock.mock.calls.find((call) => String(call[0]).endsWith("/versions") && call[1]?.method === "POST");
       expect(postCall).toBeTruthy();
-      const payload = JSON.parse(postCall?.[1]?.body as string) as { processingStatus: string };
+      const payload = JSON.parse(postCall?.[1]?.body as string) as { processingStatus: string; durationSec: number };
       expect(payload.processingStatus).toBe("PROCESSING");
+      expect(payload.durationSec).toBe(120);
     });
 
     expect(routerReplaceMock).toHaveBeenCalledWith("/projects/project-1/versions");
+  });
+
+  it("sends detected durationSec to /api/upload", async () => {
+    const rendered = renderFlow();
+    await waitFor(() => {
+      expect(getVersionNumberInput(rendered.container).value).toBe("3");
+    });
+
+    await selectVideoFile(rendered.container, new File(["video"], "video.mp4", { type: "video/mp4" }));
+    fireEvent.click(getSubmitButton(rendered.container));
+
+    await waitFor(() => {
+      const uploadCall = apiFetchMock.mock.calls.find((call) => call[0] === "/api/upload");
+      expect(uploadCall).toBeTruthy();
+      const payload = JSON.parse(uploadCall?.[1]?.body as string) as { durationSec: number };
+      expect(payload.durationSec).toBe(120);
+    });
+  });
+
+  it("shows an error and does not start upload when video metadata cannot be read", async () => {
+    videoMetadataMode = "error";
+    const rendered = renderFlow();
+    await waitFor(() => {
+      expect(getVersionNumberInput(rendered.container).value).toBe("3");
+    });
+
+    fireEvent.change(getFileInput(rendered.container), { target: { files: [new File(["video"], "broken.mp4", { type: "video/mp4" })] } });
+
+    expect(await screen.findByText("Не удалось прочитать метаданные видео. Выберите другой файл.")).toBeTruthy();
+    expect(getSubmitButton(rendered.container).disabled).toBe(true);
+    expect(apiFetchMock.mock.calls.some((call) => call[0] === "/api/upload")).toBe(false);
   });
 });

@@ -96,8 +96,15 @@ Requires env:
 - `KINESCOPE_PARENT_ID` (or `KINESCOPE_PROJECT_ID` fallback)
 
 Behavior:
-- Before upload init, API validates billing limits (`maxTrafficGb`, `maxStorageGb`, `maxTranscodingMinutes`).
+- Before upload init, API validates projected workspace usage:
+  - `maxStorageGb` against `current storage + new file size`
+  - `maxTranscodingMinutes` against `current billing-period video minutes + new file duration`
+- `maxTrafficGb` is informational and is not used to block uploads.
 - If no dedicated Kinescope project exists for workspace, it is auto-provisioned on first upload and stored in workspace billing metadata.
+
+If video duration is required for the monthly minutes limit and missing:
+- HTTP `400`
+- `{ "code": "BAD_REQUEST", "error": "Video duration is required..." }`
 
 If plan usage limit is exceeded:
 - HTTP `402`
@@ -109,7 +116,8 @@ Body:
   "projectId": "project-id",
   "fileName": "video.mp4",
   "fileType": "video/mp4",
-  "fileSize": 10485760
+  "fileSize": 10485760,
+  "durationSec": 120
 }
 ```
 
