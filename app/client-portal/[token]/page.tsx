@@ -1,17 +1,18 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { cn } from "@/lib/utils/cn";
 import { getMessages } from "@/lib/i18n/messages";
 import { formatTimecode } from "@/lib/utils/time";
+import type { AnnotationData, AnnotationShape } from "@/types";
+
+const SUBMIT_TIMEOUT_MS = 15000;
 
 type PortalVersion = {
   id: string;
@@ -27,6 +28,16 @@ type PortalVersion = {
   createdAt: string;
 };
 
+type PortalFeedbackItem = {
+  id: string;
+  text: string;
+  timecodeSec: number | null;
+  annotationData?: AnnotationData | null;
+  createdAt: string;
+  authorName: string;
+  authorEmail: string | null;
+};
+
 type PortalResponse = {
   project: {
     id: string;
@@ -36,14 +47,21 @@ type PortalResponse = {
   };
   activeVersionId: string | null;
   versions: PortalVersion[];
-  feedback: Array<{
-    id: string;
-    text: string;
-    timecodeSec: number | null;
-    createdAt: string;
-    authorName: string;
-    authorEmail: string | null;
-  }>;
+  feedback: PortalFeedbackItem[];
+};
+
+type DrawingState = {
+  tool: "rect" | "arrow";
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+};
+
+type PendingText = {
+  x: number;
+  y: number;
+  value: string;
 };
 
 const fetcher = async (url: string): Promise<PortalResponse> => {
@@ -53,6 +71,16 @@ const fetcher = async (url: string): Promise<PortalResponse> => {
     throw new Error(payload?.error ?? "Failed to load client portal");
   }
   return (await response.json()) as PortalResponse;
+};
+
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
+const isValidAnnotationData = (value: unknown): value is AnnotationData => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const data = value as AnnotationData;
+  return data.version === 1 && Array.isArray(data.shapes);
 };
 
 export default function ClientPortalPage(): JSX.Element {
@@ -74,39 +102,24 @@ export default function ClientPortalPage(): JSX.Element {
   );
 
   const kinescopeRef = useRef<KinescopePlayerRef | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const lastKnownTimeRef = useRef(0);
   const [playerCurrentTimeSec, setPlayerCurrentTimeSec] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
-  const [isMobileLandscape, setIsMobileLandscape] = useState(false);
-  const [isLikelyMobileDevice, setIsLikelyMobileDevice] = useState(false);
-  const [manualLandscapeMode, setManualLandscapeMode] = useState<boolean | null>(null);
-  const [orientationDebug, setOrientationDebug] = useState({
-    mediaLandscape: false,
-    screenLandscape: false,
-    viewportLandscape: false,
-    visualViewportLandscape: false,
-    width: 0,
-    height: 0,
-    vvWidth: 0,
-    vvHeight: 0,
-    isLikelyMobile: false,
-  });
+  const [commentText, setCommentText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [annotationTool, setAnnotationTool] = useState<"rect" | "arrow" | "text">("rect");
+  const [annotationShapes, setAnnotationShapes] = useState<AnnotationShape[]>([]);
+  const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
+  const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
+  const [pendingText, setPendingText] = useState<PendingText | null>(null);
 
   const safeVideoUrl = (activeVersion?.streamUrl ?? activeVersion?.fileUrl ?? "").trim();
-
-  const pageBackground = "bg-[var(--app-bg)]";
-  const shellCardClass =
-    "rounded-[30px] border border-[color:var(--app-border)] bg-[var(--app-surface)] shadow-[var(--app-shadow)] backdrop-blur-xl";
-  const titleClass = "text-[color:var(--app-text)]";
-  const mutedTextClass = "text-[color:var(--app-text-muted)]";
-  const cardTextClass = "text-[color:var(--app-text)]";
-  const inputCardClass =
-    "flex flex-col gap-2 rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4";
-  const feedbackItemClass =
-    "rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] p-4 shadow-[0_6px_24px_rgba(15,23,42,0.08)]";
   const isVersionLocked = activeVersion?.status === "APPROVED" || activeVersion?.status === "FINAL";
 
   const updatePlayerTime = (seconds: number): void => {
@@ -114,10 +127,6 @@ export default function ClientPortalPage(): JSX.Element {
     lastKnownTimeRef.current = normalized;
     setPlayerCurrentTimeSec(normalized);
   };
-
-  const readCurrentPlayerTime = useCallback((): number => {
-    return kinescopeRef.current?.getCurrentTime() ?? 0;
-  }, []);
 
   const readKinescopeTimeSafe = useCallback(async (): Promise<number> => {
     const player = kinescopeRef.current;
@@ -140,6 +149,11 @@ export default function ClientPortalPage(): JSX.Element {
     setPlayerCurrentTimeSec(0);
     setCapturedTimecodeSec(null);
     lastKnownTimeRef.current = 0;
+    setAnnotationMode(false);
+    setAnnotationShapes([]);
+    setActiveAnnotation(null);
+    setDrawingState(null);
+    setPendingText(null);
   }, [activeVersion?.id, safeVideoUrl, activeVersion?.kinescopeVideoId]);
 
   useEffect(() => {
@@ -161,120 +175,23 @@ export default function ClientPortalPage(): JSX.Element {
     return () => {
       window.clearInterval(interval);
     };
-  }, [activeVersion, playerReady, readCurrentPlayerTime, readKinescopeTimeSafe]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const landscapeQuery = window.matchMedia("(orientation: landscape)");
-    const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
-
-    const updateOrientationLayout = (): void => {
-      const mediaLandscape = landscapeQuery.matches;
-      const screenLandscape = typeof screen !== "undefined" && screen.orientation?.type?.startsWith("landscape");
-      const viewportLandscape = window.innerWidth > window.innerHeight;
-      const vvWidth = window.visualViewport?.width ?? 0;
-      const vvHeight = window.visualViewport?.height ?? 0;
-      const visualViewportLandscape = vvWidth > vvHeight;
-      const hasTouchPointer = coarsePointerQuery.matches || navigator.maxTouchPoints > 0 || "ontouchstart" in window;
-      const shortestSide = Math.min(window.innerWidth, window.innerHeight);
-      const isLikelyMobile = hasTouchPointer && shortestSide <= 1024;
-      const isLandscape = mediaLandscape || screenLandscape || viewportLandscape || visualViewportLandscape;
-
-      setIsLikelyMobileDevice(isLikelyMobile);
-      setIsMobileLandscape(isLandscape && isLikelyMobile);
-      setOrientationDebug({
-        mediaLandscape,
-        screenLandscape,
-        viewportLandscape,
-        visualViewportLandscape,
-        width: window.innerWidth,
-        height: window.innerHeight,
-        vvWidth,
-        vvHeight,
-        isLikelyMobile,
-      });
-    };
-
-    updateOrientationLayout();
-    const timeoutIds = new Set<number>();
-
-    const mediaChangeHandler = (): void => {
-      updateOrientationLayout();
-      timeoutIds.add(window.setTimeout(updateOrientationLayout, 120));
-      timeoutIds.add(window.setTimeout(updateOrientationLayout, 320));
-    };
-
-    window.addEventListener("resize", mediaChangeHandler);
-    window.visualViewport?.addEventListener("resize", mediaChangeHandler);
-    screen.orientation?.addEventListener?.("change", mediaChangeHandler);
-
-    if (typeof landscapeQuery.addEventListener === "function") {
-      landscapeQuery.addEventListener("change", mediaChangeHandler);
-      coarsePointerQuery.addEventListener("change", mediaChangeHandler);
-    } else {
-      landscapeQuery.addListener(mediaChangeHandler);
-      coarsePointerQuery.addListener(mediaChangeHandler);
-    }
-
-    return () => {
-      window.removeEventListener("resize", mediaChangeHandler);
-      window.visualViewport?.removeEventListener("resize", mediaChangeHandler);
-      screen.orientation?.removeEventListener?.("change", mediaChangeHandler);
-      timeoutIds.forEach((id) => window.clearTimeout(id));
-
-      if (typeof landscapeQuery.removeEventListener === "function") {
-        landscapeQuery.removeEventListener("change", mediaChangeHandler);
-        coarsePointerQuery.removeEventListener("change", mediaChangeHandler);
-      } else {
-        landscapeQuery.removeListener(mediaChangeHandler);
-        coarsePointerQuery.removeListener(mediaChangeHandler);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const saved = window.localStorage.getItem("portal-manual-landscape-mode");
-    if (saved === "on") {
-      setManualLandscapeMode(true);
-    } else if (saved === "off") {
-      setManualLandscapeMode(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || manualLandscapeMode === null) {
-      return;
-    }
-
-    window.localStorage.setItem("portal-manual-landscape-mode", manualLandscapeMode ? "on" : "off");
-  }, [manualLandscapeMode]);
+  }, [activeVersion, playerReady, readKinescopeTimeSafe]);
 
   if (isLoading) {
     return (
-      <main className={`min-h-screen px-3 py-4 sm:px-6 sm:py-8 ${pageBackground}`}>
-        <Card className={`mx-auto max-w-5xl animate-pulse ${shellCardClass}`}>
-          <CardContent className="h-52 p-6" />
-        </Card>
+      <main className="min-h-screen bg-[#1a1a1a] px-4 py-6 text-white">
+        <div className="mx-auto h-40 max-w-5xl animate-pulse rounded-2xl bg-[#111111]" />
       </main>
     );
   }
 
   if (error || !data) {
     return (
-      <main className={`min-h-screen px-3 py-4 sm:px-6 sm:py-8 ${pageBackground}`}>
-        <Card className={`mx-auto max-w-2xl ${shellCardClass}`}>
-          <CardHeader>
-            <CardTitle className={`text-xl font-semibold tracking-tight ${titleClass}`}>{m.portal.title}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-red-600">{error instanceof Error ? error.message : "Portal unavailable"}</CardContent>
-        </Card>
+      <main className="min-h-screen bg-[#1a1a1a] px-4 py-6 text-white">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-[#111111] p-6">
+          <h1 className="text-xl font-semibold">{m.portal.title}</h1>
+          <p className="mt-3 text-sm text-red-400">{error instanceof Error ? error.message : "Portal unavailable"}</p>
+        </div>
       </main>
     );
   }
@@ -285,7 +202,7 @@ export default function ClientPortalPage(): JSX.Element {
     router.replace(`/client-portal/${token}?${params.toString()}`);
   };
 
-  const captureCurrentTimecode = (): void => {
+  const startAnnotationMode = async (): Promise<void> => {
     if (!activeVersion) {
       toast.error("Version not found");
       return;
@@ -298,23 +215,134 @@ export default function ClientPortalPage(): JSX.Element {
 
     kinescopeRef.current?.pause();
 
-    window.setTimeout(async () => {
-      const kinescopeTime = await readKinescopeTimeSafe();
-      const rawTime = kinescopeTime;
-      const directTime = Math.max(0, Math.floor(Number.isFinite(rawTime) ? rawTime : 0));
-      const normalized = Math.max(directTime, lastKnownTimeRef.current, playerCurrentTimeSec);
-      if (normalized === 0) {
-        toast.error(m.portal.playBeforeCapture);
-        return;
-      }
-      setCapturedTimecodeSec(normalized);
-    }, 120);
+    const kinescopeTime = await readKinescopeTimeSafe();
+    const directTime = Math.max(0, Math.floor(Number.isFinite(kinescopeTime) ? kinescopeTime : 0));
+    const normalized = Math.max(directTime, lastKnownTimeRef.current, playerCurrentTimeSec);
+    if (normalized === 0) {
+      toast.error(m.portal.playBeforeCapture);
+      return;
+    }
+
+    setCapturedTimecodeSec(normalized);
+    setAnnotationMode(true);
+    setAnnotationShapes([]);
+    setActiveAnnotation(null);
+    setDrawingState(null);
+    setPendingText(null);
   };
 
-  const seekToTimecode = (timecodeSec: number | null): void => {
+  const getOverlayPoint = (event: React.PointerEvent): { x: number; y: number } | null => {
+    const rect = overlayRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) {
+      return null;
+    }
+    const x = clamp01((event.clientX - rect.left) / rect.width);
+    const y = clamp01((event.clientY - rect.top) / rect.height);
+    return { x, y };
+  };
+
+  const finalizeShape = (state: DrawingState): void => {
+    const dx = state.endX - state.startX;
+    const dy = state.endY - state.startY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance < 0.01) {
+      setDrawingState(null);
+      return;
+    }
+
+    if (state.tool === "rect") {
+      const x = Math.min(state.startX, state.endX);
+      const y = Math.min(state.startY, state.endY);
+      const w = Math.abs(dx);
+      const h = Math.abs(dy);
+      if (w < 0.01 || h < 0.01) {
+        setDrawingState(null);
+        return;
+      }
+      setAnnotationShapes((prev) => [...prev, { type: "rect", x, y, w, h }]);
+    } else {
+      setAnnotationShapes((prev) => [
+        ...prev,
+        { type: "arrow", x1: state.startX, y1: state.startY, x2: state.endX, y2: state.endY },
+      ]);
+    }
+
+    setDrawingState(null);
+    window.setTimeout(() => textAreaRef.current?.focus(), 0);
+  };
+
+  const handlePointerDown = (event: React.PointerEvent): void => {
+    if (!annotationMode || annotationTool === "text") {
+      return;
+    }
+    const point = getOverlayPoint(event);
+    if (!point) {
+      return;
+    }
+    event.preventDefault();
+    setDrawingState({ tool: annotationTool, startX: point.x, startY: point.y, endX: point.x, endY: point.y });
+  };
+
+  const handlePointerMove = (event: React.PointerEvent): void => {
+    if (!drawingState) {
+      return;
+    }
+    const point = getOverlayPoint(event);
+    if (!point) {
+      return;
+    }
+    event.preventDefault();
+    setDrawingState((prev) => (prev ? { ...prev, endX: point.x, endY: point.y } : prev));
+  };
+
+  const handlePointerUp = (event: React.PointerEvent): void => {
+    if (!drawingState) {
+      return;
+    }
+    const point = getOverlayPoint(event);
+    if (!point) {
+      setDrawingState(null);
+      return;
+    }
+    event.preventDefault();
+    finalizeShape({ ...drawingState, endX: point.x, endY: point.y });
+  };
+
+  const handleOverlayClick = (event: React.PointerEvent): void => {
+    if (!annotationMode || annotationTool !== "text") {
+      return;
+    }
+    const point = getOverlayPoint(event);
+    if (!point) {
+      return;
+    }
+    event.preventDefault();
+    setPendingText({ x: point.x, y: point.y, value: "" });
+  };
+
+  const confirmTextShape = (): void => {
+    if (!pendingText) {
+      return;
+    }
+    const trimmed = pendingText.value.trim();
+    if (trimmed) {
+      setAnnotationShapes((prev) => [...prev, { type: "text", x: pendingText.x, y: pendingText.y, text: trimmed }]);
+      window.setTimeout(() => textAreaRef.current?.focus(), 0);
+    }
+    setPendingText(null);
+  };
+
+  const seekToTimecode = (timecodeSec: number | null, annotation: PortalFeedbackItem["annotationData"]): void => {
     const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
     kinescopeRef.current?.seekTo(target);
-    kinescopeRef.current?.play();
+    kinescopeRef.current?.pause();
+
+    if (annotation && isValidAnnotationData(annotation)) {
+      setActiveAnnotation(annotation);
+    } else {
+      setActiveAnnotation(null);
+    }
+    setAnnotationMode(false);
   };
 
   const approveVersion = async (): Promise<void> => {
@@ -344,256 +372,391 @@ export default function ClientPortalPage(): JSX.Element {
     }
   };
 
-  const showOrientationDebug = searchParams.get("debugOrientation") === "1";
-  const effectiveLandscapeMode = manualLandscapeMode ?? isMobileLandscape;
-  const showLandscapeToggle = isLikelyMobileDevice || showOrientationDebug;
+  const submitFeedback = async (event: React.FormEvent): Promise<void> => {
+    event.preventDefault();
+    if (!activeVersion) {
+      return;
+    }
+
+    setSubmitting(true);
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+    const payload: Record<string, unknown> = {
+      assetVersionId: activeVersion.id,
+      authorType: "CLIENT",
+      authorName: "Client",
+      text: commentText,
+      timecodeSec: capturedTimecodeSec ?? undefined,
+    };
+
+    if (annotationShapes.length > 0) {
+      payload.annotationData = { version: 1, shapes: annotationShapes } satisfies AnnotationData;
+    }
+
+    try {
+      const response = await fetch("/api/public/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const json = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(json?.error || "Failed to submit feedback");
+      }
+
+      setCommentText("");
+      setCapturedTimecodeSec(null);
+      setAnnotationMode(false);
+      setAnnotationShapes([]);
+      setActiveAnnotation(null);
+      setDrawingState(null);
+      setPendingText(null);
+      toast.success(m.feedback.submitSuccess);
+      await mutate();
+    } catch (submitError) {
+      const errorName =
+        typeof submitError === "object" && submitError !== null && "name" in submitError
+          ? String((submitError as { name?: unknown }).name)
+          : "";
+      const isAbort = errorName === "AbortError";
+      if (isAbort) {
+        toast.error("Request timeout. Please try again.");
+      } else {
+        toast.error(submitError instanceof Error ? submitError.message : m.feedback.submitError);
+      }
+    } finally {
+      window.clearTimeout(timeout);
+      setSubmitting(false);
+    }
+  };
+
+  const overlayVisible = annotationMode || activeAnnotation !== null;
+  const overlayAnnotation = annotationMode ? { version: 1, shapes: annotationShapes } : activeAnnotation;
+  const previewShape = drawingState;
+
+  const renderShape = (shape: AnnotationShape, index: number): JSX.Element | null => {
+    switch (shape.type) {
+      case "rect":
+        return (
+          <rect
+            key={`rect-${index}`}
+            x={shape.x}
+            y={shape.y}
+            width={shape.w}
+            height={shape.h}
+            fill="rgba(16, 185, 129, 0.12)"
+            stroke="#10b981"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+        );
+      case "arrow":
+        return (
+          <line
+            key={`arrow-${index}`}
+            x1={shape.x1}
+            y1={shape.y1}
+            x2={shape.x2}
+            y2={shape.y2}
+            stroke="#38bdf8"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+            markerEnd="url(#arrowhead)"
+          />
+        );
+      case "text":
+        return (
+          <text key={`text-${index}`} x={shape.x} y={shape.y} fill="#f8fafc" fontSize="0.04" fontWeight={600}>
+            {shape.text}
+          </text>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
-    <main className={cn("portal-landscape-page min-h-screen px-3 py-4 sm:px-6 sm:py-8", pageBackground, effectiveLandscapeMode && "portal-mobile-landscape")}>
-      {showOrientationDebug ? (
-        <div className="fixed bottom-2 left-2 z-[120] rounded-lg bg-black/85 px-2.5 py-1.5 text-[11px] leading-tight text-white">
-          land:{String(isMobileLandscape)} manual:{String(manualLandscapeMode)} effective:{String(effectiveLandscapeMode)} m:
-          {String(orientationDebug.mediaLandscape)} s:{String(orientationDebug.screenLandscape)} v:
-          {String(orientationDebug.viewportLandscape)} vv:{String(orientationDebug.visualViewportLandscape)} mobile:
-          {String(orientationDebug.isLikelyMobile)} {orientationDebug.width}x{orientationDebug.height} vv:{Math.round(orientationDebug.vvWidth)}x
-          {Math.round(orientationDebug.vvHeight)}
-        </div>
-      ) : null}
-      {showLandscapeToggle ? (
-        <button
-          type="button"
-          onClick={() =>
-            setManualLandscapeMode((prev) => {
-              const next = !(prev ?? isMobileLandscape);
-              return next;
-            })
-          }
-          className="fixed right-2 top-2 z-[120] rounded-full border border-white/35 bg-black/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur"
-        >
-          Landscape: {effectiveLandscapeMode ? "ON" : "OFF"}
-        </button>
-      ) : null}
-      <section className="portal-landscape-grid mx-auto max-w-5xl space-y-4 sm:space-y-6">
-        <Card className={cn(shellCardClass, "portal-main-card")}>
-          <CardHeader className="space-y-3 pb-3">
-            <CardTitle className={`text-2xl font-semibold tracking-tight sm:text-3xl ${titleClass}`}>{data.project.name}</CardTitle>
-            {data.versions.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {data.versions.map((version) => (
-                  <button
-                    key={version.id}
-                    type="button"
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm",
-                      version.id === activeVersion?.id
-                        ? "border-[color:var(--app-brand)] bg-[color:var(--app-brand)]/15 text-[color:var(--app-text)]"
-                        : "border-[color:var(--app-border)] bg-[var(--app-surface-soft)] text-[color:var(--app-text-muted)] hover:text-[color:var(--app-text)]",
-                    )}
-                    onClick={() => selectVersion(version.id)}
-                  >
-                    Version {version.versionNumber}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className={`text-sm ${mutedTextClass}`}>No versions uploaded yet.</p>
+    <main className="min-h-screen bg-[#1a1a1a] text-white">
+      <header className="sticky top-0 z-30 h-12 border-b border-white/10 bg-[#111111]">
+        <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-white">{data.project.name}</span>
+            <span className="text-xs text-white/60">Версия {activeVersion?.versionNumber ?? "—"}</span>
+          </div>
+          <Button
+            onClick={() => setApproveDialogOpen(true)}
+            disabled={isVersionLocked || !activeVersion}
+            className={cn(
+              "h-8 rounded-full px-4 text-xs font-semibold",
+              isVersionLocked
+                ? "bg-white/10 text-white/50"
+                : "bg-emerald-500 text-white hover:bg-emerald-400",
             )}
-            {activeVersion ? (
-              <p className={`text-xs sm:text-sm ${mutedTextClass}`}>
-                Version {activeVersion.versionNumber}: {activeVersion.fileName}
-              </p>
-            ) : null}
-          </CardHeader>
-          <CardContent className="portal-main-content space-y-4">
-            {!activeVersion ? (
-              <p className={`text-sm ${mutedTextClass}`}>This project has no uploaded versions yet.</p>
-            ) : (
-              <>
-                <div className="portal-player-shell overflow-hidden rounded-3xl border border-white/70 bg-black/95 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:p-2">
-                  <KinescopePlayer
-                    ref={kinescopeRef}
-                    className="w-full"
-                    videoId={activeVersion.kinescopeVideoId}
-                    videoUrl={safeVideoUrl}
-                    onReady={() => setPlayerReady(true)}
-                    onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
-                    onPlay={() => setPlayerReady(true)}
+          >
+            {isVersionLocked ? m.portal.approved : "Утвердить версию"}
+          </Button>
+        </div>
+      </header>
+
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 pb-6 pt-4 lg:min-h-[calc(100vh-3rem)] lg:flex-row">
+        <section className="flex w-full flex-col gap-4 lg:w-[70%]">
+          {data.versions.length > 1 ? (
+            <div className="flex items-center gap-2 text-xs text-white/60">
+              <span>Версия</span>
+              <select
+                value={activeVersion?.id ?? ""}
+                onChange={(event) => selectVersion(event.target.value)}
+                className="rounded-md border border-white/10 bg-[#111111] px-2 py-1 text-xs text-white"
+              >
+                {data.versions.map((version) => (
+                  <option key={version.id} value={version.id}>
+                    V{version.versionNumber}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black">
+            <KinescopePlayer
+              ref={kinescopeRef}
+              className="w-full"
+              videoId={activeVersion?.kinescopeVideoId}
+              videoUrl={safeVideoUrl}
+              onReady={() => setPlayerReady(true)}
+              onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
+              onPlay={() => {
+                setPlayerReady(true);
+                if (!annotationMode) {
+                  setActiveAnnotation(null);
+                }
+              }}
+            />
+
+            <div
+              ref={overlayRef}
+              className={cn("absolute inset-0 z-20", overlayVisible ? "pointer-events-auto" : "pointer-events-none")}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={() => drawingState && setDrawingState(null)}
+              onPointerCancel={() => drawingState && setDrawingState(null)}
+              onClick={handleOverlayClick}
+            >
+              {overlayVisible ? (
+                <svg viewBox="0 0 1 1" className="h-full w-full">
+                  <defs>
+                    <marker
+                      id="arrowhead"
+                      markerWidth="6"
+                      markerHeight="6"
+                      refX="5"
+                      refY="3"
+                      orient="auto"
+                      markerUnits="strokeWidth"
+                    >
+                      <path d="M0,0 L6,3 L0,6 Z" fill="#38bdf8" />
+                    </marker>
+                  </defs>
+                  {overlayAnnotation?.shapes.map((shape, index) => renderShape(shape, index))}
+                  {previewShape?.tool === "arrow" ? (
+                    <line
+                      x1={previewShape.startX}
+                      y1={previewShape.startY}
+                      x2={previewShape.endX}
+                      y2={previewShape.endY}
+                      stroke="#38bdf8"
+                      strokeWidth={2}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ) : null}
+                  {previewShape?.tool === "rect" ? (
+                    <rect
+                      x={Math.min(previewShape.startX, previewShape.endX)}
+                      y={Math.min(previewShape.startY, previewShape.endY)}
+                      width={Math.abs(previewShape.endX - previewShape.startX)}
+                      height={Math.abs(previewShape.endY - previewShape.startY)}
+                      fill="rgba(16, 185, 129, 0.12)"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ) : null}
+                </svg>
+              ) : null}
+
+              {annotationMode ? (
+                <div className="absolute left-3 top-3 z-30 flex items-center gap-2 rounded-full border border-white/10 bg-black/70 px-2 py-1 text-xs">
+                  {([
+                    { key: "arrow", label: "Стрелка" },
+                    { key: "rect", label: "Прямоуг" },
+                    { key: "text", label: "Текст" },
+                  ] as const).map((tool) => (
+                    <button
+                      key={tool.key}
+                      type="button"
+                      onClick={() => setAnnotationTool(tool.key)}
+                      className={cn(
+                        "rounded-full px-3 py-1 text-[11px] font-semibold",
+                        annotationTool === tool.key
+                          ? "bg-white text-black"
+                          : "bg-white/10 text-white/70 hover:text-white",
+                      )}
+                    >
+                      {tool.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {annotationMode ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAnnotationMode(false);
+                    setAnnotationShapes([]);
+                    setDrawingState(null);
+                    setPendingText(null);
+                  }}
+                  className="absolute right-3 top-3 z-30 rounded-full border border-white/10 bg-black/70 px-3 py-1 text-xs text-white/80 hover:text-white"
+                >
+                  Отменить
+                </button>
+              ) : activeAnnotation ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveAnnotation(null)}
+                  className="absolute right-3 top-3 z-30 rounded-full border border-white/10 bg-black/70 px-3 py-1 text-xs text-white/80 hover:text-white"
+                >
+                  Скрыть
+                </button>
+              ) : null}
+
+              {pendingText && annotationMode ? (
+                <div
+                  className="absolute z-40 rounded-md border border-white/10 bg-black/80 p-2"
+                  style={{ left: `${pendingText.x * 100}%`, top: `${pendingText.y * 100}%` }}
+                >
+                  <input
+                    autoFocus
+                    value={pendingText.value}
+                    onChange={(event) => setPendingText({ ...pendingText, value: event.target.value })}
+                    onBlur={confirmTextShape}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        confirmTextShape();
+                      }
+                      if (event.key === "Escape") {
+                        setPendingText(null);
+                      }
+                    }}
+                    placeholder="Текст"
+                    className="w-40 rounded bg-black/60 px-2 py-1 text-xs text-white outline-none"
                   />
                 </div>
-                <div className={inputCardClass}>
-                  <span className={`text-sm font-medium ${titleClass}`}>
-                    {capturedTimecodeSec !== null
-                      ? `${m.portal.selectedTime}: ${formatTimecode(capturedTimecodeSec)}`
-                      : `${m.portal.currentTime}: ${formatTimecode(playerCurrentTimeSec)}`}
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      onClick={captureCurrentTimecode}
-                      type="button"
-                      disabled={!playerReady || isVersionLocked}
-                      className="h-11 rounded-full bg-[#007AFF] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(0,122,255,0.35)] hover:bg-[#0A84FF]"
-                    >
-                      {m.portal.addFeedbackAtCurrentTime}
-                    </Button>
-                    <Button
-                      onClick={() => setApproveDialogOpen(true)}
-                      type="button"
-                      variant={isVersionLocked ? "outline" : "default"}
-                      disabled={isVersionLocked}
-                      className="h-11 rounded-full px-5 text-sm font-semibold"
-                    >
-                      {isVersionLocked ? m.portal.approved : m.portal.approveVersion}
-                    </Button>
-                  </div>
-                </div>
-                {activeVersion.processingStatus !== "READY" ? (
-                  <p className={`text-xs ${mutedTextClass}`}>
-                    {activeVersion.processingStatus === "FAILED"
-                      ? "Kinescope processing failed for this version."
-                      : "Kinescope is still processing this video. Playback may be temporarily unavailable."}
-                  </p>
-                ) : null}
-                {isVersionLocked && <p className={`text-sm ${mutedTextClass}`}>{m.portal.approvalLocked}</p>}
-              </>
-            )}
-          </CardContent>
-        </Card>
+              ) : null}
+            </div>
+          </div>
 
-        <Card className={cn(shellCardClass, "portal-feedback-card")}>
-          <CardHeader>
-            <CardTitle className={`text-xl font-semibold tracking-tight ${titleClass}`}>{m.portal.leaveFeedback}</CardTitle>
-          </CardHeader>
-          <CardContent className="portal-feedback-content">
-            {activeVersion ? (
-              <FeedbackForm
-                capturedTimecodeSec={capturedTimecodeSec}
-                versionId={activeVersion.id}
-                disabled={isVersionLocked}
-                disabledReason={isVersionLocked ? m.portal.approvalLocked : undefined}
-                onSubmitted={() => {
-                  setCapturedTimecodeSec(null);
-                  void mutate();
-                }}
-              />
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#111111] px-4 py-3">
+            <div className="text-sm text-white/70">
+              Текущее время: <span className="font-semibold text-white">{formatTimecode(playerCurrentTimeSec)}</span>
+              {capturedTimecodeSec !== null ? (
+                <span className="ml-2 text-xs text-emerald-400">Выбрано: {formatTimecode(capturedTimecodeSec)}</span>
+              ) : null}
+            </div>
+            <Button
+              onClick={startAnnotationMode}
+              type="button"
+              disabled={!playerReady || isVersionLocked}
+              className="h-9 rounded-full bg-[#007AFF] px-4 text-xs font-semibold text-white hover:bg-[#0A84FF]"
+            >
+              Добавить правку
+            </Button>
+          </div>
+
+          {activeVersion?.processingStatus !== "READY" ? (
+            <p className="text-xs text-white/50">
+              {activeVersion.processingStatus === "FAILED"
+                ? "Kinescope processing failed for this version."
+                : "Kinescope is still processing this video. Playback may be temporarily unavailable."}
+            </p>
+          ) : null}
+          {isVersionLocked && <p className="text-xs text-white/40">{m.portal.approvalLocked}</p>}
+        </section>
+
+        <aside className="flex w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111111] lg:h-[calc(100vh-4.5rem)] lg:w-[30%]">
+          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            <div className="text-sm font-semibold text-white/80">Комментарии</div>
+            {data.feedback.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-white/50">
+                Правок пока нет
+              </div>
             ) : (
-              <p className={`text-sm ${mutedTextClass}`}>Feedback is available after the first version upload.</p>
+              data.feedback
+                .filter((item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text))
+                .map((item) => (
+                  <article key={item.id} className="rounded-xl border border-white/10 bg-black/30 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-white/80">{item.authorName}</span>
+                      <button
+                        type="button"
+                        onClick={() => seekToTimecode(item.timecodeSec, item.annotationData)}
+                        className="rounded-full bg-blue-500/10 px-2 py-1 text-[11px] font-semibold text-blue-300 hover:text-blue-200"
+                      >
+                        {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                      </button>
+                    </div>
+                    <p className="text-sm leading-relaxed text-white/80">{item.text}</p>
+                  </article>
+                ))
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className={cn(shellCardClass, "portal-history-card")}>
-          <CardHeader>
-            <CardTitle className={`text-xl font-semibold tracking-tight ${titleClass}`}>{m.portal.recentFeedback}</CardTitle>
-          </CardHeader>
-          <CardContent className="portal-history-content space-y-3">
-            {data.feedback.length === 0 && <p className={`text-sm ${mutedTextClass}`}>{m.portal.noFeedback}</p>}
-            {data.feedback
-              .filter((item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text))
-              .map((item) => (
-                <article key={item.id} className={feedbackItemClass}>
-                  <div className={`mb-2 flex flex-wrap items-center gap-2 text-xs ${mutedTextClass}`}>
-                    <span className={`font-medium ${titleClass}`}>{item.authorName}</span>
-                    <button
-                      type="button"
-                      onClick={() => seekToTimecode(item.timecodeSec)}
-                      className="rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-soft)] px-2.5 text-[11px] text-blue-600"
-                    >
-                      {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "No timecode"}
-                    </button>
-                  </div>
-                  <p className={`text-sm leading-relaxed ${cardTextClass}`}>{item.text}</p>
-                </article>
-              ))}
-          </CardContent>
-        </Card>
+          <form onSubmit={submitFeedback} className="border-t border-white/10 bg-black/40 p-4">
+            <label className="mb-2 block text-xs text-white/60">Добавить правку</label>
+            <textarea
+              ref={textAreaRef}
+              rows={4}
+              required
+              disabled={isVersionLocked}
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              placeholder="Опишите правку..."
+              className="mb-3 w-full resize-none rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white/20"
+            />
+            <Button
+              type="submit"
+              disabled={submitting || isVersionLocked || commentText.trim().length === 0}
+              className="w-full rounded-full bg-white text-sm font-semibold text-black hover:bg-white/90"
+            >
+              {submitting ? m.feedback.submitting : "Отправить"}
+            </Button>
+          </form>
+        </aside>
+      </div>
 
-        <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{m.portal.approveDialogTitle}</DialogTitle>
-              <DialogDescription>{m.portal.approveDialogDescription}</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setApproveDialogOpen(false)} disabled={approving}>
-                {m.portal.cancel}
-              </Button>
-              <Button onClick={approveVersion} disabled={approving || !activeVersion}>
-                {approving ? "..." : m.portal.approveConfirm}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </section>
-      <style jsx global>{`
-        .portal-landscape-page.portal-mobile-landscape {
-            min-height: 100dvh;
-            padding: 0.75rem;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-landscape-grid {
-            max-width: none;
-            height: calc(100dvh - 1.5rem);
-            margin: 0;
-            display: grid;
-            grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-            grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-            gap: 0.75rem;
-            align-items: stretch;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-main-card,
-        .portal-landscape-page.portal-mobile-landscape .portal-feedback-card,
-        .portal-landscape-page.portal-mobile-landscape .portal-history-card {
-            margin: 0;
-            height: 100%;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-main-card {
-            grid-column: 1;
-            grid-row: 1 / span 2;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-main-content,
-        .portal-landscape-page.portal-mobile-landscape .portal-feedback-content,
-        .portal-landscape-page.portal-mobile-landscape .portal-history-content {
-            min-height: 0;
-            overflow: auto;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-player-shell {
-            max-height: 52dvh;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-player-shell .aspect-video {
-            max-height: 50dvh;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-feedback-card {
-            grid-column: 2;
-            grid-row: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-history-card {
-            grid-column: 2;
-            grid-row: 2;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-main-card .portal-main-content {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .portal-landscape-page.portal-mobile-landscape .portal-main-card .portal-main-content > .portal-player-shell {
-            flex: 0 0 auto;
-        }
-      `}</style>
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{m.portal.approveDialogTitle}</DialogTitle>
+            <DialogDescription>{m.portal.approveDialogDescription}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)} disabled={approving}>
+              {m.portal.cancel}
+            </Button>
+            <Button onClick={approveVersion} disabled={approving || !activeVersion}>
+              {approving ? "..." : m.portal.approveConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
+

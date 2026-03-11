@@ -12,6 +12,7 @@ const createPublicFeedbackSchema = z.object({
   timecodeSec: z.number().int().nonnegative().optional(),
   text: z.string().min(1).max(5000),
   category: z.nativeEnum(FeedbackCategory).optional(),
+  annotationData: z.unknown().optional(),
 });
 
 export async function POST(request: Request): Promise<Response> {
@@ -52,6 +53,7 @@ export async function POST(request: Request): Promise<Response> {
         timecodeSec: payload.timecodeSec ?? null,
         text: payload.text,
         category: payload.category ?? null,
+        annotationData: payload.annotationData ?? null,
         status: FeedbackStatus.NEW,
       },
       select: {
@@ -63,6 +65,7 @@ export async function POST(request: Request): Promise<Response> {
         timecodeSec: true,
         text: true,
         category: true,
+        annotationData: true,
         status: true,
         createdAt: true,
         updatedAt: true,

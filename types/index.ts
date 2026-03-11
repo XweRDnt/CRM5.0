@@ -149,8 +149,19 @@ export type FeedbackItem = {
   status: FeedbackStatus;
   timecodeSec?: number | null;
   category?: FeedbackCategory | null;
+  annotationData?: AnnotationData | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type AnnotationShape =
+  | { type: "rect"; x: number; y: number; w: number; h: number }
+  | { type: "arrow"; x1: number; y1: number; x2: number; y2: number }
+  | { type: "text"; x: number; y: number; text: string };
+
+export type AnnotationData = {
+  version: 1;
+  shapes: AnnotationShape[];
 };
 
 export type AITask = {
@@ -434,6 +445,7 @@ export interface CreateFeedbackInput {
   timecodeSec?: number;
   text: string;
   category?: FeedbackCategory;
+  annotationData?: AnnotationData | null;
 }
 
 export interface FeedbackResponse {
@@ -449,6 +461,7 @@ export interface FeedbackResponse {
   text: string;
   category: FeedbackCategory | null;
   status: FeedbackStatus;
+  annotationData?: AnnotationData | null;
   createdAt: Date;
   updatedAt: Date;
 }
