@@ -211,7 +211,7 @@ export default function ProjectDetailPage(): JSX.Element {
   };
 
   const handleDeleteProject = async (): Promise<void> => {
-    const confirmed = window.confirm("РЈРґР°Р»РёС‚СЊ РїСЂРѕРµРєС‚? Р’СЃРµ РІРµСЂСЃРёРё Рё РєРѕРјРјРµРЅС‚Р°СЂРёРё Р±СѓРґСѓС‚ СѓРґР°Р»РµРЅС‹.");
+    const confirmed = window.confirm("Удалить проект? Все версии и комментарии будут удалены.");
     if (!confirmed) {
       return;
     }
@@ -219,16 +219,16 @@ export default function ProjectDetailPage(): JSX.Element {
     setDeletingProject(true);
     try {
       await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
-      toast.success("РџСЂРѕРµРєС‚ СѓРґР°Р»С‘РЅ");
+      toast.success("Проект удалён");
       router.replace("/projects");
     } catch {
-      toast.error("РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РїСЂРѕРµРєС‚");
+      toast.error("Не удалось удалить проект");
     } finally {
       setDeletingProject(false);
     }
   };
   const handleDeleteVersion = async (versionId: string, versionNumber: number): Promise<void> => {
-    const confirmed = window.confirm(`Удалить версию ${versionNumber}? Все правки будут удалены.`);
+    const confirmed = window.confirm(`Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ Р Р†Р ВµРЎР‚РЎРѓР С‘РЎР‹ ${versionNumber}? Р вЂ™РЎРѓР Вµ Р С—РЎР‚Р В°Р Р†Р С”Р С‘ Р В±РЎС“Р Т‘РЎС“РЎвЂљ РЎС“Р Т‘Р В°Р В»Р ВµР Р…РЎвЂ№.`);
     if (!confirmed) {
       return;
     }
@@ -245,9 +245,9 @@ export default function ProjectDetailPage(): JSX.Element {
         return wrapped ? ({ data: remaining } as ApiWrapped<AssetVersionResponse[]>) : (remaining as ApiWrapped<AssetVersionResponse[]>);
       }, { revalidate: true });
       await mutateFeedback(undefined, { revalidate: true });
-      toast.success("Версия удалена");
+      toast.success("Проект удалён");
     } catch {
-      toast.error("Не удалось удалить версию");
+      toast.error("Не удалось удалить проект");
     }
   };
 
@@ -315,13 +315,11 @@ export default function ProjectDetailPage(): JSX.Element {
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button variant="outline" onClick={handleCopyPublicLink} disabled={!portalToken} className="w-full sm:w-auto">
-              РџСѓР±Р»РёС‡РЅР°СЏ СЃСЃС‹Р»РєР°
-            </Button>
+            <Button variant="outline" onClick={handleCopyPublicLink} disabled={!portalToken} className="w-full sm:w-auto">Публичная ссылка</Button>
             <Button variant="outline" onClick={handleResetPublicLink} disabled={resettingPortalLink} className="w-full sm:w-auto">
               {resettingPortalLink ? "Reset..." : "Reset link"}
             </Button>
-            <VersionUploadDialog projectId={projectId} triggerText="+ Р”РѕР±Р°РІРёС‚СЊ РІРµСЂСЃРёСЋ" triggerClassName="w-full sm:w-auto" />
+            <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" triggerClassName="w-full sm:w-auto" />
             {isOwnerOrPm && (
               <Button
                 variant="destructive"
@@ -329,7 +327,7 @@ export default function ProjectDetailPage(): JSX.Element {
                 disabled={deletingProject}
                 className="w-full sm:w-auto"
               >
-                {deletingProject ? "Удаление..." : "Удалить проект"}
+                {deletingProject ? "Р Р€Р Т‘Р В°Р В»Р ВµР Р…Р С‘Р Вµ..." : "Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ Р С—РЎР‚Р С•Р ВµР С”РЎвЂљ"}
               </Button>
             )}
           </div>
@@ -340,21 +338,19 @@ export default function ProjectDetailPage(): JSX.Element {
         <section>
           <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
             <CardContent className="space-y-4 p-4 sm:p-5">
-              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">РЈС‡Р°СЃС‚РЅРёРєРё РїСЂРѕРµРєС‚Р°</h2>
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Участники проекта</h2>
               <div className="space-y-2">
                 {(projectMembers ?? []).length === 0 ? (
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">РџРѕРєР° РЅРµС‚ РЅР°Р·РЅР°С‡РµРЅРЅС‹С… СЂРµРґР°РєС‚РѕСЂРѕРІ.</p>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">Пока нет назначенных редакторов.</p>
                 ) : (
                   projectMembers.map((member) => (
                     <div key={member.userId} className="flex items-center justify-between rounded-lg border border-neutral-200 p-2.5 dark:border-neutral-700">
                       <div>
-                        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                          {member.firstName} {member.lastName}
-                        </p>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Добавить редакторов</p>
                         <p className="text-xs text-neutral-600 dark:text-neutral-400">{member.email}</p>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => void handleRemoveEditor(member.userId)}>
-                        РЈРґР°Р»РёС‚СЊ
+                        Р В Р в‚¬Р В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰
                       </Button>
                     </div>
                   ))
@@ -362,7 +358,7 @@ export default function ProjectDetailPage(): JSX.Element {
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Р”РѕР±Р°РІРёС‚СЊ СЂРµРґР°РєС‚РѕСЂРѕРІ</p>
+                <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Добавить редакторов</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {teamEditors.map((editor) => (
                     <label
@@ -380,9 +376,7 @@ export default function ProjectDetailPage(): JSX.Element {
                     </label>
                   ))}
                 </div>
-                <Button onClick={() => void handleAddEditors()} className="w-full sm:w-auto">
-                  Р”РѕР±Р°РІРёС‚СЊ РІ РїСЂРѕРµРєС‚
-                </Button>
+                <Button onClick={() => void handleAddEditors()} className="w-full sm:w-auto">Добавить в проект</Button>
               </div>
             </CardContent>
           </Card>
@@ -400,7 +394,7 @@ export default function ProjectDetailPage(): JSX.Element {
           </Card>
         ) : versions.length === 0 ? (
           <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
-            <CardContent className="py-8 text-sm text-neutral-600 dark:text-neutral-400">РџРѕРєР° РЅРµС‚ Р·Р°РіСЂСѓР¶РµРЅРЅС‹С… РІРµСЂСЃРёР№.</CardContent>
+            <CardContent className="py-8 text-sm text-neutral-600 dark:text-neutral-400">Пока нет загруженных версий.</CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -427,7 +421,7 @@ export default function ProjectDetailPage(): JSX.Element {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex min-w-0 flex-col gap-2">
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                            <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">Р’РµСЂСЃРёСЏ {version.versionNumber}</p>
+                            <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">Версия {version.versionNumber}</p>
                             <span
                               className={cn(
                                 "inline-flex rounded-full border px-2.5 py-1 text-xs font-medium",
@@ -439,9 +433,9 @@ export default function ProjectDetailPage(): JSX.Element {
                             </span>
                           </div>
                           <p className={cn("text-sm", hasNewFeedback ? "text-red-700 dark:text-red-300" : "text-neutral-600 dark:text-neutral-400")}>
-                            {hasNewFeedback ? `${stats.newClient} РЅРѕРІС‹С… РїСЂР°РІРѕРє РѕС‚ РєР»РёРµРЅС‚Р°` : `${stats.totalClient} РїСЂР°РІРѕРє`}
+                            {hasNewFeedback ? `${stats.newClient} новых правок от клиента` : `${stats.totalClient} правок`}
                           </p>
-                          <p className="text-xs text-neutral-600 dark:text-neutral-500">Р—Р°РіСЂСѓР·РёР»: {version.uploadedBy.name}</p>
+                          <p className="text-xs text-neutral-600 dark:text-neutral-500">Загрузил: {version.uploadedBy.name}</p>
                         </div>
 
                         <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:flex-col sm:items-end">                          {isOwnerOrPm && (
@@ -454,7 +448,7 @@ export default function ProjectDetailPage(): JSX.Element {
                                 void handleDeleteVersion(version.id, version.versionNumber);
                               }}
                             >
-                              Удалить
+                              Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ
                             </Button>
                           )}
                           <span className="text-xs text-neutral-600 dark:text-neutral-500">{formatVersionDate(version.createdAt)}</span>
