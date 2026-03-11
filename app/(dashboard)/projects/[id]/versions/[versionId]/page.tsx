@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import useSWR from "swr";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";

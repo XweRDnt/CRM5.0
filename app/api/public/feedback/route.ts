@@ -1,4 +1,4 @@
-import { AuthorType, FeedbackCategory, FeedbackStatus } from "@prisma/client";
+import { AuthorType, FeedbackCategory, FeedbackStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { getTelegramNotificationService } from "@/lib/services/telegram-notification.service";
 import { prisma } from "@/lib/utils/db";
@@ -53,7 +53,7 @@ export async function POST(request: Request): Promise<Response> {
         timecodeSec: payload.timecodeSec ?? null,
         text: payload.text,
         category: payload.category ?? null,
-        annotationData: payload.annotationData ?? null,
+        annotationData: payload.annotationData ?? Prisma.DbNull,
         status: FeedbackStatus.NEW,
       },
       select: {
