@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import Link from "next/link";
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import type { ProjectStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
@@ -114,6 +114,8 @@ export default function ProjectDetailPage(): JSX.Element {
   const [appTheme, setAppTheme] = useState<AppTheme>("light");
   const [resettingPortalLink, setResettingPortalLink] = useState(false);
   const [selectedEditorIds, setSelectedEditorIds] = useState<string[]>([]);
+  const [deletingProject, setDeletingProject] = useState(false);
+  const router = useRouter();
 
   const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
   const { data: versionsResponse, isLoading: versionsLoading } = useSWR(
@@ -208,6 +210,24 @@ export default function ProjectDetailPage(): JSX.Element {
     }
   };
 
+  const handleDeleteProject = async (): Promise<void> => {
+    const confirmed = window.confirm("Удалить проект? Все версии и комментарии будут удалены.");
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingProject(true);
+    try {
+      await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
+      toast.success("Проект удалён");
+      router.replace("/projects");
+    } catch {
+      toast.error("Не удалось удалить проект");
+    } finally {
+      setDeletingProject(false);
+    }
+  };
+
   const handleToggleEditor = (editorId: string): void => {
     setSelectedEditorIds((current) => (current.includes(editorId) ? current.filter((id) => id !== editorId) : [...current, editorId]));
   };
@@ -279,6 +299,16 @@ export default function ProjectDetailPage(): JSX.Element {
               {resettingPortalLink ? "Reset..." : "Reset link"}
             </Button>
             <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" triggerClassName="w-full sm:w-auto" />
+            {isOwnerOrPm && (
+              <Button
+                variant="destructive"
+                onClick={() => void handleDeleteProject()}
+                disabled={deletingProject}
+                className="w-full sm:w-auto"
+              >
+                {deletingProject ? "��������..." : "������� ������"}
+              </Button>
+            )}
           </div>
         </div>
       </section>

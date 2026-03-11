@@ -404,8 +404,32 @@ export class AssetService {
     return this.mapAssetVersionResponse(updated);
   }
 
-  async deleteVersion(_context: ServiceContext, _input?: unknown): Promise<unknown> {
-    throw new Error("Not implemented");
+  async deleteVersion(context: ServiceContext, input: { projectId: string; versionId: string }): Promise<void> {
+    const { tenantId } = context;
+    const { projectId, versionId } = input;
+
+    if (!tenantId) {
+      throw new Error("Tenant id is required");
+    }
+
+    const version = await this.prismaClient.assetVersion.findFirst({
+      where: {
+        id: versionId,
+        projectId,
+        project: {
+          tenantId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!version) {
+      throw new Error("Asset version not found");
+    }
+
+    await this.prismaClient.assetVersion.delete({
+      where: { id: versionId },
+    });
   }
   async generateThumbnail(_context: ServiceContext, _input?: unknown): Promise<unknown> {
     throw new Error("Not implemented");

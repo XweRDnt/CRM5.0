@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
@@ -118,10 +118,11 @@ function copyToClipboard(text: string): Promise<void> {
 export default function VersionDetailPage(): JSX.Element {
   const params = useParams<{ id: string; versionId: string }>();
   const { id: projectId, versionId } = params;
+  const router = useRouter();
   const kinescopeRef = useRef<KinescopePlayerRef>(null);
 
   const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
-  const { data: versionsResponse, isLoading: versionsLoading } = useSWR(
+  const { data: versionsResponse, isLoading: versionsLoading, mutate: mutateVersions } = useSWR(
     `/api/projects/${projectId}/versions`,
     apiFetch<ApiWrapped<AssetVersionResponse[]>>,
   );
@@ -140,6 +141,7 @@ export default function VersionDetailPage(): JSX.Element {
   const [pendingFeedbackId, setPendingFeedbackId] = useState<string | null>(null);
   const [appTheme, setAppTheme] = useState<AppTheme>("light");
   const [resettingPortalLink, setResettingPortalLink] = useState(false);
+  const [deletingVersion, setDeletingVersion] = useState(false);
 
     useEffect(() => {
     if (typeof document === "undefined") {
@@ -258,6 +260,52 @@ export default function VersionDetailPage(): JSX.Element {
     }
   };
 
+  const handleDeleteVersion = async (): Promise<void> => {
+    if (!activeVersion) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Удалить версию ${activeVersion.versionNumber}? Все правки будут удалены.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingVersion(true);
+    try {
+      await apiFetch(`/api/projects/${projectId}/versions/${activeVersion.id}`, {
+        method: "DELETE",
+      });
+
+      await mutateVersions(
+        async (previous) => {
+          const isWrapped = previous !== null && typeof previous === "object" && "data" in (previous as Record<string, unknown>);
+          const current = previous ? unwrap(previous as ApiWrapped<AssetVersionResponse[]>) : [];
+          const remaining = current.filter((item) => item.id !== activeVersion.id);
+
+          if (remaining.length === 0) {
+            router.replace(`/projects/${projectId}`);
+          } else {
+            const fallback = remaining[remaining.length - 1];
+            setActiveVersionId(fallback.id);
+          }
+
+          if (!previous) {
+            return remaining as ApiWrapped<AssetVersionResponse[]>;
+          }
+
+          return isWrapped ? ({ data: remaining } as ApiWrapped<AssetVersionResponse[]>) : (remaining as ApiWrapped<AssetVersionResponse[]>);
+        },
+        { revalidate: true },
+      );
+
+      toast.success("Версия удалена");
+    } catch {
+      toast.error("Не удалось удалить версию");
+    } finally {
+      setDeletingVersion(false);
+    }
+  };
+
   if (projectLoading || versionsLoading || !project) {
     return (
       <Card>
@@ -301,6 +349,9 @@ export default function VersionDetailPage(): JSX.Element {
             </Button>
             <Button variant="outline" onClick={handleResetPublicLink} disabled={resettingPortalLink} className="w-full sm:w-auto">
               {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
+            </Button>
+            <Button variant="destructive" onClick={() => void handleDeleteVersion()} disabled={deletingVersion} className="w-full sm:w-auto">
+              {deletingVersion ? "Удаление..." : "Удалить версию"}
             </Button>
           </div>
         </div>
