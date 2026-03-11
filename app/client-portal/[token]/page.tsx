@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { cn } from "@/lib/utils/cn";
@@ -110,6 +111,7 @@ export default function ClientPortalPage(): JSX.Element {
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [authorName, setAuthorName] = useState("");
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [annotationMode, setAnnotationMode] = useState(false);
@@ -218,11 +220,6 @@ export default function ClientPortalPage(): JSX.Element {
     const kinescopeTime = await readKinescopeTimeSafe();
     const directTime = Math.max(0, Math.floor(Number.isFinite(kinescopeTime) ? kinescopeTime : 0));
     const normalized = Math.max(directTime, lastKnownTimeRef.current, playerCurrentTimeSec);
-    if (normalized === 0) {
-      toast.error(m.portal.playBeforeCapture);
-      return;
-    }
-
     setCapturedTimecodeSec(normalized);
     setAnnotationMode(true);
     setAnnotationShapes([]);
@@ -231,7 +228,7 @@ export default function ClientPortalPage(): JSX.Element {
     setPendingText(null);
   };
 
-  const getOverlayPoint = (event: React.PointerEvent): { x: number; y: number } | null => {
+  const getOverlayPoint = (event: React.PointerEvent | React.MouseEvent<HTMLDivElement>): { x: number; y: number } | null => {
     const rect = overlayRef.current?.getBoundingClientRect();
     if (!rect || rect.width === 0 || rect.height === 0) {
       return null;
@@ -308,7 +305,7 @@ export default function ClientPortalPage(): JSX.Element {
     finalizeShape({ ...drawingState, endX: point.x, endY: point.y });
   };
 
-  const handleOverlayClick = (event: React.PointerEvent): void => {
+  const handleOverlayClick = (event: React.MouseEvent<HTMLDivElement>): void => {
     if (!annotationMode || annotationTool !== "text") {
       return;
     }
@@ -385,7 +382,7 @@ export default function ClientPortalPage(): JSX.Element {
     const payload: Record<string, unknown> = {
       assetVersionId: activeVersion.id,
       authorType: "CLIENT",
-      authorName: "Client",
+      authorName: authorName.trim(),
       text: commentText,
       timecodeSec: capturedTimecodeSec ?? undefined,
     };
@@ -719,6 +716,14 @@ export default function ClientPortalPage(): JSX.Element {
 
           <form onSubmit={submitFeedback} className="border-t border-white/10 bg-black/40 p-4">
             <label className="mb-2 block text-xs text-white/60">Добавить правку</label>
+            <Input
+              value={authorName}
+              onChange={(event) => setAuthorName(event.target.value)}
+              placeholder="Ваше имя"
+              required
+              disabled={isVersionLocked}
+              className="mb-3 h-9 rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white/20"
+            />
             <textarea
               ref={textAreaRef}
               rows={4}
@@ -731,7 +736,7 @@ export default function ClientPortalPage(): JSX.Element {
             />
             <Button
               type="submit"
-              disabled={submitting || isVersionLocked || commentText.trim().length === 0}
+              disabled={submitting || isVersionLocked || commentText.trim().length === 0 || authorName.trim().length === 0}
               className="w-full rounded-full bg-white text-sm font-semibold text-black hover:bg-white/90"
             >
               {submitting ? m.feedback.submitting : "Отправить"}
