@@ -40,7 +40,13 @@ function mapProjectToVersionUiStatus(projectStatus: ProjectStatus): VersionUiSta
   return "DRAFT";
 }
 
-export function ProjectCard({ project }: { project: ProjectResponse }): JSX.Element {
+type ProjectCardProps = {
+  project: ProjectResponse;
+  canDelete?: boolean;
+  onDelete?: (projectId: string, projectName: string) => void;
+};
+
+export function ProjectCard({ project, canDelete = false, onDelete }: ProjectCardProps): JSX.Element {
   const [appTheme, setAppTheme] = useState<AppTheme>("light");
   const { data: versionsResponse } = useSWR(`/api/projects/${project.id}/versions`, apiFetch<ApiWrapped<AssetVersionResponse[]>>);
   const { data: feedback = [] } = useSWR(`/api/projects/${project.id}/feedback`, apiFetch<FeedbackResponse[]>);
@@ -91,7 +97,11 @@ export function ProjectCard({ project }: { project: ProjectResponse }): JSX.Elem
       </CardHeader>
       <CardContent className="flex items-center justify-between">
         <span className="text-sm text-neutral-600 dark:text-neutral-500">–°–æ–∑–¥–∞–Ω: {new Date(project.createdAt).toLocaleDateString("ru-RU")}</span>
-        <Button asChild size="sm">
+                {canDelete && (
+          <Button variant="destructive" size="sm" onClick={() => onDelete?.(project.id, project.name)}>
+            ”‰‡ÎËÚ¸
+          </Button>
+        )}<Button asChild size="sm">
           <Link href={`/projects/${project.id}`}>–û—Ç–∫—Ä—ã—Ç—å</Link>
         </Button>
       </CardContent>

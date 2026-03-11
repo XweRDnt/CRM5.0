@@ -6,6 +6,7 @@ import { AlertCircle } from "lucide-react";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "@/components/ui/toast";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import type { ProjectResponse } from "@/types";
@@ -29,9 +30,25 @@ function ProjectGridSkeleton(): JSX.Element {
 }
 
 export default function ProjectsPage(): JSX.Element {
-  const { data: projects, error, isLoading } = useSWR("/api/projects", fetcher);
+  const { data: projects, error, isLoading, mutate } = useSWR("/api/projects", fetcher);
   const { user } = useAuthGuard();
   const isEditor = user?.role === "EDITOR";
+  const canDelete = user?.role === "OWNER" || user?.role === "PM";
+
+  const handleDeleteProject = async (projectId: string, projectName: string): Promise<void> => {
+    const confirmed = window.confirm(`Удалить проект "${projectName}"? Все версии и комментарии будут удалены.`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
+      await mutate((prev) => (prev ?? []).filter((project) => project.id !== projectId), { revalidate: true });
+      toast.success("Проект удалён");
+    } catch {
+      toast.error("Не удалось удалить проект");
+    }
+  };
 
   return (
     <section className="space-y-6">
@@ -67,7 +84,12 @@ export default function ProjectsPage(): JSX.Element {
       {!isLoading && !error && (projects?.length ?? 0) > 0 && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projects?.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              canDelete={canDelete}
+              onDelete={(id, name) => void handleDeleteProject(id, name)}
+            />
           ))}
         </div>
       )}
