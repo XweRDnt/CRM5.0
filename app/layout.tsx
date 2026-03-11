@@ -7,8 +7,8 @@ import { DomMutationGuard } from "@/components/system/DomMutationGuard";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Video CRM MVP",
-  description: "Minimal CRM UI for video projects",
+  title: "VideoFeedback MVP",
+  description: "Minimal VideoFeedback UI for video projects",
 };
 
 export default async function RootLayout({

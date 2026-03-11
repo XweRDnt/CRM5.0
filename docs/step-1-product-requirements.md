@@ -1,4 +1,4 @@
-# ШАГ 1. Product Requirements Document (MVP) для AI-CRM в нише video editing agencies
+# ШАГ 1. Product Requirements Document (MVP) для AI-VideoFeedback в нише video editing agencies
 
 Дата: 13 февраля 2026  
 Горизонт MVP: 4-8 недель
@@ -11,18 +11,18 @@
 | Хаос правок: комментарии в чатах/почте без таймкодов, разрозненные каналы | Reddit (VideoEditors, Videography) + практики review tools | Потери времени на ручную агрегацию, задержки согласований |
 | Бесконечные/размытые ревизии и scope creep | Reddit (editors/videography) | Съедает маржу, конфликты с клиентами |
 | Долгие апдейты статусов и "work about work" | Asana research: большой % времени уходит на координацию вместо core-work | PM перегружен операционкой |
-| Инструменты фрагментированы (PM отдельно, review отдельно, CRM отдельно) | Capterra/G2 отзывы + позиционирование Yamdu/Frame.io/StudioBinder/Flow | Перекладывание данных вручную, ошибки |
+| Инструменты фрагментированы (PM отдельно, review отдельно, VideoFeedback отдельно) | Capterra/G2 отзывы + позиционирование Yamdu/Frame.io/StudioBinder/Flow | Перекладывание данных вручную, ошибки |
 | Рост стоимости при масштабировании команды | Capterra/G2 (monday/StudioBinder и др.) | Низкая юнит-экономика для малых студий |
 
-### 1.2 Что уже есть на рынке (CRM/production tools)
+### 1.2 Что уже есть на рынке (VideoFeedback/production tools)
 | Продукт | Что делает хорошо | Ограничения/разрывы для video agencies |
 |---|---|---|
-| Frame.io | Сильный review/approval, комментарии по кадрам, sharing/security, Camera-to-Cloud | Не полноценный CRM для лидов/сделок/биллинга; отзывы о storage lock-in и поддержке |
+| Frame.io | Сильный review/approval, комментарии по кадрам, sharing/security, Camera-to-Cloud | Не полноценный VideoFeedback для лидов/сделок/биллинга; отзывы о storage lock-in и поддержке |
 | StudioBinder | Pre-production: call sheets, schedule, stripboard | По отзывам: learning curve, UX/поддержка/цена для small teams |
-| Yamdu | Единая production-платформа (script breakdown, call sheets, calendars) | Больше про production ops, чем про клиентский CRM + unit-экономику small agency |
+| Yamdu | Единая production-платформа (script breakdown, call sheets, calendars) | Больше про production ops, чем про клиентский VideoFeedback + unit-экономику small agency |
 | Autodesk Flow Production Tracking (ShotGrid) | Мощный tracking, ресурсы, review, enterprise-подход | Часто "overkill" и дорогой/сложный вход для 5-20 человек |
-| monday.com (часто адаптируют как agency CRM/PM) | Гибкие борды, автоматизации, интеграции | Отзывы: clutter, manual data entry, лаги на больших досках, стоимость по мере роста |
-| Studio Ninja / Dubsado (photo/video SMB CRM) | Лиды, бронирование, инвойсы, workflows | Слабее в видеоспецифичном review/versioning и AI-оркестрации правок |
+| monday.com (часто адаптируют как agency VideoFeedback/PM) | Гибкие борды, автоматизации, интеграции | Отзывы: clutter, manual data entry, лаги на больших досках, стоимость по мере роста |
+| Studio Ninja / Dubsado (photo/video SMB VideoFeedback) | Лиды, бронирование, инвойсы, workflows | Слабее в видеоспецифичном review/versioning и AI-оркестрации правок |
 
 ### 1.3 Рутинные задачи PM, которые "съедают" время
 1. Сбор правок из email/чатов/голосовых сообщений в единый action list.
@@ -45,7 +45,7 @@
 ### Core Value Proposition
 - Главная проблема: неуправляемый цикл "фидбек -> правки -> согласование".
 - Почему платят: прямой финансовый эффект (меньше неоплаченных правок, быстрее финальный approve, выше пропускная способность PM).
-- Уникальность: **CRM + review + AI scope guard** в одном потоке, а не набор разрозненных инструментов.
+- Уникальность: **VideoFeedback + review + AI scope guard** в одном потоке, а не набор разрозненных инструментов.
 
 ### Целевая аудитория (MVP)
 - Primary user: Project Manager / Account Manager.
@@ -125,7 +125,7 @@
 | Frontend | Next.js (React, TypeScript) | Быстрое fullstack-развертывание, SSR/edge, зрелая экосистема |
 | Backend API | Next.js Route Handlers + background workers (Node) | Меньше операционной сложности на MVP |
 | Очереди/async | Redis + BullMQ | Обработка AI-задач и webhook-джоб |
-| БД | PostgreSQL | Реляционные связи CRM/проекты/версии/комментарии, надежно и масштабируемо |
+| БД | PostgreSQL | Реляционные связи VideoFeedback/проекты/версии/комментарии, надежно и масштабируемо |
 | Файлы | S3-compatible storage (AWS S3 или Cloudflare R2) | Дешевое хранение медиа, signed URLs |
 | AI/ML | OpenAI API (LLM + speech-to-text), резервно Anthropic/OpenRouter | Быстрый запуск без обучения своих моделей |
 | Хостинг | Vercel (web/api) + managed Postgres + managed Redis | Минимум DevOps на старте, быстрый релиз |

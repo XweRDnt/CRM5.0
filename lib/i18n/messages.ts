@@ -1,4 +1,4 @@
-type Locale = "ru" | "en";
+﻿type Locale = "ru" | "en";
 
 type Messages = {
   appName: string;
@@ -55,7 +55,7 @@ type Messages = {
 
 const messages: Record<Locale, Messages> = {
   ru: {
-    appName: "Видео CRM",
+    appName: "VideoFeedback",
     nav: {
       projects: "Проекты",
       clients: "Клиенты",
@@ -107,7 +107,7 @@ const messages: Record<Locale, Messages> = {
     },
   },
   en: {
-    appName: "Video CRM",
+    appName: "VideoFeedback",
     nav: {
       projects: "Projects",
       clients: "Clients",

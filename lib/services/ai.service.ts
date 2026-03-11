@@ -550,7 +550,7 @@ ${existingTasks && existingTasks.length > 0 ? `Уже согласованные
   }
 
   private buildParseFeedbackSystemPrompt(): string {
-    return `You are an AI assistant for a video editing agency CRM.
+    return `You are an AI assistant for a video editing agency VideoFeedback.
 Your task is to analyze client feedback and extract actionable tasks for video editors.
 
 Guidelines:

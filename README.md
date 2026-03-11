@@ -1,6 +1,6 @@
-﻿# AI CRM MVP Skeleton
+# AI VideoFeedback MVP Skeleton
 
-This repository contains the implementation-ready scaffold for an AI CRM SaaS for video editing agencies.
+This repository contains the implementation-ready scaffold for an AI VideoFeedback SaaS for video editing agencies.
 
 ## Status
 - Step 1 PRD is documented.
@@ -38,7 +38,7 @@ Every service method takes `ServiceContext` with `tenantId`.
 1. Start infrastructure:
    - `docker compose up -d postgres redis`
 2. Ensure `DATABASE_URL` points to local Postgres.
-   - Default expected value: `postgresql://postgres:postgres@localhost:5432/video_crm?schema=public`
+   - Default expected value: `postgresql://postgres:postgres@localhost:5432/video_VideoFeedback?schema=public`
 3. Apply migrations:
    - `npm run prisma:test:migrate`
 4. (Optional) Telegram notifications for public feedback/approval:
