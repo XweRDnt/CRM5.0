@@ -97,9 +97,9 @@ export function ProjectCard({ project, canDelete = false, onDelete }: ProjectCar
       </CardHeader>
       <CardContent className="flex items-center justify-between">
         <span className="text-sm text-neutral-600 dark:text-neutral-500">Создан: {new Date(project.createdAt).toLocaleDateString("ru-RU")}</span>
-                {canDelete && (
+        {canDelete && (
           <Button variant="destructive" size="sm" onClick={() => onDelete?.(project.id, project.name)}>
-            Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ
+            Удалить
           </Button>
         )}<Button asChild size="sm">
           <Link href={`/projects/${project.id}`}>Открыть</Link>

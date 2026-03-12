@@ -241,7 +241,7 @@ export default function ProjectDetailPage(): JSX.Element {
     }
   };
   const handleDeleteVersion = async (versionId: string, versionNumber: number): Promise<void> => {
-    const confirmed = window.confirm(`Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ Р Р†Р ВµРЎР‚РЎРѓР С‘РЎР‹ ${versionNumber}? Р вЂ™РЎРѓР Вµ Р С—РЎР‚Р В°Р Р†Р С”Р С‘ Р В±РЎС“Р Т‘РЎС“РЎвЂљ РЎС“Р Т‘Р В°Р В»Р ВµР Р…РЎвЂ№.`);
+    const confirmed = window.confirm(`Удалить версию ${versionNumber}? Все правки будут удалены.`);
     if (!confirmed) {
       return;
     }
@@ -341,7 +341,7 @@ export default function ProjectDetailPage(): JSX.Element {
                 disabled={deletingProject}
                 className="w-full sm:w-auto"
               >
-                {deletingProject ? "Р Р€Р Т‘Р В°Р В»Р ВµР Р…Р С‘Р Вµ..." : "Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ Р С—РЎР‚Р С•Р ВµР С”РЎвЂљ"}
+                {deletingProject ? "Удаление..." : "Удалить проект"}
               </Button>
             )}
           </div>
@@ -364,7 +364,7 @@ export default function ProjectDetailPage(): JSX.Element {
                         <p className="text-xs text-neutral-600 dark:text-neutral-400">{member.email}</p>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => void handleRemoveEditor(member.userId)}>
-                        Р В Р в‚¬Р В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰
+                        Удалить
                       </Button>
                     </div>
                   ))
@@ -462,7 +462,7 @@ export default function ProjectDetailPage(): JSX.Element {
                                 void handleDeleteVersion(version.id, version.versionNumber);
                               }}
                             >
-                              Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ
+                              Удалить
                             </Button>
                           )}
                           <span className="text-xs text-neutral-600 dark:text-neutral-500">{formatVersionDate(version.createdAt)}</span>
