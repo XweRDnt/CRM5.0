@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
 import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
+import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
 import {
@@ -120,6 +121,8 @@ export default function VersionDetailPage(): JSX.Element {
   const { id: projectId, versionId } = params;
   const router = useRouter();
   const kinescopeRef = useRef<KinescopePlayerRef>(null);
+  const { user } = useAuthGuard();
+  const isOwnerOrPm = user?.role === "OWNER" || user?.role === "PM";
 
   const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
   const { data: versionsResponse, isLoading: versionsLoading, mutate: mutateVersions } = useSWR(
@@ -245,6 +248,18 @@ export default function VersionDetailPage(): JSX.Element {
     }
   };
 
+  const handleOpenPublicLink = (): void => {
+    if (!project?.portalToken) {
+      return;
+    }
+
+    const url = createPublicPortalLink(project.portalToken);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      window.location.assign(url);
+    }
+  };
+
   const handleResetPublicLink = async (): Promise<void> => {
     setResettingPortalLink(true);
     try {
@@ -347,12 +362,17 @@ export default function VersionDetailPage(): JSX.Element {
             <Button variant="outline" onClick={handleCopyPublicLink} className="w-full sm:w-auto">
               Публичная ссылка
             </Button>
+            <Button variant="outline" onClick={handleOpenPublicLink} disabled={!project?.portalToken} className="w-full sm:w-auto">
+              Открыть портал
+            </Button>
             <Button variant="outline" onClick={handleResetPublicLink} disabled={resettingPortalLink} className="w-full sm:w-auto">
               {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
             </Button>
-            <Button variant="destructive" onClick={() => void handleDeleteVersion()} disabled={deletingVersion} className="w-full sm:w-auto">
-              {deletingVersion ? "Удаление..." : "Удалить версию"}
-            </Button>
+            {isOwnerOrPm && (
+              <Button variant="destructive" onClick={() => void handleDeleteVersion()} disabled={deletingVersion} className="w-full sm:w-auto">
+                {deletingVersion ? "Удаление..." : "Удалить версию"}
+              </Button>
+            )}
           </div>
         </div>
 

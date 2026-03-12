@@ -195,6 +195,19 @@ export default function ProjectDetailPage(): JSX.Element {
     }
   };
 
+  const handleOpenPublicLink = (): void => {
+    if (!portalToken) {
+      toast.error("Failed to resolve public portal link");
+      return;
+    }
+
+    const url = createPublicPortalLink(portalToken);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      window.location.assign(url);
+    }
+  };
+
   const handleResetPublicLink = async (): Promise<void> => {
     setResettingPortalLink(true);
     try {
@@ -245,9 +258,9 @@ export default function ProjectDetailPage(): JSX.Element {
         return wrapped ? ({ data: remaining } as ApiWrapped<AssetVersionResponse[]>) : (remaining as ApiWrapped<AssetVersionResponse[]>);
       }, { revalidate: true });
       await mutateFeedback(undefined, { revalidate: true });
-      toast.success("Проект удалён");
+      toast.success("Версия удалена");
     } catch {
-      toast.error("Не удалось удалить проект");
+      toast.error("Не удалось удалить версию");
     }
   };
 
@@ -316,6 +329,7 @@ export default function ProjectDetailPage(): JSX.Element {
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <Button variant="outline" onClick={handleCopyPublicLink} disabled={!portalToken} className="w-full sm:w-auto">Публичная ссылка</Button>
+            <Button variant="outline" onClick={handleOpenPublicLink} disabled={!portalToken} className="w-full sm:w-auto">Открыть портал</Button>
             <Button variant="outline" onClick={handleResetPublicLink} disabled={resettingPortalLink} className="w-full sm:w-auto">
               {resettingPortalLink ? "Reset..." : "Reset link"}
             </Button>
