@@ -1,8 +1,17 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { VideoProvider } from "@prisma/client";
 import { ClientService } from "@/lib/services/client.service";
 import { ProjectService } from "@/lib/services/project.service";
 import { prisma } from "@/lib/utils/db";
 import { ProjectStatus } from "@/types";
+
+const deleteVideoMock = vi.fn();
+
+vi.mock("@/lib/services/kinescope.service", () => ({
+  getKinescopeService: () => ({
+    deleteVideo: deleteVideoMock,
+  }),
+}));
 
 describe("ProjectService.createProject", () => {
   let clientService: ClientService;
@@ -380,5 +389,151 @@ describe("ProjectService.listProjects", () => {
 
   it("should fail when tenantId is empty", async () => {
     await expect(projectService.listProjects("")).rejects.toThrow("tenantId is required");
+  });
+});
+
+describe("ProjectService.deleteProject", () => {
+  let clientService: ClientService;
+  let projectService: ProjectService;
+
+  async function createTestTenant(slug: string) {
+    return prisma.tenant.create({
+      data: {
+        name: `Tenant ${slug}`,
+        slug: `${slug}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      },
+    });
+  }
+
+  beforeEach(async () => {
+    deleteVideoMock.mockReset();
+    await prisma.assetVersion.deleteMany();
+    await prisma.project.deleteMany();
+    await prisma.clientAccount.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.tenant.deleteMany();
+    clientService = new ClientService();
+    projectService = new ProjectService();
+  });
+
+  it("deletes kinescope videos before removing project", async () => {
+    const tenant = await createTestTenant("agency-delete-1");
+    const user = await prisma.user.create({
+      data: {
+        tenantId: tenant.id,
+        role: "OWNER",
+        firstName: "Owner",
+        lastName: "User",
+        email: "owner-delete@test.com",
+      },
+    });
+    const client = await clientService.createClient({
+      tenantId: tenant.id,
+      name: "Client",
+      email: "client-delete@test.com",
+    });
+    const project = await projectService.createProject({
+      tenantId: tenant.id,
+      name: "Project",
+      clientId: client.id,
+    });
+
+    await prisma.assetVersion.createMany({
+      data: [
+        {
+          projectId: project.id,
+          versionNo: 1,
+          fileUrl: "https://kinescope.io/video_a",
+          fileKey: "kinescope/video_a",
+          fileName: "v1.mp4",
+          fileSize: 1000,
+          uploadedByUserId: user.id,
+          uploadedByLegacy: user.id,
+          videoProvider: VideoProvider.KINESCOPE,
+          kinescopeVideoId: "video_a",
+        },
+        {
+          projectId: project.id,
+          versionNo: 2,
+          fileUrl: "https://kinescope.io/video_b",
+          fileKey: "kinescope/video_b",
+          fileName: "v2.mp4",
+          fileSize: 1000,
+          uploadedByUserId: user.id,
+          uploadedByLegacy: user.id,
+          videoProvider: VideoProvider.KINESCOPE,
+          kinescopeVideoId: "video_b",
+        },
+        {
+          projectId: project.id,
+          versionNo: 3,
+          fileUrl: "https://s3.amazonaws.com/video.mp4",
+          fileKey: "manual/video.mp4",
+          fileName: "v3.mp4",
+          fileSize: 1000,
+          uploadedByUserId: user.id,
+          uploadedByLegacy: user.id,
+          videoProvider: VideoProvider.EXTERNAL_URL,
+        },
+      ],
+    });
+
+    deleteVideoMock.mockResolvedValue(undefined);
+
+    await projectService.deleteProject({ tenantId: tenant.id }, { projectId: project.id });
+
+    expect(deleteVideoMock).toHaveBeenCalledTimes(2);
+    expect(deleteVideoMock).toHaveBeenCalledWith("video_a");
+    expect(deleteVideoMock).toHaveBeenCalledWith("video_b");
+    const remaining = await prisma.project.findUnique({ where: { id: project.id } });
+    expect(remaining).toBeNull();
+  });
+
+  it("logs errors and still deletes project", async () => {
+    const tenant = await createTestTenant("agency-delete-2");
+    const user = await prisma.user.create({
+      data: {
+        tenantId: tenant.id,
+        role: "OWNER",
+        firstName: "Owner",
+        lastName: "User",
+        email: "owner-delete2@test.com",
+      },
+    });
+    const client = await clientService.createClient({
+      tenantId: tenant.id,
+      name: "Client",
+      email: "client-delete2@test.com",
+    });
+    const project = await projectService.createProject({
+      tenantId: tenant.id,
+      name: "Project",
+      clientId: client.id,
+    });
+
+    await prisma.assetVersion.create({
+      data: {
+        projectId: project.id,
+        versionNo: 1,
+        fileUrl: "https://kinescope.io/video_err",
+        fileKey: "kinescope/video_err",
+        fileName: "v1.mp4",
+        fileSize: 1000,
+        uploadedByUserId: user.id,
+        uploadedByLegacy: user.id,
+        videoProvider: VideoProvider.KINESCOPE,
+        kinescopeVideoId: "video_err",
+      },
+    });
+
+    deleteVideoMock.mockRejectedValueOnce(new Error("boom"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await projectService.deleteProject({ tenantId: tenant.id }, { projectId: project.id });
+
+    expect(consoleSpy).toHaveBeenCalled();
+    const remaining = await prisma.project.findUnique({ where: { id: project.id } });
+    expect(remaining).toBeNull();
+    consoleSpy.mockRestore();
   });
 });

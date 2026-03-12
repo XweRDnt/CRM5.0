@@ -1,6 +1,7 @@
-import { ProjectStatus as PrismaProjectStatus } from "@prisma/client";
+import { ProjectStatus as PrismaProjectStatus, VideoProvider } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
 import { WorkflowService } from "@/lib/services/workflow.service";
+import { getKinescopeService } from "@/lib/services/kinescope.service";
 import { generatePortalProjectToken } from "@/lib/utils/portal-token";
 import { ProjectStatus } from "@/types";
 import type { JWTPayload } from "@/types";
@@ -251,8 +252,73 @@ export class ProjectService {
     throw new Error("Not implemented");
   }
 
-  async deleteProject(_context: ServiceContext, _input?: unknown): Promise<unknown> {
-    throw new Error("Not implemented");
+  async deleteProject(context: ServiceContext, input: { projectId: string; user?: JWTPayload }): Promise<void> {
+    const tenantId = context.tenantId?.trim();
+    const projectId = input.projectId?.trim();
+
+    if (!tenantId) {
+      throw new Error("tenantId is required");
+    }
+    if (!projectId) {
+      throw new Error("projectId is required");
+    }
+
+    const accessWhere = input.user ? buildAccessibleProjectsWhere(input.user) : { tenantId };
+
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        ...accessWhere,
+      },
+      select: { id: true },
+    });
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    const versions = await prisma.assetVersion.findMany({
+      where: {
+        projectId,
+        videoProvider: VideoProvider.KINESCOPE,
+        kinescopeVideoId: { not: null },
+        project: {
+          tenantId,
+        },
+      },
+      select: {
+        id: true,
+        kinescopeVideoId: true,
+      },
+    });
+
+    for (const version of versions) {
+      if (!version.kinescopeVideoId) {
+        continue;
+      }
+
+      try {
+        await getKinescopeService().deleteVideo(version.kinescopeVideoId);
+      } catch (error) {
+        console.error("Failed to delete Kinescope video for project", {
+          projectId,
+          versionId: version.id,
+          kinescopeVideoId: version.kinescopeVideoId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    const deleted = await prisma.project.deleteMany({
+      where: {
+        id: projectId,
+        ...accessWhere,
+      },
+    });
+
+    if (deleted.count === 0) {
+      throw new Error("Project not found");
+    }
   }
 
   async updateStatus(_context: ServiceContext, _input?: unknown): Promise<unknown> {

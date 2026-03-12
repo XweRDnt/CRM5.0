@@ -3,7 +3,6 @@ import { ProjectStatus } from "@prisma/client";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
 import { projectService } from "@/lib/services/project.service";
 import { assertOwnerOrPm, buildAccessibleProjectsWhere } from "@/lib/services/access-control.service";
-import { prisma } from "@/lib/utils/db";
 import { APIError, handleAPIError } from "@/lib/utils/api-error";
 
 const paramsSchema = z.object({
@@ -78,13 +77,10 @@ export const DELETE = withAuth(async (req: AuthenticatedRequest, context: { para
     const tenantId = req.user.tenantId;
     const { id } = paramsSchema.parse(await context.params);
 
-    const deleted = await prisma.project.deleteMany({
-      where: { id, ...buildAccessibleProjectsWhere(req.user) },
-    });
-
-    if (deleted.count === 0) {
-      throw new APIError(404, "Project not found", "NOT_FOUND");
-    }
+    await projectService.deleteProject(
+      { tenantId, userId: req.user.userId, role: req.user.role },
+      { projectId: id, user: req.user },
+    );
 
     return Response.json({ success: true }, { status: 200 });
   } catch (error) {
