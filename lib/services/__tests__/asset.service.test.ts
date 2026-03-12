@@ -1,7 +1,15 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { UserRole } from "@prisma/client";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { UserRole, VideoProvider } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
 import { AssetService, VersionConflictError } from "@/lib/services/asset.service";
+
+const deleteVideoMock = vi.fn();
+
+vi.mock("@/lib/services/kinescope.service", () => ({
+  getKinescopeService: () => ({
+    deleteVideo: deleteVideoMock,
+  }),
+}));
 
 async function createTenant(slugPrefix: string) {
   return prisma.tenant.create({
@@ -538,5 +546,78 @@ describe("AssetService.approveVersion", () => {
 
     expect(secondApprove.status).toBe("APPROVED");
     expect(secondApprove.approvedAt?.toISOString()).toBe(firstApprove.approvedAt?.toISOString());
+  });
+});
+
+describe("AssetService.deleteVersion", () => {
+  let assetService: AssetService;
+
+  beforeEach(async () => {
+    await cleanup();
+    deleteVideoMock.mockReset();
+    assetService = new AssetService();
+  });
+
+  it("deletes kinescope video before removing version", async () => {
+    const tenant = await createTenant("agency-asset-delete-1");
+    const user = await createUser(tenant.id, "user-delete@test.com");
+    const client = await createClient(tenant.id, "client-delete@test.com");
+    const project = await createProject(tenant.id, client.id, "Project");
+
+    const version = await prisma.assetVersion.create({
+      data: {
+        projectId: project.id,
+        versionNo: 1,
+        fileUrl: "https://kinescope.io/video_del_1",
+        fileKey: "kinescope/video_del_1",
+        fileName: "v1.mp4",
+        fileSize: 1000,
+        uploadedByUserId: user.id,
+        uploadedByLegacy: user.id,
+        videoProvider: VideoProvider.KINESCOPE,
+        kinescopeVideoId: "video_del_1",
+      },
+    });
+
+    deleteVideoMock.mockResolvedValue(undefined);
+
+    await assetService.deleteVersion(
+      { tenantId: tenant.id, userId: user.id, role: UserRole.PM },
+      { projectId: project.id, versionId: version.id },
+    );
+
+    expect(deleteVideoMock).toHaveBeenCalledWith("video_del_1");
+    const remaining = await prisma.assetVersion.findUnique({ where: { id: version.id } });
+    expect(remaining).toBeNull();
+  });
+
+  it("skips kinescope delete when version is non-kinescope", async () => {
+    const tenant = await createTenant("agency-asset-delete-2");
+    const user = await createUser(tenant.id, "user-delete2@test.com");
+    const client = await createClient(tenant.id, "client-delete2@test.com");
+    const project = await createProject(tenant.id, client.id, "Project");
+
+    const version = await prisma.assetVersion.create({
+      data: {
+        projectId: project.id,
+        versionNo: 1,
+        fileUrl: "https://s3.amazonaws.com/video.mp4",
+        fileKey: "manual/video.mp4",
+        fileName: "v1.mp4",
+        fileSize: 1000,
+        uploadedByUserId: user.id,
+        uploadedByLegacy: user.id,
+        videoProvider: VideoProvider.EXTERNAL_URL,
+      },
+    });
+
+    await assetService.deleteVersion(
+      { tenantId: tenant.id, userId: user.id, role: UserRole.PM },
+      { projectId: project.id, versionId: version.id },
+    );
+
+    expect(deleteVideoMock).not.toHaveBeenCalled();
+    const remaining = await prisma.assetVersion.findUnique({ where: { id: version.id } });
+    expect(remaining).toBeNull();
   });
 });

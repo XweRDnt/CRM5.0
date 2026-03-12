@@ -384,6 +384,17 @@ export class KinescopeService {
     return `${host.replace(/\/+$/, "")}/${videoId}`;
   }
 
+  async deleteVideo(kinescopeVideoId: string): Promise<void> {
+    this.ensureApiTokenConfigured();
+    if (!kinescopeVideoId || !kinescopeVideoId.trim()) {
+      throw new Error("kinescopeVideoId is required");
+    }
+
+    await this.requestVoid(`/videos/${kinescopeVideoId}`, {
+      method: "DELETE",
+    });
+  }
+
   private async assertProjectInTenant(tenantId: string, projectId: string): Promise<void> {
     const project = await this.prismaClient.project.findFirst({
       where: { id: projectId, tenantId },
@@ -598,6 +609,23 @@ export class KinescopeService {
     }
 
     return (await response.json()) as T;
+  }
+
+  private async requestVoid(path: string, init: RequestInit): Promise<void> {
+    const response = await fetch(`${this.baseUrl}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiToken}`,
+        ...(init.headers ?? {}),
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Kinescope API request failed (${response.status}): ${body || response.statusText}`);
+    }
   }
 
   private async requestUploader<T>(path: string, init: RequestInit): Promise<T> {

@@ -1,5 +1,6 @@
 import { Prisma, VersionStatus, VideoProcessingStatus, VideoProvider, type PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
+import { getKinescopeService } from "@/lib/services/kinescope.service";
 import type { AssetVersionResponse, CreateVersionInput, ServiceContext } from "@/types";
 
 type VersionListContext = {
@@ -420,11 +421,15 @@ export class AssetService {
           tenantId,
         },
       },
-      select: { id: true },
+      select: { id: true, kinescopeVideoId: true, videoProvider: true },
     });
 
     if (!version) {
       throw new Error("Asset version not found");
+    }
+
+    if (version.videoProvider === VideoProvider.KINESCOPE && version.kinescopeVideoId) {
+      await getKinescopeService().deleteVideo(version.kinescopeVideoId);
     }
 
     await this.prismaClient.assetVersion.delete({
