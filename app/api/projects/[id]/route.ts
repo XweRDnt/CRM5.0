@@ -3,6 +3,7 @@ import { ProjectStatus } from "@prisma/client";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
 import { projectService } from "@/lib/services/project.service";
 import { assertOwnerOrPm, buildAccessibleProjectsWhere } from "@/lib/services/access-control.service";
+import { prisma } from "@/lib/utils/db";
 import { APIError, handleAPIError } from "@/lib/utils/api-error";
 
 const paramsSchema = z.object({
