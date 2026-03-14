@@ -16,6 +16,7 @@ import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { normalizeClientPoint } from "@/lib/annotations/coords";
 import { getPlaybackAction, stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
+import { getDrawingSurfaceClass } from "@/lib/annotations/overlay";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
 
 const SUBMIT_TIMEOUT_MS = 15000;
@@ -862,34 +863,36 @@ export default function ClientPortalPage(): JSX.Element {
               onPause={() => setIsPlayerPlaying(false)}
             />
 
-            <div
-              ref={overlayRef}
-              className={cn("absolute inset-0 z-20", overlayVisible ? "pointer-events-auto" : "pointer-events-none")}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerLeave={() => drawingState && setDrawingState(null)}
-              onPointerCancel={() => drawingState && setDrawingState(null)}
-              onClick={handleOverlayClick}
-            >
-              {overlayVisible ? (
-                <svg {...getOverlaySvgProps()} className="h-full w-full">
-                  <defs>
-                    <marker
-                      id="arrowhead"
-                      markerWidth="6"
-                      markerHeight="6"
-                      refX="5"
-                      refY="3"
-                      orient="auto"
-                      markerUnits="strokeWidth"
-                    >
-                      <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
-                    </marker>
-                  </defs>
-                  {overlayStrokes.map((stroke, index) => renderStroke(stroke, index))}
-                </svg>
-              ) : null}
+            <div className="pointer-events-none absolute inset-0 z-20">
+              <div
+                ref={overlayRef}
+                className={cn(getDrawingSurfaceClass(annotationMode), overlayVisible ? "" : "pointer-events-none")}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={() => drawingState && setDrawingState(null)}
+                onPointerCancel={() => drawingState && setDrawingState(null)}
+                onClick={handleOverlayClick}
+              >
+                {overlayVisible ? (
+                  <svg {...getOverlaySvgProps()} className="h-full w-full">
+                    <defs>
+                      <marker
+                        id="arrowhead"
+                        markerWidth="6"
+                        markerHeight="6"
+                        refX="5"
+                        refY="3"
+                        orient="auto"
+                        markerUnits="strokeWidth"
+                      >
+                        <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
+                      </marker>
+                    </defs>
+                    {overlayStrokes.map((stroke, index) => renderStroke(stroke, index))}
+                  </svg>
+                ) : null}
+              </div>
 
               {annotationMode ? (
                 <div
