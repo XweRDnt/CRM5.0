@@ -1,4 +1,4 @@
-﻿-- Create billing enums
+-- Create billing enums
 CREATE TYPE "BillingPlanCode" AS ENUM ('FREE', 'START', 'GROWTH', 'BUSINESS');
 CREATE TYPE "WorkspaceSubscriptionStatus" AS ENUM ('ACTIVE', 'PAUSED', 'CANCELLED');
 CREATE TYPE "WorkspaceBillingCycle" AS ENUM ('CALENDAR_MONTH');
