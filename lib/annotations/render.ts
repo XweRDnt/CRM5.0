@@ -14,9 +14,9 @@ const COLOR_MAP: Record<AnnotationColor, string> = {
 };
 
 const THICKNESS_MAP: Record<AnnotationThickness, number> = {
-  thin: 0.003,
-  medium: 0.006,
-  thick: 0.01,
+  thin: 3,
+  medium: 6,
+  thick: 12,
 };
 
 const resolveStyle = (stroke: AnnotationStroke): StrokeStyle => ({
