@@ -14,7 +14,9 @@ import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
 import { strokeToSvg } from "@/lib/annotations/render";
+import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { validateAnnotationData } from "@/lib/annotations/validation";
+import { getAnnotationPlaybackPolicy } from "@/lib/annotations/behavior";
 import {
   EDITOR_FEEDBACK_STATUSES,
   FEEDBACK_STATUS_LABELS,
@@ -282,6 +284,7 @@ export default function VersionDetailPage(): JSX.Element {
   const hasClientFeedback = versionFeedback.length > 0;
   const versionUiStatus = activeVersion ? toVersionUiStatus(activeVersion.status, hasClientFeedback) : "DRAFT";
   const isActiveVersionApproved = versionUiStatus === "APPROVED";
+  const playbackPolicy = getAnnotationPlaybackPolicy();
   const overlayStrokes = activeAnnotation?.strokes ?? [];
   const renderStroke = (stroke: AnnotationStroke, index: number): JSX.Element => (
     <g key={`stroke-${index}`} dangerouslySetInnerHTML={{ __html: strokeToSvg(stroke) }} />
@@ -290,7 +293,9 @@ export default function VersionDetailPage(): JSX.Element {
   const seekToTimecode = (timecodeSec: number | null, annotation: FeedbackResponse["annotationData"]): void => {
     const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
     kinescopeRef.current?.seekTo(target);
-    kinescopeRef.current?.play();
+    if (playbackPolicy.pauseOnCommentSelect) {
+      kinescopeRef.current?.pause();
+    }
     setActiveAnnotation(normalizeAnnotationData(annotation));
   };
 
@@ -509,10 +514,15 @@ export default function VersionDetailPage(): JSX.Element {
                   className="w-full"
                   videoId={activeVersion.kinescopeVideoId}
                   videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
+                  onPlay={() => {
+                    if (playbackPolicy.hideOnPlay) {
+                      setActiveAnnotation(null);
+                    }
+                  }}
                 />
                 {overlayStrokes.length > 0 ? (
                   <div className="pointer-events-none absolute inset-0">
-                    <svg viewBox="0 0 1 1" className="h-full w-full">
+                    <svg {...getOverlaySvgProps()} className="h-full w-full">
                       <defs>
                         <marker
                           id="arrowhead"
