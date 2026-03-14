@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/utils/db";
 import { addParseFeedbackJob } from "@/lib/jobs/queues/feedback.queue";
 import type {
@@ -23,7 +24,7 @@ type FeedbackWithAuthor = {
   status: "NEW" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
   createdAt: Date;
   updatedAt: Date;
-  author: {
+  author?: {
     id: string;
     firstName: string;
     lastName: string;
@@ -106,7 +107,7 @@ export class FeedbackService {
         timecodeSec: timecodeSec ?? null,
         text,
         category: category ?? null,
-        annotationData: annotationData ?? null,
+        annotationData: annotationData ?? Prisma.DbNull,
         annotationPreview: annotationPreview ?? null,
         status: FeedbackStatus.NEW,
       },
@@ -340,7 +341,7 @@ export class FeedbackService {
       text: feedback.text,
       category: feedback.category,
       status: feedback.status,
-      annotationData: feedback.annotationData ?? null,
+      annotationData: (feedback.annotationData as FeedbackResponse["annotationData"]) ?? null,
       annotationPreview: feedback.annotationPreview ?? null,
       createdAt: feedback.createdAt,
       updatedAt: feedback.updatedAt,

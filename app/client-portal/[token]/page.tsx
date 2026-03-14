@@ -635,7 +635,7 @@ export default function ClientPortalPage(): JSX.Element {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 assetVersionId: activeVersion.id,
-                pngBase64: merged.replace(/^data:image\\/png;base64,/, ""),
+                pngBase64: merged.replace(/^data:image\/png;base64,/, ""),
               }),
             });
             if (previewResponse.ok) {

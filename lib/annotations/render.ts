@@ -1,4 +1,3 @@
-import type { AnnotationStroke, AnnotationThickness, AnnotationColor } from "./types";
 import type { AnnotationColor, AnnotationStroke, AnnotationThickness } from "./types";
 
 type StrokeStyle = {

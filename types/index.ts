@@ -22,6 +22,7 @@ import {
   VideoProvider,
   VideoProcessingStatus,
 } from "@prisma/client";
+import type { AnnotationData } from "@/lib/annotations/types";
 
 export {
   UserRole,
