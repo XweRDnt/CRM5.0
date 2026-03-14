@@ -15,6 +15,7 @@ import { buildSvgMarkup, strokeToSvg } from "@/lib/annotations/render";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { normalizeClientPoint } from "@/lib/annotations/coords";
+import { stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
 
 const SUBMIT_TIMEOUT_MS = 15000;
@@ -196,6 +197,9 @@ export default function ClientPortalPage(): JSX.Element {
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [pendingText, setPendingText] = useState<PendingText | null>(null);
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
+  const handleToolbarEvent = (event: React.SyntheticEvent): void => {
+    stopAnnotationToolbarEvent(event);
+  };
 
   const safeVideoUrl = (activeVersion?.streamUrl ?? activeVersion?.fileUrl ?? "").trim();
   const isVersionLocked = activeVersion?.status === "APPROVED" || activeVersion?.status === "FINAL";
@@ -874,7 +878,12 @@ export default function ClientPortalPage(): JSX.Element {
               ) : null}
 
               {annotationMode ? (
-                <div className="absolute left-3 top-3 z-30 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/70 px-3 py-2 text-xs">
+                <div
+                  className="pointer-events-auto absolute left-3 top-3 z-30 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/70 px-3 py-2 text-xs"
+                  onPointerDown={handleToolbarEvent}
+                  onPointerUp={handleToolbarEvent}
+                  onClick={handleToolbarEvent}
+                >
                   {([
                     { key: "arrow", label: "Стрелка" },
                     { key: "rect", label: "Прямоуг" },
