@@ -312,6 +312,10 @@ export default function ClientPortalPage(): JSX.Element {
       const overlayParent = overlayRef.current?.parentElement ?? null;
       const videoElement = overlayParent?.querySelector("iframe, video") as HTMLElement | null;
       const videoRect = videoElement?.getBoundingClientRect() ?? null;
+      const targetElement = event.target instanceof HTMLElement ? event.target : null;
+      const currentTargetElement = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+      const targetRect = targetElement?.getBoundingClientRect() ?? null;
+      const currentTargetRect = currentTargetElement?.getBoundingClientRect() ?? null;
       // eslint-disable-next-line no-console
       console.log("[annotations] pointer", {
         clientX: event.clientX,
@@ -320,12 +324,45 @@ export default function ClientPortalPage(): JSX.Element {
         pageY: "pageY" in event ? event.pageY : undefined,
         offsetX: "offsetX" in event ? event.offsetX : undefined,
         offsetY: "offsetY" in event ? event.offsetY : undefined,
+        target: targetElement
+          ? {
+              tag: targetElement.tagName,
+              id: targetElement.id,
+              className: targetElement.className,
+            }
+          : null,
+        currentTarget: currentTargetElement
+          ? {
+              tag: currentTargetElement.tagName,
+              id: currentTargetElement.id,
+              className: currentTargetElement.className,
+            }
+          : null,
         rect: {
           left: rect.left,
           top: rect.top,
           width: rect.width,
           height: rect.height,
         },
+        targetRect: targetRect
+          ? {
+              left: targetRect.left,
+              top: targetRect.top,
+              width: targetRect.width,
+              height: targetRect.height,
+            }
+          : null,
+        currentTargetRect: currentTargetRect
+          ? {
+              left: currentTargetRect.left,
+              top: currentTargetRect.top,
+              width: currentTargetRect.width,
+              height: currentTargetRect.height,
+            }
+          : null,
+        overlayPointerEvents: overlayRef.current
+          ? window.getComputedStyle(overlayRef.current).pointerEvents
+          : null,
         videoRect: videoRect
           ? {
               left: videoRect.left,
