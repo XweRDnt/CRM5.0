@@ -79,5 +79,5 @@ export const buildSvgMarkup = (strokes: AnnotationStroke[]): string => {
   const body = strokes.map((stroke) => strokeToSvg(stroke)).join("");
   const defs =
     '<defs><marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L6,3 L0,6 Z" fill="currentColor" /></marker></defs>';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">${defs}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" preserveAspectRatio="none">${defs}${body}</svg>`;
 };

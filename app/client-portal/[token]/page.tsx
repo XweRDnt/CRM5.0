@@ -13,6 +13,7 @@ import { getMessages } from "@/lib/i18n/messages";
 import { formatTimecode } from "@/lib/utils/time";
 import { buildSvgMarkup, strokeToSvg } from "@/lib/annotations/render";
 import { validateAnnotationData } from "@/lib/annotations/validation";
+import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { normalizeClientPoint } from "@/lib/annotations/coords";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
 
@@ -854,7 +855,7 @@ export default function ClientPortalPage(): JSX.Element {
               onClick={handleOverlayClick}
             >
               {overlayVisible ? (
-                <svg viewBox="0 0 1 1" className="h-full w-full">
+                <svg {...getOverlaySvgProps()} className="h-full w-full">
                   <defs>
                     <marker
                       id="arrowhead"
