@@ -13,6 +13,7 @@ import { getMessages } from "@/lib/i18n/messages";
 import { formatTimecode } from "@/lib/utils/time";
 import { buildSvgMarkup, strokeToSvg } from "@/lib/annotations/render";
 import { validateAnnotationData } from "@/lib/annotations/validation";
+import { normalizeClientPoint } from "@/lib/annotations/coords";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
 
 const SUBMIT_TIMEOUT_MS = 15000;
@@ -75,8 +76,6 @@ const fetcher = async (url: string): Promise<PortalResponse> => {
   }
   return (await response.json()) as PortalResponse;
 };
-
-const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
 const isValidAnnotationData = (value: unknown): value is AnnotationData => {
   const result = validateAnnotationData(value);
@@ -306,13 +305,8 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const getOverlayPoint = (event: React.PointerEvent | React.MouseEvent<HTMLDivElement>): { x: number; y: number } | null => {
-    const rect = overlayRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0 || rect.height === 0) {
-      return null;
-    }
-    const x = clamp01((event.clientX - rect.left) / rect.width);
-    const y = clamp01((event.clientY - rect.top) / rect.height);
-    return { x, y };
+    const rect = overlayRef.current?.getBoundingClientRect() ?? event.currentTarget.getBoundingClientRect();
+    return normalizeClientPoint(event.clientX, event.clientY, rect);
   };
 
   const pushStroke = (stroke: AnnotationStroke): void => {
