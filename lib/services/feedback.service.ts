@@ -17,6 +17,8 @@ type FeedbackWithAuthor = {
   authorName: string | null;
   timecodeSec: number | null;
   text: string;
+  annotationData: unknown | null;
+  annotationPreview: string | null;
   category: "CONTENT" | "DESIGN" | "SOUND" | "LEGAL" | "OTHER" | null;
   status: "NEW" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
   createdAt: Date;
@@ -43,6 +45,8 @@ export class FeedbackService {
       timecodeSec,
       text,
       category,
+      annotationData,
+      annotationPreview,
     } = input;
 
     if (!text?.trim() || text.length > 5000) {
@@ -102,6 +106,8 @@ export class FeedbackService {
         timecodeSec: timecodeSec ?? null,
         text,
         category: category ?? null,
+        annotationData: annotationData ?? null,
+        annotationPreview: annotationPreview ?? null,
         status: FeedbackStatus.NEW,
       },
       include: {
@@ -334,6 +340,8 @@ export class FeedbackService {
       text: feedback.text,
       category: feedback.category,
       status: feedback.status,
+      annotationData: feedback.annotationData ?? null,
+      annotationPreview: feedback.annotationPreview ?? null,
       createdAt: feedback.createdAt,
       updatedAt: feedback.updatedAt,
     };

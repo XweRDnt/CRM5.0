@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getTelegramNotificationService } from "@/lib/services/telegram-notification.service";
 import { prisma } from "@/lib/utils/db";
 import { handleAPIError } from "@/lib/utils/api-error";
+import { validateAnnotationData } from "@/lib/annotations/validation";
 
 const createPublicFeedbackSchema = z.object({
   assetVersionId: z.string().min(1),
@@ -13,6 +14,7 @@ const createPublicFeedbackSchema = z.object({
   text: z.string().min(1).max(5000),
   category: z.nativeEnum(FeedbackCategory).optional(),
   annotationData: z.unknown().optional(),
+  annotationPreview: z.string().url().optional(),
 });
 
 export async function POST(request: Request): Promise<Response> {
@@ -44,6 +46,13 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: "authorEmail or authorName is required for CLIENT type feedback" }, { status: 400 });
     }
 
+    if (payload.annotationData !== undefined) {
+      const validation = validateAnnotationData(payload.annotationData);
+      if (!validation.ok) {
+        return Response.json({ error: validation.error }, { status: 400 });
+      }
+    }
+
     const feedback = await prisma.feedbackItem.create({
       data: {
         assetVersionId: payload.assetVersionId,
@@ -54,6 +63,7 @@ export async function POST(request: Request): Promise<Response> {
         text: payload.text,
         category: payload.category ?? null,
         annotationData: payload.annotationData ?? Prisma.DbNull,
+        annotationPreview: payload.annotationPreview ?? null,
         status: FeedbackStatus.NEW,
       },
       select: {
@@ -66,6 +76,7 @@ export async function POST(request: Request): Promise<Response> {
         text: true,
         category: true,
         annotationData: true,
+        annotationPreview: true,
         status: true,
         createdAt: true,
         updatedAt: true,
