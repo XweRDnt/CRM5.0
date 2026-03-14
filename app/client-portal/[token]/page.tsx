@@ -15,7 +15,7 @@ import { buildSvgMarkup, strokeToSvg } from "@/lib/annotations/render";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { normalizeClientPoint } from "@/lib/annotations/coords";
-import { stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
+import { getPlaybackAction, stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
 
 const SUBMIT_TIMEOUT_MS = 15000;
@@ -181,6 +181,7 @@ export default function ClientPortalPage(): JSX.Element {
   const lastKnownTimeRef = useRef(0);
   const [playerCurrentTimeSec, setPlayerCurrentTimeSec] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
+  const [isPlayerPlaying, setIsPlayerPlaying] = useState(false);
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -199,6 +200,16 @@ export default function ClientPortalPage(): JSX.Element {
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
   const handleToolbarEvent = (event: React.SyntheticEvent): void => {
     stopAnnotationToolbarEvent(event);
+  };
+
+  const handlePlaybackToggle = (event: React.MouseEvent<HTMLButtonElement>): void => {
+    handleToolbarEvent(event);
+    const action = getPlaybackAction(isPlayerPlaying);
+    if (action === "play") {
+      kinescopeRef.current?.play();
+      return;
+    }
+    kinescopeRef.current?.pause();
   };
 
   const safeVideoUrl = (activeVersion?.streamUrl ?? activeVersion?.fileUrl ?? "").trim();
@@ -297,6 +308,7 @@ export default function ClientPortalPage(): JSX.Element {
     }
 
     kinescopeRef.current?.pause();
+    setIsPlayerPlaying(false);
 
     const kinescopeTime = await readKinescopeTimeSafe();
     const directTime = Math.max(0, Math.floor(Number.isFinite(kinescopeTime) ? kinescopeTime : 0));
@@ -842,10 +854,12 @@ export default function ClientPortalPage(): JSX.Element {
               onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
               onPlay={() => {
                 setPlayerReady(true);
+                setIsPlayerPlaying(true);
                 if (!annotationMode) {
                   setActiveAnnotation(null);
                 }
               }}
+              onPause={() => setIsPlayerPlaying(false)}
             />
 
             <div
@@ -884,6 +898,13 @@ export default function ClientPortalPage(): JSX.Element {
                   onPointerUp={handleToolbarEvent}
                   onClick={handleToolbarEvent}
                 >
+                  <button
+                    type="button"
+                    onClick={handlePlaybackToggle}
+                    className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/80 hover:text-white"
+                  >
+                    {isPlayerPlaying ? "Пауза" : "Плей"}
+                  </button>
                   {([
                     { key: "arrow", label: "Стрелка" },
                     { key: "rect", label: "Прямоуг" },
