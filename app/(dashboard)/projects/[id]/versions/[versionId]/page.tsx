@@ -13,13 +13,15 @@ import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
+import { strokeToSvg } from "@/lib/annotations/render";
+import { validateAnnotationData } from "@/lib/annotations/validation";
 import {
   EDITOR_FEEDBACK_STATUSES,
   FEEDBACK_STATUS_LABELS,
   VERSION_STATUS_LABELS,
   toVersionUiStatus,
 } from "@/lib/constants/status-ui";
-import type { AssetVersionResponse, FeedbackResponse, ProjectResponse } from "@/types";
+import type { AnnotationData, AnnotationStroke, AssetVersionResponse, FeedbackResponse, ProjectResponse } from "@/types";
 
 type ApiWrapped<T> = T | { data: T };
 type VersionUiStatus = ReturnType<typeof toVersionUiStatus>;
@@ -80,6 +82,83 @@ function formatTimecode(seconds: number | null): string {
   const sec = safe % 60;
   return `${min}:${sec.toString().padStart(2, "0")}`;
 }
+
+const isValidAnnotationData = (value: unknown): value is AnnotationData => {
+  return validateAnnotationData(value).ok;
+};
+
+const normalizeAnnotationData = (value: unknown): AnnotationData | null => {
+  if (isValidAnnotationData(value)) {
+    return value;
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const legacy = value as { version?: number; shapes?: Array<Record<string, unknown>> };
+  if (legacy.version !== 1 || !Array.isArray(legacy.shapes)) {
+    return null;
+  }
+
+  const strokes: AnnotationStroke[] = [];
+  for (const shape of legacy.shapes) {
+    if (shape.type === "rect") {
+      const x = Number(shape.x);
+      const y = Number(shape.y);
+      const w = Number(shape.w);
+      const h = Number(shape.h);
+      if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(w) && Number.isFinite(h)) {
+        strokes.push({
+          type: "rect",
+          points: [
+            { x, y },
+            { x: x + w, y: y + h },
+          ],
+          color: "green",
+          thickness: "medium",
+        });
+      }
+    }
+    if (shape.type === "arrow") {
+      const x1 = Number(shape.x1);
+      const y1 = Number(shape.y1);
+      const x2 = Number(shape.x2);
+      const y2 = Number(shape.y2);
+      if (Number.isFinite(x1) && Number.isFinite(y1) && Number.isFinite(x2) && Number.isFinite(y2)) {
+        strokes.push({
+          type: "arrow",
+          points: [
+            { x: x1, y: y1 },
+            { x: x2, y: y2 },
+          ],
+          color: "blue",
+          thickness: "medium",
+        });
+      }
+    }
+    if (shape.type === "text") {
+      const x = Number(shape.x);
+      const y = Number(shape.y);
+      const text = typeof shape.text === "string" ? shape.text : "";
+      if (Number.isFinite(x) && Number.isFinite(y) && text.trim().length > 0) {
+        strokes.push({
+          type: "text",
+          points: [{ x, y }],
+          text,
+          color: "white",
+          thickness: "medium",
+        });
+      }
+    }
+  }
+
+  if (strokes.length === 0) {
+    return null;
+  }
+
+  return { version: 1, strokes };
+};
 
 function createPublicPortalLink(portalToken: string): string {
   if (typeof window === "undefined") {
@@ -145,6 +224,7 @@ export default function VersionDetailPage(): JSX.Element {
   const [appTheme, setAppTheme] = useState<AppTheme>("light");
   const [resettingPortalLink, setResettingPortalLink] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState(false);
+  const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
 
     useEffect(() => {
     if (typeof document === "undefined") {
@@ -166,6 +246,10 @@ export default function VersionDetailPage(): JSX.Element {
       setActiveVersionId(versionId);
     }
   }, [versionId]);
+
+  useEffect(() => {
+    setActiveAnnotation(null);
+  }, [activeVersionId]);
 
   useEffect(() => {
     if (!activeVersionId && versions.length > 0) {
@@ -198,11 +282,16 @@ export default function VersionDetailPage(): JSX.Element {
   const hasClientFeedback = versionFeedback.length > 0;
   const versionUiStatus = activeVersion ? toVersionUiStatus(activeVersion.status, hasClientFeedback) : "DRAFT";
   const isActiveVersionApproved = versionUiStatus === "APPROVED";
+  const overlayStrokes = activeAnnotation?.strokes ?? [];
+  const renderStroke = (stroke: AnnotationStroke, index: number): JSX.Element => (
+    <g key={`stroke-${index}`} dangerouslySetInnerHTML={{ __html: strokeToSvg(stroke) }} />
+  );
 
-  const seekToTimecode = (timecodeSec: number | null): void => {
+  const seekToTimecode = (timecodeSec: number | null, annotation: FeedbackResponse["annotationData"]): void => {
     const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
     kinescopeRef.current?.seekTo(target);
     kinescopeRef.current?.play();
+    setActiveAnnotation(normalizeAnnotationData(annotation));
   };
 
   const handleChangeFeedbackStatus = async (feedbackId: string, status: FeedbackStatus): Promise<void> => {
@@ -414,12 +503,48 @@ export default function VersionDetailPage(): JSX.Element {
         <div className="min-w-0 space-y-3 xl:col-span-3">
           <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
             <CardContent className="p-2 sm:p-4">
-              <KinescopePlayer
-                ref={kinescopeRef}
-                className="w-full"
-                videoId={activeVersion.kinescopeVideoId}
-                videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
-              />
+              <div className="relative">
+                <KinescopePlayer
+                  ref={kinescopeRef}
+                  className="w-full"
+                  videoId={activeVersion.kinescopeVideoId}
+                  videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
+                />
+                {overlayStrokes.length > 0 ? (
+                  <div className="pointer-events-none absolute inset-0">
+                    <svg viewBox="0 0 1 1" className="h-full w-full">
+                      <defs>
+                        <marker
+                          id="arrowhead"
+                          markerWidth="6"
+                          markerHeight="6"
+                          refX="5"
+                          refY="3"
+                          orient="auto"
+                          markerUnits="strokeWidth"
+                        >
+                          <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
+                        </marker>
+                      </defs>
+                      {overlayStrokes.map((stroke, index) =>
+                        renderStroke(
+                          stroke.type === "arrow"
+                            ? { ...stroke, points: stroke.points } // marker id stays consistent in SVG output
+                            : stroke,
+                          index,
+                        ),
+                      )}
+                    </svg>
+                    <button
+                      type="button"
+                      onClick={() => setActiveAnnotation(null)}
+                      className="pointer-events-auto absolute right-3 top-3 rounded-full border border-white/20 bg-black/60 px-3 py-1 text-xs text-white"
+                    >
+                      Скрыть
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               {activeVersion.processingStatus !== "READY" ? (
                 <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
                   {activeVersion.processingStatus === "FAILED"
@@ -468,12 +593,26 @@ export default function VersionDetailPage(): JSX.Element {
                           <button
                             type="button"
                             className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                            onClick={() => seekToTimecode(item.timecodeSec)}
+                            onClick={() => seekToTimecode(item.timecodeSec, item.annotationData)}
                           >
                             [{formatTimecode(item.timecodeSec)}]
                           </button>
                           <span className="break-words text-neutral-700 dark:text-neutral-300">{item.author.name}</span>
                         </div>
+
+                        {item.annotationPreview ? (
+                          <button
+                            type="button"
+                            onClick={() => seekToTimecode(item.timecodeSec, item.annotationData)}
+                            className="mb-3 block w-full"
+                          >
+                            <img
+                              src={item.annotationPreview}
+                              alt="Annotation preview"
+                              className="w-full rounded-md border border-neutral-200 dark:border-neutral-700"
+                            />
+                          </button>
+                        ) : null}
 
                         <p className="mb-3 break-words text-sm text-neutral-900 dark:text-neutral-100">&quot;{item.text}&quot;</p>
 
