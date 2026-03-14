@@ -309,16 +309,36 @@ export default function ClientPortalPage(): JSX.Element {
     const rect = overlayRef.current?.getBoundingClientRect() ?? event.currentTarget.getBoundingClientRect();
     const normalized = normalizeClientPoint(event.clientX, event.clientY, rect);
     if (debugAnnotations) {
+      const overlayParent = overlayRef.current?.parentElement ?? null;
+      const videoElement = overlayParent?.querySelector("iframe, video") as HTMLElement | null;
+      const videoRect = videoElement?.getBoundingClientRect() ?? null;
       // eslint-disable-next-line no-console
       console.log("[annotations] pointer", {
         clientX: event.clientX,
         clientY: event.clientY,
+        pageX: "pageX" in event ? event.pageX : undefined,
+        pageY: "pageY" in event ? event.pageY : undefined,
+        offsetX: "offsetX" in event ? event.offsetX : undefined,
+        offsetY: "offsetY" in event ? event.offsetY : undefined,
         rect: {
           left: rect.left,
           top: rect.top,
           width: rect.width,
           height: rect.height,
         },
+        videoRect: videoRect
+          ? {
+              left: videoRect.left,
+              top: videoRect.top,
+              width: videoRect.width,
+              height: videoRect.height,
+            }
+          : null,
+        scroll: {
+          x: window.scrollX,
+          y: window.scrollY,
+        },
+        devicePixelRatio: window.devicePixelRatio,
         normalized,
       });
     }
