@@ -379,6 +379,7 @@ model FeedbackItem {
   timecodeSec    Int?
   text           String
   annotationData Json?
+  annotationPreview String?
   status         FeedbackStatus   @default(NEW)
   category       FeedbackCategory?
   createdAt      DateTime         @default(now())

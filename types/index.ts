@@ -154,15 +154,14 @@ export type FeedbackItem = {
   updatedAt: Date;
 };
 
-export type AnnotationShape =
-  | { type: "rect"; x: number; y: number; w: number; h: number }
-  | { type: "arrow"; x1: number; y1: number; x2: number; y2: number }
-  | { type: "text"; x: number; y: number; text: string };
-
-export type AnnotationData = {
-  version: 1;
-  shapes: AnnotationShape[];
-};
+export {
+  type AnnotationColor,
+  type AnnotationData,
+  type AnnotationPoint,
+  type AnnotationStroke,
+  type AnnotationThickness,
+  type AnnotationType,
+} from "@/lib/annotations/types";
 
 export type AITask = {
   id: string;
@@ -446,6 +445,7 @@ export interface CreateFeedbackInput {
   text: string;
   category?: FeedbackCategory;
   annotationData?: AnnotationData | null;
+  annotationPreview?: string | null;
 }
 
 export interface FeedbackResponse {
@@ -462,6 +462,7 @@ export interface FeedbackResponse {
   category: FeedbackCategory | null;
   status: FeedbackStatus;
   annotationData?: AnnotationData | null;
+  annotationPreview?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
