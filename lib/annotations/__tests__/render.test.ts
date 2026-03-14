@@ -1,0 +1,17 @@
+import { describe, it, expect } from "vitest";
+import { strokeToSvg } from "@/lib/annotations/render";
+
+describe("strokeToSvg", () => {
+  it("renders line as svg line", () => {
+    const markup = strokeToSvg({
+      type: "line",
+      points: [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+      color: "red",
+      thickness: "thin",
+    });
+    expect(markup).toContain("<line");
+  });
+});

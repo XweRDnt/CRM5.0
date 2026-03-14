@@ -11,7 +11,9 @@ import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/Kin
 import { cn } from "@/lib/utils/cn";
 import { getMessages } from "@/lib/i18n/messages";
 import { formatTimecode } from "@/lib/utils/time";
-import type { AnnotationData, AnnotationShape } from "@/types";
+import { buildSvgMarkup, strokeToSvg } from "@/lib/annotations/render";
+import { validateAnnotationData } from "@/lib/annotations/validation";
+import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
 
 const SUBMIT_TIMEOUT_MS = 15000;
 
@@ -34,6 +36,7 @@ type PortalFeedbackItem = {
   text: string;
   timecodeSec: number | null;
   annotationData?: AnnotationData | null;
+  annotationPreview?: string | null;
   createdAt: string;
   authorName: string;
   authorEmail: string | null;
@@ -51,12 +54,11 @@ type PortalResponse = {
   feedback: PortalFeedbackItem[];
 };
 
+type AnnotationTool = AnnotationType;
+
 type DrawingState = {
-  tool: "rect" | "arrow";
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
+  tool: AnnotationTool;
+  points: Array<{ x: number; y: number }>;
 };
 
 type PendingText = {
@@ -77,11 +79,81 @@ const fetcher = async (url: string): Promise<PortalResponse> => {
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
 const isValidAnnotationData = (value: unknown): value is AnnotationData => {
-  if (!value || typeof value !== "object") {
-    return false;
+  const result = validateAnnotationData(value);
+  return result.ok;
+};
+
+const normalizeAnnotationData = (value: unknown): AnnotationData | null => {
+  if (isValidAnnotationData(value)) {
+    return value;
   }
-  const data = value as AnnotationData;
-  return data.version === 1 && Array.isArray(data.shapes);
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const legacy = value as { version?: number; shapes?: Array<Record<string, unknown>> };
+  if (legacy.version !== 1 || !Array.isArray(legacy.shapes)) {
+    return null;
+  }
+
+  const strokes: AnnotationStroke[] = [];
+  for (const shape of legacy.shapes) {
+    if (shape.type === "rect") {
+      const x = Number(shape.x);
+      const y = Number(shape.y);
+      const w = Number(shape.w);
+      const h = Number(shape.h);
+      if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(w) && Number.isFinite(h)) {
+        strokes.push({
+          type: "rect",
+          points: [
+            { x, y },
+            { x: x + w, y: y + h },
+          ],
+          color: "green",
+          thickness: "medium",
+        });
+      }
+    }
+    if (shape.type === "arrow") {
+      const x1 = Number(shape.x1);
+      const y1 = Number(shape.y1);
+      const x2 = Number(shape.x2);
+      const y2 = Number(shape.y2);
+      if (Number.isFinite(x1) && Number.isFinite(y1) && Number.isFinite(x2) && Number.isFinite(y2)) {
+        strokes.push({
+          type: "arrow",
+          points: [
+            { x: x1, y: y1 },
+            { x: x2, y: y2 },
+          ],
+          color: "blue",
+          thickness: "medium",
+        });
+      }
+    }
+    if (shape.type === "text") {
+      const x = Number(shape.x);
+      const y = Number(shape.y);
+      const text = typeof shape.text === "string" ? shape.text : "";
+      if (Number.isFinite(x) && Number.isFinite(y) && text.trim().length > 0) {
+        strokes.push({
+          type: "text",
+          points: [{ x, y }],
+          text,
+          color: "white",
+          thickness: "medium",
+        });
+      }
+    }
+  }
+
+  if (strokes.length === 0) {
+    return null;
+  }
+
+  return { version: 1, strokes };
 };
 
 export default function ClientPortalPage(): JSX.Element {
@@ -115,8 +187,11 @@ export default function ClientPortalPage(): JSX.Element {
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [annotationMode, setAnnotationMode] = useState(false);
-  const [annotationTool, setAnnotationTool] = useState<"rect" | "arrow" | "text">("rect");
-  const [annotationShapes, setAnnotationShapes] = useState<AnnotationShape[]>([]);
+  const [annotationTool, setAnnotationTool] = useState<AnnotationTool>("rect");
+  const [annotationColor, setAnnotationColor] = useState<AnnotationColor>("red");
+  const [annotationThickness, setAnnotationThickness] = useState<AnnotationThickness>("medium");
+  const [annotationStrokes, setAnnotationStrokes] = useState<AnnotationStroke[]>([]);
+  const [redoStrokes, setRedoStrokes] = useState<AnnotationStroke[]>([]);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [pendingText, setPendingText] = useState<PendingText | null>(null);
@@ -152,7 +227,8 @@ export default function ClientPortalPage(): JSX.Element {
     setCapturedTimecodeSec(null);
     lastKnownTimeRef.current = 0;
     setAnnotationMode(false);
-    setAnnotationShapes([]);
+    setAnnotationStrokes([]);
+    setRedoStrokes([]);
     setActiveAnnotation(null);
     setDrawingState(null);
     setPendingText(null);
@@ -222,7 +298,8 @@ export default function ClientPortalPage(): JSX.Element {
     const normalized = Math.max(directTime, lastKnownTimeRef.current, playerCurrentTimeSec);
     setCapturedTimecodeSec(normalized);
     setAnnotationMode(true);
-    setAnnotationShapes([]);
+    setAnnotationStrokes([]);
+    setRedoStrokes([]);
     setActiveAnnotation(null);
     setDrawingState(null);
     setPendingText(null);
@@ -238,34 +315,51 @@ export default function ClientPortalPage(): JSX.Element {
     return { x, y };
   };
 
-  const finalizeShape = (state: DrawingState): void => {
-    const dx = state.endX - state.startX;
-    const dy = state.endY - state.startY;
+  const pushStroke = (stroke: AnnotationStroke): void => {
+    setAnnotationStrokes((prev) => [...prev, stroke]);
+    setRedoStrokes([]);
+    window.setTimeout(() => textAreaRef.current?.focus(), 0);
+  };
+
+  const buildStrokeFromState = (state: DrawingState): AnnotationStroke | null => {
+    if (state.tool === "text") {
+      return null;
+    }
+
+    if (state.tool === "freehand") {
+      if (state.points.length < 2) {
+        return null;
+      }
+      return {
+        type: "freehand",
+        points: state.points,
+        color: annotationColor,
+        thickness: annotationThickness,
+      };
+    }
+
+    if (state.points.length < 2) {
+      return null;
+    }
+
+    const [start, end] = state.points;
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     if (distance < 0.01) {
-      setDrawingState(null);
-      return;
+      return null;
     }
 
-    if (state.tool === "rect") {
-      const x = Math.min(state.startX, state.endX);
-      const y = Math.min(state.startY, state.endY);
-      const w = Math.abs(dx);
-      const h = Math.abs(dy);
-      if (w < 0.01 || h < 0.01) {
-        setDrawingState(null);
-        return;
-      }
-      setAnnotationShapes((prev) => [...prev, { type: "rect", x, y, w, h }]);
-    } else {
-      setAnnotationShapes((prev) => [
-        ...prev,
-        { type: "arrow", x1: state.startX, y1: state.startY, x2: state.endX, y2: state.endY },
-      ]);
+    if ((state.tool === "rect" || state.tool === "ellipse") && (Math.abs(dx) < 0.01 || Math.abs(dy) < 0.01)) {
+      return null;
     }
 
-    setDrawingState(null);
-    window.setTimeout(() => textAreaRef.current?.focus(), 0);
+    return {
+      type: state.tool,
+      points: [start, end],
+      color: annotationColor,
+      thickness: annotationThickness,
+    };
   };
 
   const handlePointerDown = (event: React.PointerEvent): void => {
@@ -277,7 +371,11 @@ export default function ClientPortalPage(): JSX.Element {
       return;
     }
     event.preventDefault();
-    setDrawingState({ tool: annotationTool, startX: point.x, startY: point.y, endX: point.x, endY: point.y });
+    if (annotationTool === "freehand") {
+      setDrawingState({ tool: annotationTool, points: [point] });
+      return;
+    }
+    setDrawingState({ tool: annotationTool, points: [point, point] });
   };
 
   const handlePointerMove = (event: React.PointerEvent): void => {
@@ -289,7 +387,17 @@ export default function ClientPortalPage(): JSX.Element {
       return;
     }
     event.preventDefault();
-    setDrawingState((prev) => (prev ? { ...prev, endX: point.x, endY: point.y } : prev));
+    setDrawingState((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      if (prev.tool === "freehand") {
+        return { ...prev, points: [...prev.points, point] };
+      }
+      const nextPoints = [...prev.points];
+      nextPoints[1] = point;
+      return { ...prev, points: nextPoints };
+    });
   };
 
   const handlePointerUp = (event: React.PointerEvent): void => {
@@ -302,7 +410,15 @@ export default function ClientPortalPage(): JSX.Element {
       return;
     }
     event.preventDefault();
-    finalizeShape({ ...drawingState, endX: point.x, endY: point.y });
+    const finalized =
+      drawingState.tool === "freehand"
+        ? { ...drawingState, points: [...drawingState.points, point] }
+        : { ...drawingState, points: [drawingState.points[0], point] };
+    const stroke = buildStrokeFromState(finalized);
+    if (stroke) {
+      pushStroke(stroke);
+    }
+    setDrawingState(null);
   };
 
   const handleOverlayClick = (event: React.MouseEvent<HTMLDivElement>): void => {
@@ -323,10 +439,38 @@ export default function ClientPortalPage(): JSX.Element {
     }
     const trimmed = pendingText.value.trim();
     if (trimmed) {
-      setAnnotationShapes((prev) => [...prev, { type: "text", x: pendingText.x, y: pendingText.y, text: trimmed }]);
-      window.setTimeout(() => textAreaRef.current?.focus(), 0);
+      pushStroke({
+        type: "text",
+        points: [{ x: pendingText.x, y: pendingText.y }],
+        text: trimmed,
+        color: annotationColor,
+        thickness: annotationThickness,
+      });
     }
     setPendingText(null);
+  };
+
+  const handleUndo = (): void => {
+    setAnnotationStrokes((prev) => {
+      if (prev.length === 0) {
+        return prev;
+      }
+      const next = prev.slice(0, -1);
+      const last = prev[prev.length - 1];
+      setRedoStrokes((redo) => [last, ...redo]);
+      return next;
+    });
+  };
+
+  const handleRedo = (): void => {
+    setRedoStrokes((prev) => {
+      if (prev.length === 0) {
+        return prev;
+      }
+      const [nextStroke, ...rest] = prev;
+      setAnnotationStrokes((strokes) => [...strokes, nextStroke]);
+      return rest;
+    });
   };
 
   const seekToTimecode = (timecodeSec: number | null, annotation: PortalFeedbackItem["annotationData"]): void => {
@@ -334,11 +478,7 @@ export default function ClientPortalPage(): JSX.Element {
     kinescopeRef.current?.seekTo(target);
     kinescopeRef.current?.pause();
 
-    if (annotation && isValidAnnotationData(annotation)) {
-      setActiveAnnotation(annotation);
-    } else {
-      setActiveAnnotation(null);
-    }
+    setActiveAnnotation(normalizeAnnotationData(annotation));
     setAnnotationMode(false);
   };
 
@@ -369,6 +509,101 @@ export default function ClientPortalPage(): JSX.Element {
     }
   };
 
+  const captureFrameDataUrl = async (timecodeSec: number): Promise<string | null> => {
+    if (!safeVideoUrl) {
+      return null;
+    }
+
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.preload = "auto";
+    video.muted = true;
+    video.playsInline = true;
+    video.src = safeVideoUrl;
+
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = (): void => {
+        video.onloadeddata = null;
+        video.onerror = null;
+      };
+      video.onloadeddata = () => {
+        cleanup();
+        resolve();
+      };
+      video.onerror = () => {
+        cleanup();
+        reject(new Error("Failed to load video frame"));
+      };
+    });
+
+    const target = Math.max(0, timecodeSec);
+    const safeTime = Number.isFinite(video.duration) && video.duration > 0 ? Math.min(target, video.duration) : target;
+    video.currentTime = safeTime;
+
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = (): void => {
+        video.onseeked = null;
+        video.onerror = null;
+      };
+      video.onseeked = () => {
+        cleanup();
+        resolve();
+      };
+      video.onerror = () => {
+        cleanup();
+        reject(new Error("Failed to seek video frame"));
+      };
+    });
+
+    const width = video.videoWidth || 1280;
+    const height = video.videoHeight || 720;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return null;
+    }
+    ctx.drawImage(video, 0, 0, width, height);
+    return canvas.toDataURL("image/png");
+  };
+
+  const overlaySvgOnFrame = async (frameDataUrl: string, strokes: AnnotationStroke[]): Promise<string | null> => {
+    const frameImage = new Image();
+    frameImage.crossOrigin = "anonymous";
+    frameImage.src = frameDataUrl;
+    await new Promise<void>((resolve, reject) => {
+      frameImage.onload = () => resolve();
+      frameImage.onerror = () => reject(new Error("Failed to load frame image"));
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = frameImage.width;
+    canvas.height = frameImage.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return null;
+    }
+    ctx.drawImage(frameImage, 0, 0);
+
+    const svgMarkup = buildSvgMarkup(strokes);
+    const svgBlob = new Blob([svgMarkup], { type: "image/svg+xml" });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    try {
+      const svgImage = new Image();
+      svgImage.src = svgUrl;
+      await new Promise<void>((resolve, reject) => {
+        svgImage.onload = () => resolve();
+        svgImage.onerror = () => reject(new Error("Failed to load SVG overlay"));
+      });
+      ctx.drawImage(svgImage, 0, 0, canvas.width, canvas.height);
+    } finally {
+      URL.revokeObjectURL(svgUrl);
+    }
+
+    return canvas.toDataURL("image/png");
+  };
+
   const submitFeedback = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     if (!activeVersion) {
@@ -387,8 +622,33 @@ export default function ClientPortalPage(): JSX.Element {
       timecodeSec: capturedTimecodeSec ?? undefined,
     };
 
-    if (annotationShapes.length > 0) {
-      payload.annotationData = { version: 1, shapes: annotationShapes } satisfies AnnotationData;
+    if (annotationStrokes.length > 0) {
+      payload.annotationData = { version: 1, strokes: annotationStrokes } satisfies AnnotationData;
+      try {
+        const previewTimecode = capturedTimecodeSec ?? playerCurrentTimeSec;
+        const frameDataUrl = await captureFrameDataUrl(previewTimecode);
+        if (frameDataUrl) {
+          const merged = await overlaySvgOnFrame(frameDataUrl, annotationStrokes);
+          if (merged) {
+            const previewResponse = await fetch("/api/public/feedback/preview", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                assetVersionId: activeVersion.id,
+                pngBase64: merged.replace(/^data:image\\/png;base64,/, ""),
+              }),
+            });
+            if (previewResponse.ok) {
+              const previewJson = (await previewResponse.json().catch(() => null)) as { url?: string } | null;
+              if (previewJson?.url) {
+                payload.annotationPreview = previewJson.url;
+              }
+            }
+          }
+        }
+      } catch {
+        // Preview is optional; proceed without it if capture fails.
+      }
     }
 
     try {
@@ -407,7 +667,8 @@ export default function ClientPortalPage(): JSX.Element {
       setCommentText("");
       setCapturedTimecodeSec(null);
       setAnnotationMode(false);
-      setAnnotationShapes([]);
+      setAnnotationStrokes([]);
+      setRedoStrokes([]);
       setActiveAnnotation(null);
       setDrawingState(null);
       setPendingText(null);
@@ -431,49 +692,31 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const overlayVisible = annotationMode || activeAnnotation !== null;
-  const overlayAnnotation = annotationMode ? { version: 1, shapes: annotationShapes } : activeAnnotation;
-  const previewShape = drawingState;
+  const previewStroke: AnnotationStroke | null = drawingState
+    ? drawingState.tool === "freehand"
+      ? {
+          type: "freehand",
+          points: drawingState.points,
+          color: annotationColor,
+          thickness: annotationThickness,
+        }
+      : drawingState.points.length >= 2
+        ? {
+            type: drawingState.tool,
+            points: [drawingState.points[0], drawingState.points[1]],
+            color: annotationColor,
+            thickness: annotationThickness,
+          }
+        : null
+    : null;
 
-  const renderShape = (shape: AnnotationShape, index: number): JSX.Element | null => {
-    switch (shape.type) {
-      case "rect":
-        return (
-          <rect
-            key={`rect-${index}`}
-            x={shape.x}
-            y={shape.y}
-            width={shape.w}
-            height={shape.h}
-            fill="rgba(16, 185, 129, 0.12)"
-            stroke="#10b981"
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
-          />
-        );
-      case "arrow":
-        return (
-          <line
-            key={`arrow-${index}`}
-            x1={shape.x1}
-            y1={shape.y1}
-            x2={shape.x2}
-            y2={shape.y2}
-            stroke="#38bdf8"
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
-            markerEnd="url(#arrowhead)"
-          />
-        );
-      case "text":
-        return (
-          <text key={`text-${index}`} x={shape.x} y={shape.y} fill="#f8fafc" fontSize="0.04" fontWeight={600}>
-            {shape.text}
-          </text>
-        );
-      default:
-        return null;
-    }
-  };
+  const overlayStrokes = annotationMode
+    ? [...annotationStrokes, ...(previewStroke ? [previewStroke] : [])]
+    : activeAnnotation?.strokes ?? [];
+
+  const renderStroke = (stroke: AnnotationStroke, index: number): JSX.Element => (
+    <g key={`stroke-${index}`} dangerouslySetInnerHTML={{ __html: strokeToSvg(stroke) }} />
+  );
 
   return (
     <main className="min-h-screen bg-[#1a1a1a] text-white">
@@ -555,41 +798,21 @@ export default function ClientPortalPage(): JSX.Element {
                       orient="auto"
                       markerUnits="strokeWidth"
                     >
-                      <path d="M0,0 L6,3 L0,6 Z" fill="#38bdf8" />
+                      <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
                     </marker>
                   </defs>
-                  {overlayAnnotation?.shapes.map((shape, index) => renderShape(shape, index))}
-                  {previewShape?.tool === "arrow" ? (
-                    <line
-                      x1={previewShape.startX}
-                      y1={previewShape.startY}
-                      x2={previewShape.endX}
-                      y2={previewShape.endY}
-                      stroke="#38bdf8"
-                      strokeWidth={2}
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ) : null}
-                  {previewShape?.tool === "rect" ? (
-                    <rect
-                      x={Math.min(previewShape.startX, previewShape.endX)}
-                      y={Math.min(previewShape.startY, previewShape.endY)}
-                      width={Math.abs(previewShape.endX - previewShape.startX)}
-                      height={Math.abs(previewShape.endY - previewShape.startY)}
-                      fill="rgba(16, 185, 129, 0.12)"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ) : null}
+                  {overlayStrokes.map((stroke, index) => renderStroke(stroke, index))}
                 </svg>
               ) : null}
 
               {annotationMode ? (
-                <div className="absolute left-3 top-3 z-30 flex items-center gap-2 rounded-full border border-white/10 bg-black/70 px-2 py-1 text-xs">
+                <div className="absolute left-3 top-3 z-30 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/70 px-3 py-2 text-xs">
                   {([
                     { key: "arrow", label: "Стрелка" },
                     { key: "rect", label: "Прямоуг" },
+                    { key: "ellipse", label: "Эллипс" },
+                    { key: "line", label: "Линия" },
+                    { key: "freehand", label: "Рисунок" },
                     { key: "text", label: "Текст" },
                   ] as const).map((tool) => (
                     <button
@@ -606,6 +829,70 @@ export default function ClientPortalPage(): JSX.Element {
                       {tool.label}
                     </button>
                   ))}
+                  <span className="mx-1 h-4 w-px bg-white/10" aria-hidden />
+                  {([
+                    { key: "red", label: "Красный", tone: "bg-red-500" },
+                    { key: "yellow", label: "Жёлтый", tone: "bg-yellow-400" },
+                    { key: "green", label: "Зелёный", tone: "bg-emerald-500" },
+                    { key: "blue", label: "Синий", tone: "bg-blue-500" },
+                    { key: "white", label: "Белый", tone: "bg-white" },
+                  ] as const).map((color) => (
+                    <button
+                      key={color.key}
+                      type="button"
+                      onClick={() => setAnnotationColor(color.key)}
+                      className={cn(
+                        "flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold",
+                        annotationColor === color.key ? "bg-white/20 text-white" : "bg-white/5 text-white/70",
+                      )}
+                    >
+                      <span className={cn("h-2 w-2 rounded-full", color.tone)} />
+                      {color.label}
+                    </button>
+                  ))}
+                  <span className="mx-1 h-4 w-px bg-white/10" aria-hidden />
+                  {([
+                    { key: "thin", label: "Тонкая" },
+                    { key: "medium", label: "Средняя" },
+                    { key: "thick", label: "Толстая" },
+                  ] as const).map((thickness) => (
+                    <button
+                      key={thickness.key}
+                      type="button"
+                      onClick={() => setAnnotationThickness(thickness.key)}
+                      className={cn(
+                        "rounded-full px-2 py-1 text-[10px] font-semibold",
+                        annotationThickness === thickness.key
+                          ? "bg-white text-black"
+                          : "bg-white/10 text-white/70 hover:text-white",
+                      )}
+                    >
+                      {thickness.label}
+                    </button>
+                  ))}
+                  <span className="mx-1 h-4 w-px bg-white/10" aria-hidden />
+                  <button
+                    type="button"
+                    onClick={handleUndo}
+                    disabled={annotationStrokes.length === 0}
+                    className={cn(
+                      "rounded-full px-2 py-1 text-[10px] font-semibold",
+                      annotationStrokes.length === 0 ? "bg-white/5 text-white/30" : "bg-white/10 text-white/70",
+                    )}
+                  >
+                    Undo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRedo}
+                    disabled={redoStrokes.length === 0}
+                    className={cn(
+                      "rounded-full px-2 py-1 text-[10px] font-semibold",
+                      redoStrokes.length === 0 ? "bg-white/5 text-white/30" : "bg-white/10 text-white/70",
+                    )}
+                  >
+                    Redo
+                  </button>
                 </div>
               ) : null}
 
@@ -614,7 +901,8 @@ export default function ClientPortalPage(): JSX.Element {
                   type="button"
                   onClick={() => {
                     setAnnotationMode(false);
-                    setAnnotationShapes([]);
+                    setAnnotationStrokes([]);
+                    setRedoStrokes([]);
                     setDrawingState(null);
                     setPendingText(null);
                   }}
