@@ -15,9 +15,10 @@ import { buildSvgMarkup, strokeToSvg } from "@/lib/annotations/render";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { normalizeClientPoint } from "@/lib/annotations/coords";
-import { getPlaybackAction, stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
+import { getAnnotationToggle, getPlaybackAction, stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
 import { getDrawingSurfaceClass } from "@/lib/annotations/overlay";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
+import { Pencil } from "lucide-react";
 
 const SUBMIT_TIMEOUT_MS = 15000;
 
@@ -321,6 +322,21 @@ export default function ClientPortalPage(): JSX.Element {
     setActiveAnnotation(null);
     setDrawingState(null);
     setPendingText(null);
+  };
+
+  const stopAnnotationMode = (): void => {
+    setAnnotationMode(false);
+    setDrawingState(null);
+    setPendingText(null);
+  };
+
+  const toggleAnnotationMode = (): void => {
+    const toggle = getAnnotationToggle(annotationMode);
+    if (toggle.nextEnabled) {
+      void startAnnotationMode();
+      return;
+    }
+    stopAnnotationMode();
   };
 
   const getOverlayPoint = (event: React.PointerEvent | React.MouseEvent<HTMLDivElement>): { x: number; y: number } | null => {
@@ -1000,13 +1016,7 @@ export default function ClientPortalPage(): JSX.Element {
               {annotationMode ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setAnnotationMode(false);
-                    setAnnotationStrokes([]);
-                    setRedoStrokes([]);
-                    setDrawingState(null);
-                    setPendingText(null);
-                  }}
+                  onClick={stopAnnotationMode}
                   className="absolute right-3 top-3 z-30 rounded-full border border-white/10 bg-black/70 px-3 py-1 text-xs text-white/80 hover:text-white"
                 >
                   Отменить
@@ -1056,7 +1066,7 @@ export default function ClientPortalPage(): JSX.Element {
               ) : null}
             </div>
             <Button
-              onClick={startAnnotationMode}
+              onClick={() => textAreaRef.current?.focus()}
               type="button"
               disabled={!playerReady || isVersionLocked}
               className="h-9 rounded-full bg-[#007AFF] px-4 text-xs font-semibold text-white hover:bg-[#0A84FF]"
@@ -1104,7 +1114,24 @@ export default function ClientPortalPage(): JSX.Element {
           </div>
 
           <form onSubmit={submitFeedback} className="border-t border-white/10 bg-black/40 p-4">
-            <label className="mb-2 block text-xs text-white/60">Добавить правку</label>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <label className="block text-xs text-white/60">Добавить правку</label>
+              <button
+                type="button"
+                onClick={toggleAnnotationMode}
+                disabled={isVersionLocked || !playerReady}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold transition",
+                  annotationMode
+                    ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200"
+                    : "border-white/10 bg-white/5 text-white/70 hover:text-white",
+                  (!playerReady || isVersionLocked) && "cursor-not-allowed opacity-60",
+                )}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                {annotationMode ? "Рисование" : "Рисовать"}
+              </button>
+            </div>
             <Input
               value={authorName}
               onChange={(event) => setAuthorName(event.target.value)}
