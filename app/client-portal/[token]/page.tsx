@@ -194,6 +194,7 @@ export default function ClientPortalPage(): JSX.Element {
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [pendingText, setPendingText] = useState<PendingText | null>(null);
+  const debugAnnotations = searchParams.get("debugAnnotations") === "1";
 
   const safeVideoUrl = (activeVersion?.streamUrl ?? activeVersion?.fileUrl ?? "").trim();
   const isVersionLocked = activeVersion?.status === "APPROVED" || activeVersion?.status === "FINAL";
@@ -306,7 +307,22 @@ export default function ClientPortalPage(): JSX.Element {
 
   const getOverlayPoint = (event: React.PointerEvent | React.MouseEvent<HTMLDivElement>): { x: number; y: number } | null => {
     const rect = overlayRef.current?.getBoundingClientRect() ?? event.currentTarget.getBoundingClientRect();
-    return normalizeClientPoint(event.clientX, event.clientY, rect);
+    const normalized = normalizeClientPoint(event.clientX, event.clientY, rect);
+    if (debugAnnotations) {
+      // eslint-disable-next-line no-console
+      console.log("[annotations] pointer", {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        rect: {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        },
+        normalized,
+      });
+    }
+    return normalized;
   };
 
   const pushStroke = (stroke: AnnotationStroke): void => {
