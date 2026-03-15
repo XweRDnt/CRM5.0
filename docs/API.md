@@ -155,7 +155,6 @@ List project asset versions.
 Create a new version after upload confirmation.
 
 For Kinescope uploads include:
-- `videoProvider: "KINESCOPE"`
 - `kinescopeVideoId`
 - optional `streamUrl`
 - optional `processingStatus`
