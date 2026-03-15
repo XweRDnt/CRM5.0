@@ -1552,7 +1552,7 @@ export default function ClientPortalPage(): JSX.Element {
               <img
                 src={mobileFrameDataUrl}
                 alt="Annotation frame"
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             ) : (
               <div className="h-full w-full bg-[#0b0b0b]" />
