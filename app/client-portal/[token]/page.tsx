@@ -270,6 +270,40 @@ export default function ClientPortalPage(): JSX.Element {
     };
   }, [activeVersion, playerReady, readKinescopeTimeSafe]);
 
+  const annotationMatchWindowSec = 1;
+  useEffect(() => {
+    if (annotationMode) {
+      if (activeAnnotation) {
+        setActiveAnnotation(null);
+      }
+      return;
+    }
+    if (isPlayerPlaying) {
+      if (activeAnnotation) {
+        setActiveAnnotation(null);
+      }
+      return;
+    }
+    if (!selectedAnnotation) {
+      return;
+    }
+    const { timecodeSec, data } = selectedAnnotation;
+    if (timecodeSec === null || !data) {
+      if (activeAnnotation) {
+        setActiveAnnotation(null);
+      }
+      return;
+    }
+    const isMatch = Math.abs(playerCurrentTimeSec - timecodeSec) <= annotationMatchWindowSec;
+    if (isMatch) {
+      if (activeAnnotation !== data) {
+        setActiveAnnotation(data);
+      }
+    } else if (activeAnnotation) {
+      setActiveAnnotation(null);
+    }
+  }, [annotationMode, isPlayerPlaying, playerCurrentTimeSec, selectedAnnotation, activeAnnotation]);
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-[#1a1a1a] px-4 py-6 text-white">
@@ -780,40 +814,6 @@ export default function ClientPortalPage(): JSX.Element {
       setSubmitting(false);
     }
   };
-
-  const annotationMatchWindowSec = 1;
-  useEffect(() => {
-    if (annotationMode) {
-      if (activeAnnotation) {
-        setActiveAnnotation(null);
-      }
-      return;
-    }
-    if (isPlayerPlaying) {
-      if (activeAnnotation) {
-        setActiveAnnotation(null);
-      }
-      return;
-    }
-    if (!selectedAnnotation) {
-      return;
-    }
-    const { timecodeSec, data } = selectedAnnotation;
-    if (timecodeSec === null || !data) {
-      if (activeAnnotation) {
-        setActiveAnnotation(null);
-      }
-      return;
-    }
-    const isMatch = Math.abs(playerCurrentTimeSec - timecodeSec) <= annotationMatchWindowSec;
-    if (isMatch) {
-      if (activeAnnotation !== data) {
-        setActiveAnnotation(data);
-      }
-    } else if (activeAnnotation) {
-      setActiveAnnotation(null);
-    }
-  }, [annotationMode, isPlayerPlaying, playerCurrentTimeSec, selectedAnnotation, activeAnnotation]);
 
   const trimmedComment = commentText.trim();
   const trimmedAuthor = authorName.trim();
