@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import request from "supertest";
+import { prisma } from "@/lib/utils/db";
 
 export const API_URL = process.env.E2E_API_URL ?? "http://127.0.0.1:3000";
 
@@ -104,8 +105,29 @@ export async function createVersion(
     fileSize: number;
     durationSec: number;
     notes: string;
+    kinescopeVideoId: string;
   }>,
 ): Promise<{ id: string; status: string }> {
+  const kinescopeVideoId = overrides?.kinescopeVideoId ?? `video_${randomUUID()}`;
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { tenantId: true },
+  });
+  if (!project) {
+    throw new Error(`Project not found for upload session (${projectId})`);
+  }
+
+  await prisma.videoUploadSession.create({
+    data: {
+      tenantId: project.tenantId,
+      projectId,
+      kinescopeVideoId,
+      fileName: overrides?.fileName ?? "video.mp4",
+      fileType: "video/mp4",
+      fileSize: overrides?.fileSize ?? 10_000_000,
+    },
+  });
+
   const response = await request(API_URL)
     .post(`/api/projects/${projectId}/versions`)
     .set("Authorization", `Bearer ${token}`)
@@ -116,6 +138,7 @@ export async function createVersion(
       fileSize: overrides?.fileSize ?? 10_000_000,
       durationSec: overrides?.durationSec ?? 120,
       notes: overrides?.notes ?? "Initial upload",
+      kinescopeVideoId,
     });
 
   if (response.status !== 201) {

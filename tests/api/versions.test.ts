@@ -1,6 +1,27 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
+import { prisma } from "@/lib/utils/db";
 import { API_URL, createClient, createProject, createVersion, signupAndLogin } from "@/tests/api/helpers";
+
+async function createUploadSession(projectId: string, kinescopeVideoId: string, fileName: string, fileSize: number) {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { tenantId: true },
+  });
+  if (!project) {
+    throw new Error(`Project not found for upload session (${projectId})`);
+  }
+  await prisma.videoUploadSession.create({
+    data: {
+      tenantId: project.tenantId,
+      projectId,
+      kinescopeVideoId,
+      fileName,
+      fileType: "video/mp4",
+      fileSize,
+    },
+  });
+}
 
 describe("API Version Control", () => {
   it("GET /api/projects/[id]/versions/meta returns used versions and next number", async () => {
@@ -38,6 +59,11 @@ describe("API Version Control", () => {
     const session = await signupAndLogin();
     const client = await createClient(session.token);
     const project = await createProject(session.token, client.id);
+    const kinescopeVideoId1 = "video_auto_1";
+    const kinescopeVideoId2 = "video_auto_2";
+
+    await createUploadSession(project.id, kinescopeVideoId1, "video-1.mp4", 10_000_000);
+    await createUploadSession(project.id, kinescopeVideoId2, "video-2.mp4", 10_000_000);
 
     const first = await request(API_URL)
       .post(`/api/projects/${project.id}/versions`)
@@ -46,6 +72,7 @@ describe("API Version Control", () => {
         fileUrl: `https://example.com/video-${Date.now()}-1.mp4`,
         fileName: "video-1.mp4",
         fileSize: 10_000_000,
+        kinescopeVideoId: kinescopeVideoId1,
       });
 
     const second = await request(API_URL)
@@ -55,6 +82,7 @@ describe("API Version Control", () => {
         fileUrl: `https://example.com/video-${Date.now()}-2.mp4`,
         fileName: "video-2.mp4",
         fileSize: 10_000_000,
+        kinescopeVideoId: kinescopeVideoId2,
       });
 
     expect(first.status).toBe(201);
@@ -68,6 +96,9 @@ describe("API Version Control", () => {
     const client = await createClient(session.token);
     const project = await createProject(session.token, client.id);
     await createVersion(session.token, project.id, { versionNo: 1 });
+    const kinescopeVideoId = "video_conflict";
+
+    await createUploadSession(project.id, kinescopeVideoId, "video-duplicate.mp4", 10_000_000);
 
     const res = await request(API_URL)
       .post(`/api/projects/${project.id}/versions`)
@@ -77,6 +108,7 @@ describe("API Version Control", () => {
         fileUrl: `https://example.com/video-${Date.now()}-duplicate.mp4`,
         fileName: "video-duplicate.mp4",
         fileSize: 10_000_000,
+        kinescopeVideoId,
       });
 
     expect(res.status).toBe(409);
