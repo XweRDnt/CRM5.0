@@ -932,103 +932,32 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const captureFrameDataUrl = async (timecodeSec: number): Promise<string | null> => {
-    if (!safeVideoUrl) {
+    const videoId = activeVersion?.kinescopeVideoId ?? null;
+    if (!videoId) {
       return null;
     }
 
-    const existingVideo = document.querySelector("video") as HTMLVideoElement | null;
-    if (existingVideo && existingVideo.readyState >= 2) {
-      try {
-        const w = existingVideo.videoWidth || 1280;
-        const h = existingVideo.videoHeight || 720;
+    const time = Math.max(0, Math.round(timecodeSec));
+    const thumbnailUrl = `https://preview.kinescope.io/${videoId}/${time}/preview.jpg`;
+
+    return new Promise<string | null>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
         const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
+        canvas.width = img.width || 1280;
+        canvas.height = img.height || 720;
         const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const prevTime = existingVideo.currentTime;
-          existingVideo.currentTime = Math.max(0, timecodeSec);
-          await new Promise<void>((resolve) => {
-            const onSeeked = (): void => {
-              existingVideo.removeEventListener("seeked", onSeeked);
-              resolve();
-            };
-            existingVideo.addEventListener("seeked", onSeeked);
-            window.setTimeout(resolve, 500);
-          });
-          await new Promise<void>((resolve) =>
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-          );
-          ctx.drawImage(existingVideo, 0, 0, w, h);
-          const imageData = ctx.getImageData(0, 0, 10, 10);
-          const isBlack = imageData.data.every((v, index) => (index % 4 === 3 ? true : v === 0));
-          existingVideo.currentTime = prevTime;
-          if (!isBlack) {
-            return canvas.toDataURL("image/png");
-          }
+        if (!ctx) {
+          resolve(null);
+          return;
         }
-      } catch {
-        // fallback below
-      }
-    }
-
-    const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
-    video.preload = "auto";
-    video.muted = true;
-    video.playsInline = true;
-    video.style.position = "fixed";
-    video.style.opacity = "0";
-    video.style.pointerEvents = "none";
-    video.style.width = "1px";
-    video.style.height = "1px";
-    document.body.appendChild(video);
-    video.src = safeVideoUrl;
-
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const timer = window.setTimeout(() => reject(new Error("loadeddata timeout")), 10000);
-        video.onloadeddata = () => {
-          window.clearTimeout(timer);
-          resolve();
-        };
-        video.onerror = () => {
-          window.clearTimeout(timer);
-          reject(new Error("load error"));
-        };
-        video.load();
-      });
-
-      const target = Math.max(0, timecodeSec);
-      const safeTime = Number.isFinite(video.duration) && video.duration > 0 ? Math.min(target, video.duration) : target;
-      video.currentTime = safeTime;
-
-      await new Promise<void>((resolve) => {
-        const timer = window.setTimeout(resolve, 1000);
-        video.onseeked = () => {
-          window.clearTimeout(timer);
-          resolve();
-        };
-      });
-
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-      );
-
-      const width = video.videoWidth || 1280;
-      const height = video.videoHeight || 720;
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        return null;
-      }
-      ctx.drawImage(video, 0, 0, width, height);
-      return canvas.toDataURL("image/png");
-    } finally {
-      document.body.removeChild(video);
-    }
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => resolve(null);
+      img.src = thumbnailUrl;
+    });
   };
 
   const overlaySvgOnFrame = async (frameDataUrl: string, strokes: AnnotationStroke[]): Promise<string | null> => {
