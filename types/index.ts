@@ -381,7 +381,6 @@ export interface CreateVersionInput {
   durationSec?: number;
   uploadedByUserId: string;
   notes?: string;
-  videoProvider?: VideoProvider;
   kinescopeVideoId?: string;
   kinescopeAssetId?: string;
   kinescopeProjectId?: string;
