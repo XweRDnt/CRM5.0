@@ -933,17 +933,23 @@ export default function ClientPortalPage(): JSX.Element {
 
   const captureFrameDataUrl = async (timecodeSec: number): Promise<string | null> => {
     const videoId = activeVersion?.kinescopeVideoId ?? null;
+    // eslint-disable-next-line no-console
+    console.log("[capture] videoId:", videoId, "time:", timecodeSec);
     if (!videoId) {
       return null;
     }
 
     const time = Math.max(0, Math.round(timecodeSec));
     const thumbnailUrl = `https://preview.kinescope.io/${videoId}/${time}/preview.jpg`;
+    // eslint-disable-next-line no-console
+    console.log("[capture] thumbnailUrl:", thumbnailUrl);
 
     return new Promise<string | null>((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
+        // eslint-disable-next-line no-console
+        console.log("[capture] image loaded, size:", img.width, img.height);
         const canvas = document.createElement("canvas");
         canvas.width = img.width || 1280;
         canvas.height = img.height || 720;
@@ -955,7 +961,11 @@ export default function ClientPortalPage(): JSX.Element {
         ctx.drawImage(img, 0, 0);
         resolve(canvas.toDataURL("image/png"));
       };
-      img.onerror = () => resolve(null);
+      img.onerror = (event) => {
+        // eslint-disable-next-line no-console
+        console.log("[capture] image error:", event, "url was:", thumbnailUrl);
+        resolve(null);
+      };
       img.src = thumbnailUrl;
     });
   };
