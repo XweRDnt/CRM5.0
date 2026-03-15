@@ -464,7 +464,6 @@ export function VersionUploadFlow({
         fileName: file.name,
         fileSize: file.size,
         durationSec: confirmResult?.durationSec ?? selectedFileDurationSec ?? undefined,
-        videoProvider: "KINESCOPE",
         kinescopeVideoId,
         streamUrl,
         fileUrl,

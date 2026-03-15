@@ -29,7 +29,7 @@ type PortalVersion = {
   versionNumber: number;
   fileUrl: string;
   fileName: string;
-  videoProvider: "KINESCOPE" | "EXTERNAL_URL" | "YOUTUBE_LEGACY";
+  videoProvider: "KINESCOPE";
   kinescopeVideoId: string | null;
   streamUrl: string | null;
   processingStatus: "UPLOADING" | "PROCESSING" | "READY" | "FAILED";

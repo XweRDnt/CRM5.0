@@ -53,9 +53,23 @@ async function createProject(tenantId: string, clientAccountId: string, name: st
   });
 }
 
+async function createUploadSession(tenantId: string, projectId: string, kinescopeVideoId: string, fileName: string) {
+  return prisma.videoUploadSession.create({
+    data: {
+      tenantId,
+      projectId,
+      kinescopeVideoId,
+      fileName,
+      fileType: "video/mp4",
+      fileSize: 1_000_000,
+    },
+  });
+}
+
 async function cleanup() {
   await prisma.feedbackItem.deleteMany();
   await prisma.assetVersion.deleteMany();
+  await prisma.videoUploadSession.deleteMany();
   await prisma.project.deleteMany();
   await prisma.clientAccount.deleteMany();
   await prisma.user.deleteMany();
@@ -80,6 +94,9 @@ describe("AssetService.createVersion", () => {
     const user = await createUser(tenant.id, "user1@test.com");
     const client = await createClient(tenant.id, "client1@test.com");
     const project = await createProject(tenant.id, client.id, "Project");
+    const kinescopeVideoId = "video_asset_1";
+
+    await createUploadSession(tenant.id, project.id, kinescopeVideoId, "video.mp4");
 
     const result = await assetService.createVersion({
       projectId: project.id,
@@ -91,6 +108,7 @@ describe("AssetService.createVersion", () => {
       durationSec: 120,
       uploadedByUserId: user.id,
       notes: "First version",
+      kinescopeVideoId,
     });
 
     expect(result.versionNumber).toBe(1);
@@ -105,6 +123,9 @@ describe("AssetService.createVersion", () => {
     const user = await createUser(tenant.id, "user2@test.com");
     const client = await createClient(tenant.id, "client2@test.com");
     const project = await createProject(tenant.id, client.id, "Project");
+    const kinescopeVideoId = "video_asset_2";
+
+    await createUploadSession(tenant.id, project.id, kinescopeVideoId, "v1.mp4");
 
     const input = {
       projectId: project.id,
@@ -114,6 +135,7 @@ describe("AssetService.createVersion", () => {
       fileName: "v1.mp4",
       fileSize: 1000,
       uploadedByUserId: user.id,
+      kinescopeVideoId,
     };
 
     const v1 = await assetService.createVersion(input);
@@ -130,6 +152,9 @@ describe("AssetService.createVersion", () => {
     const user = await createUser(tenant.id, "user-conflict@test.com");
     const client = await createClient(tenant.id, "client-conflict@test.com");
     const project = await createProject(tenant.id, client.id, "Project");
+    const kinescopeVideoId = "video_asset_conflict";
+
+    await createUploadSession(tenant.id, project.id, kinescopeVideoId, "v1.mp4");
 
     await assetService.createVersion({
       projectId: project.id,
@@ -140,6 +165,7 @@ describe("AssetService.createVersion", () => {
       fileName: "v1.mp4",
       fileSize: 1000,
       uploadedByUserId: user.id,
+      kinescopeVideoId,
     });
 
     try {
@@ -152,6 +178,7 @@ describe("AssetService.createVersion", () => {
         fileName: "v1-duplicate.mp4",
         fileSize: 1000,
         uploadedByUserId: user.id,
+        kinescopeVideoId,
       });
       throw new Error("Expected conflict error");
     } catch (error) {
@@ -173,6 +200,7 @@ describe("AssetService.createVersion", () => {
         fileName: "file.mp4",
         fileSize: 1000,
         uploadedByUserId: user.id,
+        kinescopeVideoId: "video_asset_missing_project",
       }),
     ).rejects.toThrow("Project not found in this tenant");
   });
@@ -193,6 +221,7 @@ describe("AssetService.createVersion", () => {
         fileName: "file.mp4",
         fileSize: 1000,
         uploadedByUserId: user1.id,
+        kinescopeVideoId: "video_asset_wrong_tenant",
       }),
     ).rejects.toThrow("Project not found in this tenant");
   });
@@ -211,6 +240,7 @@ describe("AssetService.createVersion", () => {
         fileName: "file.mp4",
         fileSize: 1000,
         uploadedByUserId: "nonexistent-user",
+        kinescopeVideoId: "video_asset_missing_user",
       }),
     ).rejects.toThrow("User not found in this tenant");
   });
@@ -231,11 +261,12 @@ describe("AssetService.createVersion", () => {
         fileName: "file.mp4",
         fileSize: 1000,
         uploadedByUserId: user1.id,
+        kinescopeVideoId: "video_asset_wrong_user_tenant",
       }),
     ).rejects.toThrow("User not found in this tenant");
   });
 
-  it("should fail if file data is incomplete", async () => {
+  it("should fail if kinescopeVideoId is missing", async () => {
     const tenant = await createTenant("agency-asset-7");
     const user = await createUser(tenant.id, "user6@test.com");
     const client = await createClient(tenant.id, "client6@test.com");
@@ -245,13 +276,12 @@ describe("AssetService.createVersion", () => {
       assetService.createVersion({
         projectId: project.id,
         tenantId: tenant.id,
-        fileUrl: "",
         fileKey: "key",
         fileName: "file.mp4",
         fileSize: 1000,
         uploadedByUserId: user.id,
       }),
-    ).rejects.toThrow("File URL is required for non-Kinescope providers");
+    ).rejects.toThrow("kinescopeVideoId is required");
   });
 
   it("should fail if fileSize is not positive", async () => {
@@ -269,6 +299,7 @@ describe("AssetService.createVersion", () => {
         fileName: "file.mp4",
         fileSize: 0,
         uploadedByUserId: user.id,
+        kinescopeVideoId: "video_asset_invalid_size",
       }),
     ).rejects.toThrow("File size must be greater than 0");
   });
@@ -298,6 +329,9 @@ describe("AssetService.getVersionMeta", () => {
     const user = await createUser(tenant.id, "user-meta@test.com");
     const client = await createClient(tenant.id, "client-meta@test.com");
     const project = await createProject(tenant.id, client.id, "Project");
+    const kinescopeVideoId = "video_asset_meta";
+
+    await createUploadSession(tenant.id, project.id, kinescopeVideoId, "v1.mp4");
 
     await assetService.createVersion({
       projectId: project.id,
@@ -308,6 +342,7 @@ describe("AssetService.getVersionMeta", () => {
       fileName: "v1.mp4",
       fileSize: 1000,
       uploadedByUserId: user.id,
+      kinescopeVideoId,
     });
     await assetService.createVersion({
       projectId: project.id,
@@ -318,6 +353,7 @@ describe("AssetService.getVersionMeta", () => {
       fileName: "v2.mp4",
       fileSize: 1000,
       uploadedByUserId: user.id,
+      kinescopeVideoId,
     });
 
     const meta = await assetService.getVersionMeta(project.id, tenant.id);
@@ -340,6 +376,9 @@ describe("AssetService.getVersionById", () => {
     const user = await createUser(tenant.id, "user8@test.com", "Jane", "Editor");
     const client = await createClient(tenant.id, "client8@test.com");
     const project = await createProject(tenant.id, client.id, "Project");
+    const kinescopeVideoId = "video_asset_get_1";
+
+    await createUploadSession(tenant.id, project.id, kinescopeVideoId, "file.mp4");
 
     const created = await assetService.createVersion({
       projectId: project.id,
@@ -350,6 +389,7 @@ describe("AssetService.getVersionById", () => {
       fileSize: 1000,
       uploadedByUserId: user.id,
       notes: "v1",
+      kinescopeVideoId,
     });
 
     const result = await assetService.getVersionById(created.id, tenant.id);
@@ -372,6 +412,9 @@ describe("AssetService.getVersionById", () => {
     const user1 = await createUser(tenant1.id, "user9@test.com");
     const client1 = await createClient(tenant1.id, "client9@test.com");
     const project1 = await createProject(tenant1.id, client1.id, "Project");
+    const kinescopeVideoId = "video_asset_get_2";
+
+    await createUploadSession(tenant1.id, project1.id, kinescopeVideoId, "file.mp4");
     const created = await assetService.createVersion({
       projectId: project1.id,
       tenantId: tenant1.id,
@@ -380,6 +423,7 @@ describe("AssetService.getVersionById", () => {
       fileName: "file.mp4",
       fileSize: 1000,
       uploadedByUserId: user1.id,
+      kinescopeVideoId,
     });
 
     await expect(assetService.getVersionById(created.id, tenant2.id)).rejects.toThrow("Asset version not found");
@@ -399,6 +443,9 @@ describe("AssetService.listVersionsByProject", () => {
     const user = await createUser(tenant.id, "user10@test.com");
     const client = await createClient(tenant.id, "client10@test.com");
     const project = await createProject(tenant.id, client.id, "Project");
+    const kinescopeVideoId = "video_asset_list_1";
+
+    await createUploadSession(tenant.id, project.id, kinescopeVideoId, "v1.mp4");
 
     await assetService.createVersion({
       projectId: project.id,
@@ -408,6 +455,7 @@ describe("AssetService.listVersionsByProject", () => {
       fileName: "v1.mp4",
       fileSize: 1000,
       uploadedByUserId: user.id,
+      kinescopeVideoId,
     });
     await assetService.createVersion({
       projectId: project.id,
@@ -417,6 +465,7 @@ describe("AssetService.listVersionsByProject", () => {
       fileName: "v2.mp4",
       fileSize: 1100,
       uploadedByUserId: user.id,
+      kinescopeVideoId,
     });
 
     const result = await assetService.listVersionsByProject(project.id, tenant.id);
@@ -453,6 +502,11 @@ describe("AssetService.listVersionsByProject", () => {
     const client = await createClient(tenant.id, "client13@test.com");
     const project1 = await createProject(tenant.id, client.id, "Project 1");
     const project2 = await createProject(tenant.id, client.id, "Project 2");
+    const kinescopeVideoId1 = "video_asset_list_2";
+    const kinescopeVideoId2 = "video_asset_list_3";
+
+    await createUploadSession(tenant.id, project1.id, kinescopeVideoId1, "p1.mp4");
+    await createUploadSession(tenant.id, project2.id, kinescopeVideoId2, "p2.mp4");
 
     await assetService.createVersion({
       projectId: project1.id,
@@ -462,6 +516,7 @@ describe("AssetService.listVersionsByProject", () => {
       fileName: "p1.mp4",
       fileSize: 1000,
       uploadedByUserId: user.id,
+      kinescopeVideoId: kinescopeVideoId1,
     });
     await assetService.createVersion({
       projectId: project2.id,
@@ -471,6 +526,7 @@ describe("AssetService.listVersionsByProject", () => {
       fileName: "p2.mp4",
       fileSize: 1000,
       uploadedByUserId: user.id,
+      kinescopeVideoId: kinescopeVideoId2,
     });
 
     const result = await assetService.listVersionsByProject(project1.id, tenant.id);
@@ -493,6 +549,9 @@ describe("AssetService.approveVersion", () => {
     const user = await createUser(tenant.id, "user12@test.com");
     const client = await createClient(tenant.id, "client14@test.com");
     const project = await createProject(tenant.id, client.id, "Project");
+    const kinescopeVideoId = "video_asset_approve_1";
+
+    await createUploadSession(tenant.id, project.id, kinescopeVideoId, "p1.mp4");
     const version = await assetService.createVersion({
       projectId: project.id,
       tenantId: tenant.id,
@@ -501,6 +560,7 @@ describe("AssetService.approveVersion", () => {
       fileName: "p1.mp4",
       fileSize: 1000,
       uploadedByUserId: user.id,
+      kinescopeVideoId,
     });
 
     const approved = await assetService.approveVersion({
@@ -520,6 +580,9 @@ describe("AssetService.approveVersion", () => {
     const user = await createUser(tenant.id, "user13@test.com");
     const client = await createClient(tenant.id, "client15@test.com");
     const project = await createProject(tenant.id, client.id, "Project");
+    const kinescopeVideoId = "video_asset_approve_2";
+
+    await createUploadSession(tenant.id, project.id, kinescopeVideoId, "p2.mp4");
     const version = await assetService.createVersion({
       projectId: project.id,
       tenantId: tenant.id,
@@ -528,6 +591,7 @@ describe("AssetService.approveVersion", () => {
       fileName: "p2.mp4",
       fileSize: 1000,
       uploadedByUserId: user.id,
+      kinescopeVideoId,
     });
 
     const firstApprove = await assetService.approveVersion({
@@ -591,33 +655,4 @@ describe("AssetService.deleteVersion", () => {
     expect(remaining).toBeNull();
   });
 
-  it("skips kinescope delete when version is non-kinescope", async () => {
-    const tenant = await createTenant("agency-asset-delete-2");
-    const user = await createUser(tenant.id, "user-delete2@test.com");
-    const client = await createClient(tenant.id, "client-delete2@test.com");
-    const project = await createProject(tenant.id, client.id, "Project");
-
-    const version = await prisma.assetVersion.create({
-      data: {
-        projectId: project.id,
-        versionNo: 1,
-        fileUrl: "https://s3.amazonaws.com/video.mp4",
-        fileKey: "manual/video.mp4",
-        fileName: "v1.mp4",
-        fileSize: 1000,
-        uploadedByUserId: user.id,
-        uploadedByLegacy: user.id,
-        videoProvider: VideoProvider.EXTERNAL_URL,
-      },
-    });
-
-    await assetService.deleteVersion(
-      { tenantId: tenant.id, userId: user.id, role: UserRole.PM },
-      { projectId: project.id, versionId: version.id },
-    );
-
-    expect(deleteVideoMock).not.toHaveBeenCalled();
-    const remaining = await prisma.assetVersion.findUnique({ where: { id: version.id } });
-    expect(remaining).toBeNull();
-  });
 });

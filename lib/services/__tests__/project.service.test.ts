@@ -467,13 +467,14 @@ describe("ProjectService.deleteProject", () => {
         {
           projectId: project.id,
           versionNo: 3,
-          fileUrl: "https://s3.amazonaws.com/video.mp4",
-          fileKey: "manual/video.mp4",
+          fileUrl: "https://kinescope.io/video_c",
+          fileKey: "kinescope/video_c",
           fileName: "v3.mp4",
           fileSize: 1000,
           uploadedByUserId: user.id,
           uploadedByLegacy: user.id,
-          videoProvider: VideoProvider.EXTERNAL_URL,
+          videoProvider: VideoProvider.KINESCOPE,
+          kinescopeVideoId: "video_c",
         },
       ],
     });
@@ -482,9 +483,10 @@ describe("ProjectService.deleteProject", () => {
 
     await projectService.deleteProject({ tenantId: tenant.id }, { projectId: project.id });
 
-    expect(deleteVideoMock).toHaveBeenCalledTimes(2);
+    expect(deleteVideoMock).toHaveBeenCalledTimes(3);
     expect(deleteVideoMock).toHaveBeenCalledWith("video_a");
     expect(deleteVideoMock).toHaveBeenCalledWith("video_b");
+    expect(deleteVideoMock).toHaveBeenCalledWith("video_c");
     const remaining = await prisma.project.findUnique({ where: { id: project.id } });
     expect(remaining).toBeNull();
   });

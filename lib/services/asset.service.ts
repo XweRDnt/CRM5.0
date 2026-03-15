@@ -64,14 +64,12 @@ export class AssetService {
       projectId,
       tenantId,
       versionNo: requestedVersionNo,
-      fileUrl,
       fileKey,
       fileName,
       fileSize,
       durationSec,
       uploadedByUserId,
       notes,
-      videoProvider = VideoProvider.EXTERNAL_URL,
       kinescopeVideoId,
       kinescopeAssetId,
       kinescopeProjectId,
@@ -84,12 +82,8 @@ export class AssetService {
       throw new Error("File name is required");
     }
 
-    if (videoProvider === VideoProvider.KINESCOPE && !kinescopeVideoId) {
-      throw new Error("kinescopeVideoId is required for Kinescope provider");
-    }
-
-    if (videoProvider !== VideoProvider.KINESCOPE && !fileUrl) {
-      throw new Error("File URL is required for non-Kinescope providers");
+    if (!kinescopeVideoId) {
+      throw new Error("kinescopeVideoId is required");
     }
 
     if (fileSize <= 0) {
@@ -143,25 +137,21 @@ export class AssetService {
       throw new VersionConflictError(await this.getNextVersionNumber(projectId));
     }
 
-    if (videoProvider === VideoProvider.KINESCOPE) {
-      const uploadSession = await this.prismaClient.videoUploadSession.findFirst({
-        where: {
-          tenantId,
-          projectId,
-          kinescopeVideoId: kinescopeVideoId!,
-        },
-        select: { id: true, streamUrl: true, durationSec: true, status: true, errorMessage: true },
-      });
+    const uploadSession = await this.prismaClient.videoUploadSession.findFirst({
+      where: {
+        tenantId,
+        projectId,
+        kinescopeVideoId,
+      },
+      select: { id: true, streamUrl: true, durationSec: true, status: true, errorMessage: true },
+    });
 
-      if (!uploadSession) {
-        throw new Error("Kinescope upload session not found in this tenant/project");
-      }
+    if (!uploadSession) {
+      throw new Error("Kinescope upload session not found in this tenant/project");
     }
 
-    const resolvedFileKey =
-      fileKey ?? (videoProvider === VideoProvider.KINESCOPE ? `kinescope/${tenantId}/${projectId}/${kinescopeVideoId}` : `manual/${tenantId}/${projectId}/v${versionNo}/${fileName}`);
-    const resolvedFileUrl =
-      videoProvider === VideoProvider.KINESCOPE ? (streamUrl ?? `https://kinescope.io/${kinescopeVideoId}`) : (fileUrl as string);
+    const resolvedFileKey = fileKey ?? `kinescope/${tenantId}/${projectId}/${kinescopeVideoId}`;
+    const resolvedFileUrl = streamUrl ?? `https://kinescope.io/${kinescopeVideoId}`;
 
     let version: AssetVersionWithUploader;
     try {
@@ -177,7 +167,7 @@ export class AssetService {
           uploadedByUserId,
           uploadedByLegacy: uploadedByUserId,
           notes: notes ?? null,
-          videoProvider,
+          videoProvider: VideoProvider.KINESCOPE,
           kinescopeVideoId: kinescopeVideoId ?? null,
           kinescopeAssetId: kinescopeAssetId ?? null,
           kinescopeProjectId: kinescopeProjectId ?? null,
@@ -421,14 +411,14 @@ export class AssetService {
           tenantId,
         },
       },
-      select: { id: true, kinescopeVideoId: true, videoProvider: true },
+      select: { id: true, kinescopeVideoId: true },
     });
 
     if (!version) {
       throw new Error("Asset version not found");
     }
 
-    if (version.videoProvider === VideoProvider.KINESCOPE && version.kinescopeVideoId) {
+    if (version.kinescopeVideoId) {
       await getKinescopeService().deleteVideo(version.kinescopeVideoId);
     }
 
