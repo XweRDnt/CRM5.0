@@ -72,10 +72,6 @@ type PendingText = {
   value: string;
 };
 
-type SelectedAnnotation = {
-  timecodeSec: number | null;
-  data: AnnotationData | null;
-};
 
 const fetcher = async (url: string): Promise<PortalResponse> => {
   const response = await fetch(url);
@@ -207,7 +203,6 @@ export default function ClientPortalPage(): JSX.Element {
   const [annotationStrokes, setAnnotationStrokes] = useState<AnnotationStroke[]>([]);
   const [redoStrokes, setRedoStrokes] = useState<AnnotationStroke[]>([]);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
-  const [selectedAnnotation, setSelectedAnnotation] = useState<SelectedAnnotation | null>(null);
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [pendingText, setPendingText] = useState<PendingText | null>(null);
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
@@ -279,40 +274,6 @@ export default function ClientPortalPage(): JSX.Element {
       localStorage.setItem("portal_author_name", authorName);
     }
   }, [authorName]);
-
-  const annotationMatchWindowSec = 1;
-  useEffect(() => {
-    if (annotationMode) {
-      if (activeAnnotation) {
-        setActiveAnnotation(null);
-      }
-      return;
-    }
-    if (isPlayerPlaying) {
-      if (activeAnnotation) {
-        setActiveAnnotation(null);
-      }
-      return;
-    }
-    if (!selectedAnnotation) {
-      return;
-    }
-    const { timecodeSec, data } = selectedAnnotation;
-    if (timecodeSec === null || !data) {
-      if (activeAnnotation) {
-        setActiveAnnotation(null);
-      }
-      return;
-    }
-    const isMatch = Math.abs(playerCurrentTimeSec - timecodeSec) <= annotationMatchWindowSec;
-    if (isMatch) {
-      if (activeAnnotation !== data) {
-        setActiveAnnotation(data);
-      }
-    } else if (activeAnnotation) {
-      setActiveAnnotation(null);
-    }
-  }, [annotationMode, isPlayerPlaying, playerCurrentTimeSec, selectedAnnotation, activeAnnotation]);
 
   if (isLoading) {
     return (
@@ -619,7 +580,6 @@ export default function ClientPortalPage(): JSX.Element {
     kinescopeRef.current?.pause();
 
     const normalized = normalizeAnnotationData(annotation);
-    setSelectedAnnotation({ timecodeSec, data: normalized });
     setActiveAnnotation(normalized);
     setIsPlayerPlaying(false);
     setAnnotationMode(false);
