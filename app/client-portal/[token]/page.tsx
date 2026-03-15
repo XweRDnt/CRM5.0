@@ -299,7 +299,6 @@ export default function ClientPortalPage(): JSX.Element {
     }
 
     kinescopeRef.current?.pause();
-    setIsPlayerPlaying(false);
 
     const kinescopeTime = await readKinescopeTimeSafe();
     const directTime = Math.max(0, Math.floor(Number.isFinite(kinescopeTime) ? kinescopeTime : 0));
@@ -339,7 +338,6 @@ export default function ClientPortalPage(): JSX.Element {
       const currentTargetElement = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
       const targetRect = targetElement?.getBoundingClientRect() ?? null;
       const currentTargetRect = currentTargetElement?.getBoundingClientRect() ?? null;
-      // eslint-disable-next-line no-console
       console.log("[annotations] pointer", {
         clientX: event.clientX,
         clientY: event.clientY,
@@ -599,7 +597,7 @@ export default function ClientPortalPage(): JSX.Element {
     }
   };
 
-  const captureFrameDataUrl = async (timecodeSec: number): Promise<string | null> => {
+  const captureFrameDataUrl = async (_timecodeSec: number): Promise<string | null> => {
     const videoId = activeVersion?.kinescopeVideoId ?? null;
     if (!videoId) {
       return null;
