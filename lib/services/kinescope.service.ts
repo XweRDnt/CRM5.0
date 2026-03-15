@@ -297,10 +297,9 @@ export class KinescopeService {
 
     try {
       const payload = await this.request<{
-        poster?: { url?: string };
-        data?: { poster?: { url?: string } };
+        data?: { poster?: { original?: string } };
       }>(`/videos/${kinescopeVideoId}`, { method: "GET" });
-      return payload.poster?.url ?? payload.data?.poster?.url ?? null;
+      return payload.data?.poster?.original ?? null;
     } catch {
       return null;
     }
