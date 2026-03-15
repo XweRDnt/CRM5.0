@@ -214,6 +214,11 @@ export default function ClientPortalPage(): JSX.Element {
   const [mobileDrawingState, setMobileDrawingState] = useState<DrawingState | null>(null);
   const [mobilePendingText, setMobilePendingText] = useState<PendingText | null>(null);
   const [mobileWidgetPos, setMobileWidgetPos] = useState(DEFAULT_MOBILE_WIDGET_POS);
+  // Temporary debug overlay, remove after investigation.
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+  const addLog = (message: string): void => {
+    setDebugLog((prev) => [...prev.slice(-10), message]);
+  };
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
   const handleToolbarEvent = (event: React.SyntheticEvent): void => {
     stopAnnotationToolbarEvent(event);
@@ -933,23 +938,21 @@ export default function ClientPortalPage(): JSX.Element {
 
   const captureFrameDataUrl = async (timecodeSec: number): Promise<string | null> => {
     const videoId = activeVersion?.kinescopeVideoId ?? null;
-    // eslint-disable-next-line no-console
-    console.log("[capture] videoId:", videoId, "time:", timecodeSec);
+    addLog(`videoId: ${videoId}, time: ${timecodeSec}`);
     if (!videoId) {
+      addLog("NO videoId, return null");
       return null;
     }
 
     const time = Math.max(0, Math.round(timecodeSec));
     const thumbnailUrl = `https://preview.kinescope.io/${videoId}/${time}/preview.jpg`;
-    // eslint-disable-next-line no-console
-    console.log("[capture] thumbnailUrl:", thumbnailUrl);
+    addLog(`url: ${thumbnailUrl}`);
 
     return new Promise<string | null>((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        // eslint-disable-next-line no-console
-        console.log("[capture] image loaded, size:", img.width, img.height);
+        addLog(`loaded! ${img.width}x${img.height}`);
         const canvas = document.createElement("canvas");
         canvas.width = img.width || 1280;
         canvas.height = img.height || 720;
@@ -961,9 +964,8 @@ export default function ClientPortalPage(): JSX.Element {
         ctx.drawImage(img, 0, 0);
         resolve(canvas.toDataURL("image/png"));
       };
-      img.onerror = (event) => {
-        // eslint-disable-next-line no-console
-        console.log("[capture] image error:", event, "url was:", thumbnailUrl);
+      img.onerror = () => {
+        addLog("ERROR loading image");
         resolve(null);
       };
       img.src = thumbnailUrl;
@@ -1145,6 +1147,25 @@ export default function ClientPortalPage(): JSX.Element {
 
   return (
     <main className="min-h-screen bg-[#1a1a1a] text-white">
+      {debugLog.length > 0 ? (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            background: "rgba(0,0,0,0.85)",
+            color: "#0f0",
+            fontSize: 12,
+            padding: 8,
+            zIndex: 99999,
+          }}
+        >
+          {debugLog.map((line, index) => (
+            <div key={index}>{line}</div>
+          ))}
+        </div>
+      ) : null}
       <header className="sticky top-0 z-30 h-12 border-b border-white/10 bg-[#111111]">
         <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4">
           <div className="flex flex-col">
