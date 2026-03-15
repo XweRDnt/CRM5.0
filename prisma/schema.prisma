@@ -119,8 +119,6 @@ enum VersionStatus {
 
 enum VideoProvider {
   KINESCOPE
-  EXTERNAL_URL
-  YOUTUBE_LEGACY
 }
 
 enum VideoProcessingStatus {
@@ -332,7 +330,7 @@ model AssetVersion {
   status           VersionStatus  @default(DRAFT)
   approvedBy       String?
   approvedAt       DateTime?
-  videoProvider    VideoProvider        @default(EXTERNAL_URL)
+  videoProvider    VideoProvider        @default(KINESCOPE)
   kinescopeVideoId String?
   kinescopeAssetId String?
   kinescopeProjectId String?
