@@ -19,7 +19,6 @@ import { getAnnotationToggle, stopAnnotationToolbarEvent } from "@/lib/annotatio
 import { getDrawingSurfaceClass } from "@/lib/annotations/overlay";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
 import { ArrowUpRight, Circle, Minus, Pencil, Redo2, Send, Square, Type, Undo2, X } from "lucide-react";
-import { PortalErrorBoundary } from "./PortalErrorBoundary";
 
 const SUBMIT_TIMEOUT_MS = 15000;
 
@@ -849,8 +848,7 @@ export default function ClientPortalPage(): JSX.Element {
   );
 
   return (
-    <PortalErrorBoundary>
-      <main className="min-h-screen bg-[#1a1a1a] text-white">
+    <main className="min-h-screen bg-[#1a1a1a] text-white">
       <header className="sticky top-0 z-30 h-12 border-b border-white/10 bg-[#111111]">
         <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4">
           <div className="flex flex-col">
@@ -1230,8 +1228,7 @@ export default function ClientPortalPage(): JSX.Element {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </main>
-    </PortalErrorBoundary>
+    </main>
   );
 }
 
