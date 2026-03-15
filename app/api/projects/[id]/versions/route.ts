@@ -1,4 +1,4 @@
-import { VideoProcessingStatus, VideoProvider } from "@prisma/client";
+import { VideoProcessingStatus } from "@prisma/client";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
 import { assetService, VersionConflictError } from "@/lib/services/asset.service";
 import { assertProjectAccess } from "@/lib/services/access-control.service";
@@ -17,7 +17,6 @@ const createVersionSchema = z.object({
   fileSize: z.number().int().positive(),
   durationSec: z.number().int().nonnegative().optional(),
   notes: z.string().max(2000).optional(),
-  videoProvider: z.nativeEnum(VideoProvider).optional(),
   kinescopeVideoId: z.string().min(1).optional(),
   kinescopeAssetId: z.string().min(1).optional(),
   kinescopeProjectId: z.string().min(1).optional(),
@@ -54,7 +53,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context: { params
       durationSec: payload.durationSec,
       uploadedByUserId: req.user.userId,
       notes: payload.notes,
-      videoProvider: payload.videoProvider,
       kinescopeVideoId: payload.kinescopeVideoId,
       kinescopeAssetId: payload.kinescopeAssetId,
       kinescopeProjectId: payload.kinescopeProjectId,
