@@ -5,4 +5,7 @@ export const getDrawingSurfaceClass = (interactive: boolean): string =>
     "top-0",
     "bottom-12",
     interactive ? "pointer-events-auto" : "pointer-events-none",
-  ].join(" ");
+    interactive ? "touch-action-none" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");

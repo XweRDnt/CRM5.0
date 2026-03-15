@@ -872,6 +872,7 @@ export default function ClientPortalPage(): JSX.Element {
               <div
                 ref={overlayRef}
                 className={cn(getDrawingSurfaceClass(annotationMode), overlayVisible ? "" : "pointer-events-none")}
+                style={annotationMode ? { touchAction: "none" } : undefined}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
