@@ -214,11 +214,6 @@ export default function ClientPortalPage(): JSX.Element {
   const [mobileDrawingState, setMobileDrawingState] = useState<DrawingState | null>(null);
   const [mobilePendingText, setMobilePendingText] = useState<PendingText | null>(null);
   const [mobileWidgetPos, setMobileWidgetPos] = useState(DEFAULT_MOBILE_WIDGET_POS);
-  // Temporary debug overlay, remove after investigation.
-  const [debugLog, setDebugLog] = useState<string[]>([]);
-  const addLog = (message: string): void => {
-    setDebugLog((prev) => [...prev.slice(-10), message]);
-  };
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
   const handleToolbarEvent = (event: React.SyntheticEvent): void => {
     stopAnnotationToolbarEvent(event);
@@ -938,9 +933,7 @@ export default function ClientPortalPage(): JSX.Element {
 
   const captureFrameDataUrl = async (timecodeSec: number): Promise<string | null> => {
     const videoId = activeVersion?.kinescopeVideoId ?? null;
-    addLog(`videoId: ${videoId}, time: ${timecodeSec}`);
     if (!videoId) {
-      addLog("NO videoId, return null");
       return null;
     }
 
@@ -948,27 +941,22 @@ export default function ClientPortalPage(): JSX.Element {
     try {
       const response = await fetch(`/api/public/portal/poster?videoId=${encodeURIComponent(videoId)}`);
       if (!response.ok) {
-        addLog(`poster fetch error: ${response.status}`);
         return null;
       }
       const payload = (await response.json().catch(() => null)) as { url?: string | null } | null;
       posterUrl = payload?.url ?? null;
     } catch {
-      addLog("poster fetch error");
       return null;
     }
 
     if (!posterUrl) {
-      addLog("NO poster url");
       return null;
     }
-    addLog(`poster url: ${posterUrl}`);
 
     return new Promise<string | null>((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        addLog(`loaded! ${img.width}x${img.height}`);
         try {
           const canvas = document.createElement("canvas");
           canvas.width = img.width || 1280;
@@ -985,7 +973,6 @@ export default function ClientPortalPage(): JSX.Element {
         }
       };
       img.onerror = () => {
-        addLog("ERROR loading image");
         resolve(null);
       };
       img.src = posterUrl;
@@ -1167,25 +1154,6 @@ export default function ClientPortalPage(): JSX.Element {
 
   return (
     <main className="min-h-screen bg-[#1a1a1a] text-white">
-      {debugLog.length > 0 ? (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            background: "rgba(0,0,0,0.85)",
-            color: "#0f0",
-            fontSize: 12,
-            padding: 8,
-            zIndex: 99999,
-          }}
-        >
-          {debugLog.map((line, index) => (
-            <div key={index}>{line}</div>
-          ))}
-        </div>
-      ) : null}
       <header className="sticky top-0 z-30 h-12 border-b border-white/10 bg-[#111111]">
         <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4">
           <div className="flex flex-col">
