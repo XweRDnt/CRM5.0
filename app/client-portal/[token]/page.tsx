@@ -597,7 +597,7 @@ export default function ClientPortalPage(): JSX.Element {
     setMobileRedoStrokes([]);
   };
 
-  const getMobileOverlayPoint = (touch: Touch, target: HTMLDivElement): { x: number; y: number } | null => {
+  const getMobileOverlayPoint = (touch: React.Touch, target: HTMLDivElement): { x: number; y: number } | null => {
     const rect = mobileOverlayRef.current?.getBoundingClientRect() ?? target.getBoundingClientRect();
     return normalizeClientPoint(touch.clientX, touch.clientY, rect);
   };
