@@ -5,17 +5,30 @@ import { prisma } from "@/lib/utils/db";
 import { handleAPIError } from "@/lib/utils/api-error";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 
-const createPublicFeedbackSchema = z.object({
-  assetVersionId: z.string().min(1),
-  authorType: z.literal(AuthorType.CLIENT).default(AuthorType.CLIENT),
-  authorEmail: z.string().email().optional(),
-  authorName: z.string().max(200).optional(),
-  timecodeSec: z.number().int().nonnegative().optional(),
-  text: z.string().min(1).max(5000),
-  category: z.nativeEnum(FeedbackCategory).optional(),
-  annotationData: z.unknown().optional(),
-  annotationPreview: z.string().url().optional(),
-});
+const createPublicFeedbackSchema = z
+  .object({
+    assetVersionId: z.string().min(1),
+    authorType: z.literal(AuthorType.CLIENT).default(AuthorType.CLIENT),
+    authorEmail: z.string().email().optional(),
+    authorName: z.string().max(200).optional(),
+    timecodeSec: z.number().int().nonnegative().optional(),
+    text: z.string().max(5000).optional(),
+    category: z.nativeEnum(FeedbackCategory).optional(),
+    annotationData: z.unknown().optional(),
+    annotationPreview: z.string().url().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const text = value.text?.trim() ?? "";
+    const hasText = text.length > 0;
+    const hasAnnotation = value.annotationData !== undefined;
+    if (!hasText && !hasAnnotation) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["text"],
+        message: "text is required when annotation data is not provided",
+      });
+    }
+  });
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -53,6 +66,8 @@ export async function POST(request: Request): Promise<Response> {
       }
     }
 
+    const normalizedText = payload.text?.trim() ?? "";
+
     const feedback = await prisma.feedbackItem.create({
       data: {
         assetVersionId: payload.assetVersionId,
@@ -60,7 +75,7 @@ export async function POST(request: Request): Promise<Response> {
         authorEmail: payload.authorEmail ?? null,
         authorName: payload.authorName ?? null,
         timecodeSec: payload.timecodeSec ?? null,
-        text: payload.text,
+        text: normalizedText,
         category: payload.category ?? null,
         annotationData: payload.annotationData ?? Prisma.DbNull,
         annotationPreview: payload.annotationPreview ?? null,
@@ -91,7 +106,7 @@ export async function POST(request: Request): Promise<Response> {
         projectName: version.project.name,
         versionNumber: version.versionNo,
         authorName: payload.authorName?.trim() || "Client",
-        text: payload.text,
+        text: normalizedText,
         timecodeSec: payload.timecodeSec,
         portalUrl: `${appUrl}/client-portal/${version.project.portalToken}`,
       })

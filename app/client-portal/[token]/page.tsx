@@ -15,10 +15,10 @@ import { buildSvgMarkup, strokeToSvg } from "@/lib/annotations/render";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { normalizeClientPoint } from "@/lib/annotations/coords";
-import { getAnnotationToggle, getPlaybackAction, stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
+import { getAnnotationToggle, stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
 import { getDrawingSurfaceClass } from "@/lib/annotations/overlay";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
-import { Pencil } from "lucide-react";
+import { ArrowUpRight, Circle, Minus, Pencil, Redo2, Send, Square, Type, Undo2, X } from "lucide-react";
 
 const SUBMIT_TIMEOUT_MS = 15000;
 
@@ -183,7 +183,6 @@ export default function ClientPortalPage(): JSX.Element {
   const lastKnownTimeRef = useRef(0);
   const [playerCurrentTimeSec, setPlayerCurrentTimeSec] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
-  const [isPlayerPlaying, setIsPlayerPlaying] = useState(false);
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -202,16 +201,6 @@ export default function ClientPortalPage(): JSX.Element {
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
   const handleToolbarEvent = (event: React.SyntheticEvent): void => {
     stopAnnotationToolbarEvent(event);
-  };
-
-  const handlePlaybackToggle = (event: React.MouseEvent<HTMLButtonElement>): void => {
-    handleToolbarEvent(event);
-    const action = getPlaybackAction(isPlayerPlaying);
-    if (action === "play") {
-      kinescopeRef.current?.play();
-      return;
-    }
-    kinescopeRef.current?.pause();
   };
 
   const safeVideoUrl = (activeVersion?.streamUrl ?? activeVersion?.fileUrl ?? "").trim();
@@ -694,8 +683,8 @@ export default function ClientPortalPage(): JSX.Element {
     return canvas.toDataURL("image/png");
   };
 
-  const submitFeedback = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
+  const submitFeedback = async (event?: React.FormEvent): Promise<void> => {
+    event?.preventDefault();
     if (!activeVersion) {
       return;
     }
@@ -704,11 +693,13 @@ export default function ClientPortalPage(): JSX.Element {
 
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+    const trimmedAuthor = authorName.trim();
+    const trimmedText = commentText.trim();
     const payload: Record<string, unknown> = {
       assetVersionId: activeVersion.id,
       authorType: "CLIENT",
-      authorName: authorName.trim(),
-      text: commentText,
+      authorName: trimmedAuthor,
+      text: trimmedText,
       timecodeSec: capturedTimecodeSec ?? undefined,
     };
 
@@ -781,7 +772,13 @@ export default function ClientPortalPage(): JSX.Element {
     }
   };
 
-  const overlayVisible = annotationMode || activeAnnotation !== null;
+  const trimmedComment = commentText.trim();
+  const trimmedAuthor = authorName.trim();
+  const hasComment = trimmedComment.length > 0;
+  const hasStrokes = annotationStrokes.length > 0;
+  const canSubmit = !submitting && !isVersionLocked && trimmedAuthor.length > 0 && (hasComment || hasStrokes);
+  const toolbarVisible = annotationMode;
+  const overlayVisible = annotationMode || activeAnnotation !== null || annotationStrokes.length > 0;
   const previewStroke: AnnotationStroke | null = drawingState
     ? drawingState.tool === "freehand"
       ? {
@@ -802,7 +799,7 @@ export default function ClientPortalPage(): JSX.Element {
 
   const overlayStrokes = annotationMode
     ? [...annotationStrokes, ...(previewStroke ? [previewStroke] : [])]
-    : activeAnnotation?.strokes ?? [];
+    : activeAnnotation?.strokes ?? (annotationStrokes.length > 0 ? annotationStrokes : []);
 
   const renderStroke = (stroke: AnnotationStroke, index: number): JSX.Element => (
     <g key={`stroke-${index}`} dangerouslySetInnerHTML={{ __html: strokeToSvg(stroke) }} />
@@ -860,12 +857,10 @@ export default function ClientPortalPage(): JSX.Element {
               onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
               onPlay={() => {
                 setPlayerReady(true);
-                setIsPlayerPlaying(true);
                 if (!annotationMode) {
                   setActiveAnnotation(null);
                 }
               }}
-              onPause={() => setIsPlayerPlaying(false)}
             />
 
             <div className="pointer-events-none absolute inset-0 z-20">
@@ -900,118 +895,143 @@ export default function ClientPortalPage(): JSX.Element {
                 ) : null}
               </div>
 
-              {annotationMode ? (
-                <div
-                  className="pointer-events-auto absolute left-3 top-3 z-30 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/70 px-3 py-2 text-xs"
-                  onPointerDown={handleToolbarEvent}
-                  onPointerUp={handleToolbarEvent}
-                  onClick={handleToolbarEvent}
-                >
-                  <button
-                    type="button"
-                    onClick={handlePlaybackToggle}
-                    className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/80 hover:text-white"
-                  >
-                    {isPlayerPlaying ? "Пауза" : "Плей"}
-                  </button>
+              <div
+                className={cn(
+                  "pointer-events-auto absolute left-1/2 z-40 w-[min(100%-1.5rem,26rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-black/80 px-3 py-2 text-xs shadow-[0_10px_40px_rgba(0,0,0,0.45)] transition duration-200 ease-out",
+                  toolbarVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0",
+                )}
+                style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+                onPointerDown={handleToolbarEvent}
+                onPointerUp={handleToolbarEvent}
+                onClick={handleToolbarEvent}
+              >
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
                   {([
-                    { key: "arrow", label: "Стрелка" },
-                    { key: "rect", label: "Прямоуг" },
-                    { key: "ellipse", label: "Эллипс" },
-                    { key: "line", label: "Линия" },
-                    { key: "freehand", label: "Рисунок" },
-                    { key: "text", label: "Текст" },
-                  ] as const).map((tool) => (
-                    <button
-                      key={tool.key}
-                      type="button"
-                      onClick={() => setAnnotationTool(tool.key)}
-                      className={cn(
-                        "rounded-full px-3 py-1 text-[11px] font-semibold",
-                        annotationTool === tool.key
-                          ? "bg-white text-black"
-                          : "bg-white/10 text-white/70 hover:text-white",
-                      )}
-                    >
-                      {tool.label}
-                    </button>
-                  ))}
-                  <span className="mx-1 h-4 w-px bg-white/10" aria-hidden />
-                  {([
-                    { key: "red", label: "Красный", tone: "bg-red-500" },
-                    { key: "yellow", label: "Жёлтый", tone: "bg-yellow-400" },
-                    { key: "green", label: "Зелёный", tone: "bg-emerald-500" },
-                    { key: "blue", label: "Синий", tone: "bg-blue-500" },
-                    { key: "white", label: "Белый", tone: "bg-white" },
-                  ] as const).map((color) => (
-                    <button
-                      key={color.key}
-                      type="button"
-                      onClick={() => setAnnotationColor(color.key)}
-                      className={cn(
-                        "flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold",
-                        annotationColor === color.key ? "bg-white/20 text-white" : "bg-white/5 text-white/70",
-                      )}
-                    >
-                      <span className={cn("h-2 w-2 rounded-full", color.tone)} />
-                      {color.label}
-                    </button>
-                  ))}
-                  <span className="mx-1 h-4 w-px bg-white/10" aria-hidden />
-                  {([
-                    { key: "thin", label: "Тонкая" },
-                    { key: "medium", label: "Средняя" },
-                    { key: "thick", label: "Толстая" },
-                  ] as const).map((thickness) => (
-                    <button
-                      key={thickness.key}
-                      type="button"
-                      onClick={() => setAnnotationThickness(thickness.key)}
-                      className={cn(
-                        "rounded-full px-2 py-1 text-[10px] font-semibold",
-                        annotationThickness === thickness.key
-                          ? "bg-white text-black"
-                          : "bg-white/10 text-white/70 hover:text-white",
-                      )}
-                    >
-                      {thickness.label}
-                    </button>
-                  ))}
-                  <span className="mx-1 h-4 w-px bg-white/10" aria-hidden />
+                    { key: "arrow", label: "Стрелка", icon: ArrowUpRight },
+                    { key: "rect", label: "Прямоугольник", icon: Square },
+                    { key: "ellipse", label: "Эллипс", icon: Circle },
+                    { key: "line", label: "Линия", icon: Minus },
+                    { key: "freehand", label: "Карандаш", icon: Pencil },
+                    { key: "text", label: "Текст", icon: Type },
+                  ] as const).map((tool) => {
+                    const Icon = tool.icon;
+                    return (
+                      <button
+                        key={tool.key}
+                        type="button"
+                        onClick={() => setAnnotationTool(tool.key)}
+                        aria-label={tool.label}
+                        title={tool.label}
+                        className={cn(
+                          "flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold transition",
+                          annotationTool === tool.key
+                            ? "border-white/40 bg-white text-black"
+                            : "border-white/10 bg-white/5 text-white/70 hover:text-white",
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                  <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-1">
+                    {([
+                      { key: "red", label: "Красный", tone: "bg-red-500" },
+                      { key: "yellow", label: "Жёлтый", tone: "bg-yellow-400" },
+                      { key: "green", label: "Зелёный", tone: "bg-emerald-500" },
+                      { key: "blue", label: "Синий", tone: "bg-blue-500" },
+                      { key: "white", label: "Белый", tone: "bg-white" },
+                    ] as const).map((color) => (
+                      <button
+                        key={color.key}
+                        type="button"
+                        onClick={() => setAnnotationColor(color.key)}
+                        aria-label={color.label}
+                        title={color.label}
+                        className={cn(
+                          "flex h-7 w-7 items-center justify-center rounded-full border transition",
+                          annotationColor === color.key ? "border-white/50 bg-white/20" : "border-white/10 bg-white/5",
+                        )}
+                      >
+                        <span className={cn("h-2.5 w-2.5 rounded-full", color.tone)} />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1">
+                    {([
+                      { key: "thin", label: "S" },
+                      { key: "medium", label: "M" },
+                      { key: "thick", label: "L" },
+                    ] as const).map((thickness) => (
+                      <button
+                        key={thickness.key}
+                        type="button"
+                        onClick={() => setAnnotationThickness(thickness.key)}
+                        aria-label={`Толщина ${thickness.label}`}
+                        className={cn(
+                          "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold transition",
+                          annotationThickness === thickness.key
+                            ? "bg-white text-black"
+                            : "bg-white/10 text-white/70 hover:text-white",
+                        )}
+                      >
+                        {thickness.label}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     type="button"
                     onClick={handleUndo}
                     disabled={annotationStrokes.length === 0}
+                    aria-label="Undo"
                     className={cn(
-                      "rounded-full px-2 py-1 text-[10px] font-semibold",
-                      annotationStrokes.length === 0 ? "bg-white/5 text-white/30" : "bg-white/10 text-white/70",
+                      "flex h-8 w-8 items-center justify-center rounded-full border text-white/70 transition",
+                      annotationStrokes.length === 0
+                        ? "border-white/5 bg-white/5 text-white/30"
+                        : "border-white/10 bg-white/10 hover:text-white",
                     )}
                   >
-                    Undo
+                    <Undo2 className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     onClick={handleRedo}
                     disabled={redoStrokes.length === 0}
+                    aria-label="Redo"
                     className={cn(
-                      "rounded-full px-2 py-1 text-[10px] font-semibold",
-                      redoStrokes.length === 0 ? "bg-white/5 text-white/30" : "bg-white/10 text-white/70",
+                      "flex h-8 w-8 items-center justify-center rounded-full border text-white/70 transition",
+                      redoStrokes.length === 0
+                        ? "border-white/5 bg-white/5 text-white/30"
+                        : "border-white/10 bg-white/10 hover:text-white",
                     )}
                   >
-                    Redo
+                    <Redo2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void submitFeedback()}
+                    disabled={!canSubmit}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold transition",
+                      canSubmit ? "bg-white text-black hover:bg-white/90" : "bg-white/10 text-white/40",
+                    )}
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    Отправить
+                  </button>
+                  <button
+                    type="button"
+                    onClick={stopAnnotationMode}
+                    aria-label="Закрыть режим рисования"
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
-              ) : null}
+              </div>
 
-              {annotationMode ? (
-                <button
-                  type="button"
-                  onClick={stopAnnotationMode}
-                  className="absolute right-3 top-3 z-30 rounded-full border border-white/10 bg-black/70 px-3 py-1 text-xs text-white/80 hover:text-white"
-                >
-                  Отменить
-                </button>
-              ) : activeAnnotation ? (
+              {activeAnnotation ? (
                 <button
                   type="button"
                   onClick={() => setActiveAnnotation(null)}
@@ -1133,7 +1153,6 @@ export default function ClientPortalPage(): JSX.Element {
             <textarea
               ref={textAreaRef}
               rows={4}
-              required
               disabled={isVersionLocked}
               value={commentText}
               onChange={(event) => setCommentText(event.target.value)}
@@ -1142,7 +1161,7 @@ export default function ClientPortalPage(): JSX.Element {
             />
             <Button
               type="submit"
-              disabled={submitting || isVersionLocked || commentText.trim().length === 0 || authorName.trim().length === 0}
+              disabled={!canSubmit}
               className="w-full rounded-full bg-white text-sm font-semibold text-black hover:bg-white/90"
             >
               {submitting ? m.feedback.submitting : "Отправить"}
