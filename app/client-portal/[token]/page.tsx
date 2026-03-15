@@ -185,6 +185,8 @@ export default function ClientPortalPage(): JSX.Element {
   const mobileCaptureIdRef = useRef(0);
   const mobileWidgetOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const mobileWidgetSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const mobileWidgetStartRef = useRef<{ x: number; y: number } | null>(null);
+  const mobileWidgetHasDraggedRef = useRef(false);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const lastKnownTimeRef = useRef(0);
   const [playerCurrentTimeSec, setPlayerCurrentTimeSec] = useState(0);
@@ -720,12 +722,17 @@ export default function ClientPortalPage(): JSX.Element {
     });
   };
 
+  const stopWidgetButtonTouch = (event: React.TouchEvent<HTMLButtonElement>): void => {
+    event.stopPropagation();
+  };
+
   const handleMobileWidgetTouchStart = (event: React.TouchEvent<HTMLDivElement>): void => {
     if (event.touches.length === 0) {
       return;
     }
-    event.preventDefault();
     const touch = event.touches[0];
+    mobileWidgetStartRef.current = { x: touch.clientX, y: touch.clientY };
+    mobileWidgetHasDraggedRef.current = false;
     const rect = event.currentTarget.getBoundingClientRect();
     mobileWidgetOffsetRef.current = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
     mobileWidgetSizeRef.current = { width: rect.width, height: rect.height };
@@ -735,11 +742,18 @@ export default function ClientPortalPage(): JSX.Element {
     if (event.touches.length === 0) {
       return;
     }
-    if (!mobileWidgetOffsetRef.current) {
+    if (!mobileWidgetOffsetRef.current || !mobileWidgetStartRef.current) {
       return;
     }
-    event.preventDefault();
     const touch = event.touches[0];
+    const start = mobileWidgetStartRef.current;
+    const deltaX = Math.abs(touch.clientX - start.x);
+    const deltaY = Math.abs(touch.clientY - start.y);
+    if (!mobileWidgetHasDraggedRef.current && deltaX < 5 && deltaY < 5) {
+      return;
+    }
+    mobileWidgetHasDraggedRef.current = true;
+    event.preventDefault();
     const offset = mobileWidgetOffsetRef.current;
     const size = mobileWidgetSizeRef.current;
     const rawX = touch.clientX - offset.x;
@@ -752,13 +766,17 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const handleMobileWidgetTouchEnd = (): void => {
+    if (mobileWidgetHasDraggedRef.current) {
+      try {
+        window.localStorage.setItem(MOBILE_WIDGET_STORAGE_KEY, JSON.stringify(mobileWidgetPos));
+      } catch {
+        // ignore storage errors
+      }
+    }
     mobileWidgetOffsetRef.current = null;
     mobileWidgetSizeRef.current = null;
-    try {
-      window.localStorage.setItem(MOBILE_WIDGET_STORAGE_KEY, JSON.stringify(mobileWidgetPos));
-    } catch {
-      // ignore storage errors
-    }
+    mobileWidgetStartRef.current = null;
+    mobileWidgetHasDraggedRef.current = false;
   };
 
   const handlePointerDown = (event: React.PointerEvent): void => {
@@ -1562,24 +1580,24 @@ export default function ClientPortalPage(): JSX.Element {
           </div>
 
           <div
+            data-testid="mobile-annotation-widget"
             className="absolute z-30 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/70 px-2 py-2"
             style={{ transform: `translate(${mobileWidgetPos.x}px, ${mobileWidgetPos.y}px)` }}
             onTouchStart={(event) => {
-              stopAnnotationToolbarEvent(event);
               handleMobileWidgetTouchStart(event);
             }}
             onTouchMove={(event) => {
-              stopAnnotationToolbarEvent(event);
               handleMobileWidgetTouchMove(event);
             }}
             onTouchEnd={(event) => {
-              stopAnnotationToolbarEvent(event);
               handleMobileWidgetTouchEnd();
             }}
           >
             <button
               type="button"
               onClick={() => setAnnotationTool("arrow")}
+              onTouchStart={stopWidgetButtonTouch}
+              onTouchEnd={stopWidgetButtonTouch}
               aria-label="Arrow"
               title="Arrow"
               className={cn(
@@ -1592,6 +1610,8 @@ export default function ClientPortalPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setAnnotationTool("rect")}
+              onTouchStart={stopWidgetButtonTouch}
+              onTouchEnd={stopWidgetButtonTouch}
               aria-label="Rectangle"
               title="Rectangle"
               className={cn(
@@ -1604,6 +1624,8 @@ export default function ClientPortalPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setAnnotationTool("ellipse")}
+              onTouchStart={stopWidgetButtonTouch}
+              onTouchEnd={stopWidgetButtonTouch}
               aria-label="Ellipse"
               title="Ellipse"
               className={cn(
@@ -1616,6 +1638,8 @@ export default function ClientPortalPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setAnnotationTool("line")}
+              onTouchStart={stopWidgetButtonTouch}
+              onTouchEnd={stopWidgetButtonTouch}
               aria-label="Line"
               title="Line"
               className={cn(
@@ -1628,6 +1652,8 @@ export default function ClientPortalPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setAnnotationTool("freehand")}
+              onTouchStart={stopWidgetButtonTouch}
+              onTouchEnd={stopWidgetButtonTouch}
               aria-label="Freehand"
               title="Freehand"
               className={cn(
@@ -1640,6 +1666,8 @@ export default function ClientPortalPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setAnnotationTool("text")}
+              onTouchStart={stopWidgetButtonTouch}
+              onTouchEnd={stopWidgetButtonTouch}
               aria-label="Text"
               title="Text"
               className={cn(
@@ -1661,6 +1689,8 @@ export default function ClientPortalPage(): JSX.Element {
                 key={color.key}
                 type="button"
                 onClick={() => setAnnotationColor(color.key)}
+                onTouchStart={stopWidgetButtonTouch}
+                onTouchEnd={stopWidgetButtonTouch}
                 aria-label={color.key}
                 title={color.key}
                 className={cn(
@@ -1681,6 +1711,8 @@ export default function ClientPortalPage(): JSX.Element {
                 key={thickness.key}
                 type="button"
                 onClick={() => setAnnotationThickness(thickness.key)}
+                onTouchStart={stopWidgetButtonTouch}
+                onTouchEnd={stopWidgetButtonTouch}
                 aria-label={thickness.key}
                 title={thickness.key}
                 className={cn(
@@ -1695,6 +1727,8 @@ export default function ClientPortalPage(): JSX.Element {
             <button
               type="button"
               onClick={handleMobileUndo}
+              onTouchStart={stopWidgetButtonTouch}
+              onTouchEnd={stopWidgetButtonTouch}
               disabled={mobileAnnotationStrokes.length === 0}
               aria-label="Undo"
               title="Undo"
@@ -1708,6 +1742,8 @@ export default function ClientPortalPage(): JSX.Element {
             <button
               type="button"
               onClick={handleMobileRedo}
+              onTouchStart={stopWidgetButtonTouch}
+              onTouchEnd={stopWidgetButtonTouch}
               disabled={mobileRedoStrokes.length === 0}
               aria-label="Redo"
               title="Redo"

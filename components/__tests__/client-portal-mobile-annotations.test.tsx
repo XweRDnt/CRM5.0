@@ -155,4 +155,26 @@ describe("Client portal mobile annotations", () => {
       expect(document.body.style.overflow).toBe("");
     });
   });
+
+  it("does not drag the widget on tiny touch movement", async () => {
+    render(<ClientPortalPage />);
+
+    const pencil = await screen.findByText("Рисовать");
+    fireEvent.click(pencil);
+
+    const widget = await screen.findByTestId("mobile-annotation-widget");
+    expect(widget.style.transform).toContain("translate(12px, 56px)");
+
+    fireEvent.touchStart(widget, {
+      touches: [{ clientX: 20, clientY: 20 }],
+    });
+    fireEvent.touchMove(widget, {
+      touches: [{ clientX: 22, clientY: 22 }],
+    });
+    fireEvent.touchEnd(widget, {
+      changedTouches: [{ clientX: 22, clientY: 22 }],
+    });
+
+    expect(widget.style.transform).toContain("translate(12px, 56px)");
+  });
 });
