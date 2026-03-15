@@ -11,8 +11,10 @@ export async function GET(request: Request): Promise<Response> {
     const searchParams = new URL(request.url).searchParams;
     const { videoId } = querySchema.parse({ videoId: searchParams.get("videoId") ?? undefined });
 
-    const posterUrl = await getKinescopeService().getVideoPosterUrl(videoId);
-    return Response.json({ url: posterUrl }, { status: 200 });
+    const kinescopeService = getKinescopeService();
+    const raw = await (kinescopeService as any).request(`/videos/${videoId}`, { method: "GET" });
+    const posterUrl = await kinescopeService.getVideoPosterUrl(videoId);
+    return Response.json({ url: posterUrl, raw }, { status: 200 });
   } catch (error) {
     return handleAPIError(error);
   }
