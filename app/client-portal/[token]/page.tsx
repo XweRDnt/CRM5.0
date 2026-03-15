@@ -72,6 +72,11 @@ type PendingText = {
   value: string;
 };
 
+type SelectedAnnotation = {
+  timecodeSec: number | null;
+  data: AnnotationData | null;
+};
+
 const fetcher = async (url: string): Promise<PortalResponse> => {
   const response = await fetch(url);
   if (!response.ok) {
@@ -183,6 +188,7 @@ export default function ClientPortalPage(): JSX.Element {
   const lastKnownTimeRef = useRef(0);
   const [playerCurrentTimeSec, setPlayerCurrentTimeSec] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
+  const [isPlayerPlaying, setIsPlayerPlaying] = useState(false);
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -196,6 +202,7 @@ export default function ClientPortalPage(): JSX.Element {
   const [annotationStrokes, setAnnotationStrokes] = useState<AnnotationStroke[]>([]);
   const [redoStrokes, setRedoStrokes] = useState<AnnotationStroke[]>([]);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
+  const [selectedAnnotation, setSelectedAnnotation] = useState<SelectedAnnotation | null>(null);
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [pendingText, setPendingText] = useState<PendingText | null>(null);
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
@@ -566,7 +573,10 @@ export default function ClientPortalPage(): JSX.Element {
     kinescopeRef.current?.seekTo(target);
     kinescopeRef.current?.pause();
 
-    setActiveAnnotation(normalizeAnnotationData(annotation));
+    const normalized = normalizeAnnotationData(annotation);
+    setSelectedAnnotation({ timecodeSec, data: normalized });
+    setActiveAnnotation(normalized);
+    setIsPlayerPlaying(false);
     setAnnotationMode(false);
   };
 
@@ -770,13 +780,47 @@ export default function ClientPortalPage(): JSX.Element {
     }
   };
 
+  const annotationMatchWindowSec = 1;
+  useEffect(() => {
+    if (annotationMode) {
+      if (activeAnnotation) {
+        setActiveAnnotation(null);
+      }
+      return;
+    }
+    if (isPlayerPlaying) {
+      if (activeAnnotation) {
+        setActiveAnnotation(null);
+      }
+      return;
+    }
+    if (!selectedAnnotation) {
+      return;
+    }
+    const { timecodeSec, data } = selectedAnnotation;
+    if (timecodeSec === null || !data) {
+      if (activeAnnotation) {
+        setActiveAnnotation(null);
+      }
+      return;
+    }
+    const isMatch = Math.abs(playerCurrentTimeSec - timecodeSec) <= annotationMatchWindowSec;
+    if (isMatch) {
+      if (activeAnnotation !== data) {
+        setActiveAnnotation(data);
+      }
+    } else if (activeAnnotation) {
+      setActiveAnnotation(null);
+    }
+  }, [annotationMode, isPlayerPlaying, playerCurrentTimeSec, selectedAnnotation, activeAnnotation]);
+
   const trimmedComment = commentText.trim();
   const trimmedAuthor = authorName.trim();
   const hasComment = trimmedComment.length > 0;
   const hasStrokes = annotationStrokes.length > 0;
   const canSubmit = !submitting && !isVersionLocked && trimmedAuthor.length > 0 && (hasComment || hasStrokes);
   const toolbarVisible = annotationMode;
-  const overlayVisible = annotationMode || activeAnnotation !== null || annotationStrokes.length > 0;
+  const overlayVisible = annotationMode || activeAnnotation !== null;
   const previewStroke: AnnotationStroke | null = drawingState
     ? drawingState.tool === "freehand"
       ? {
@@ -797,7 +841,7 @@ export default function ClientPortalPage(): JSX.Element {
 
   const overlayStrokes = annotationMode
     ? [...annotationStrokes, ...(previewStroke ? [previewStroke] : [])]
-    : activeAnnotation?.strokes ?? (annotationStrokes.length > 0 ? annotationStrokes : []);
+    : activeAnnotation?.strokes ?? [];
 
   const renderStroke = (stroke: AnnotationStroke, index: number): JSX.Element => (
     <g key={`stroke-${index}`} dangerouslySetInnerHTML={{ __html: strokeToSvg(stroke) }} />
@@ -855,10 +899,10 @@ export default function ClientPortalPage(): JSX.Element {
               onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
               onPlay={() => {
                 setPlayerReady(true);
-                if (!annotationMode) {
-                  setActiveAnnotation(null);
-                }
+                setIsPlayerPlaying(true);
+                setActiveAnnotation(null);
               }}
+              onPause={() => setIsPlayerPlaying(false)}
             />
 
             <div className="pointer-events-none absolute inset-0 z-20">
