@@ -790,7 +790,6 @@ export default function ClientPortalPage(): JSX.Element {
   const hasComment = trimmedComment.length > 0;
   const hasStrokes = annotationStrokes.length > 0;
   const canSubmit = !submitting && !isVersionLocked && trimmedAuthor.length > 0 && (hasComment || hasStrokes);
-  const toolbarVisible = annotationMode;
   const overlayVisible = annotationMode || activeAnnotation !== null;
   const previewStroke: AnnotationStroke | null = drawingState
     ? drawingState.tool === "freehand"
@@ -908,140 +907,145 @@ export default function ClientPortalPage(): JSX.Element {
                 ) : null}
               </div>
 
+              {/* Floating annotation widget */}
               <div
-                className={cn(
-                  "pointer-events-auto absolute left-1/2 z-40 w-[min(100%-1.5rem,26rem)] -translate-x-1/2 rounded-2xl border border-white/10 bg-black/80 px-3 py-2 text-xs shadow-[0_10px_40px_rgba(0,0,0,0.45)] transition duration-200 ease-out",
-                  toolbarVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0",
-                )}
-                style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+                className="pointer-events-auto absolute z-40"
+                style={{
+                  right: "0.75rem",
+                  bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+                }}
                 onPointerDown={handleToolbarEvent}
                 onPointerUp={handleToolbarEvent}
                 onClick={handleToolbarEvent}
               >
-                <div className="flex flex-wrap items-center justify-center gap-1.5">
-                  {([
-                    { key: "arrow", label: "Стрелка", icon: ArrowUpRight },
-                    { key: "rect", label: "Прямоугольник", icon: Square },
-                    { key: "ellipse", label: "Эллипс", icon: Circle },
-                    { key: "line", label: "Линия", icon: Minus },
-                    { key: "freehand", label: "Карандаш", icon: Pencil },
-                    { key: "text", label: "Текст", icon: Type },
-                  ] as const).map((tool) => {
-                    const Icon = tool.icon;
-                    return (
+                {/* Панель инструментов — видна только в annotationMode */}
+                {annotationMode && (
+                  <div className="mb-2 flex flex-col items-end gap-2">
+                    {/* Инструменты */}
+                    <div className="flex flex-wrap justify-end gap-1.5 rounded-2xl border border-white/10 bg-black/80 p-2 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+                      {([
+                        { key: "arrow", label: "Стрелка", icon: ArrowUpRight },
+                        { key: "rect", label: "Прямоугольник", icon: Square },
+                        { key: "ellipse", label: "Эллипс", icon: Circle },
+                        { key: "line", label: "Линия", icon: Minus },
+                        { key: "freehand", label: "Карандаш", icon: Pencil },
+                        { key: "text", label: "Текст", icon: Type },
+                      ] as const).map((tool) => {
+                        const Icon = tool.icon;
+                        return (
+                          <button
+                            key={tool.key}
+                            type="button"
+                            onClick={() => setAnnotationTool(tool.key)}
+                            aria-label={tool.label}
+                            title={tool.label}
+                            className={cn(
+                              "flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold transition",
+                              annotationTool === tool.key
+                                ? "border-white/40 bg-white text-black"
+                                : "border-white/10 bg-white/5 text-white/70 hover:text-white",
+                            )}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Цвета + толщины + undo/redo */}
+                    <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/80 p-2 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+                      <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1">
+                        {([
+                          { key: "red", label: "Красный", tone: "bg-red-500" },
+                          { key: "yellow", label: "Жёлтый", tone: "bg-yellow-400" },
+                          { key: "green", label: "Зелёный", tone: "bg-emerald-500" },
+                          { key: "blue", label: "Синий", tone: "bg-blue-500" },
+                          { key: "white", label: "Белый", tone: "bg-white" },
+                        ] as const).map((color) => (
+                          <button
+                            key={color.key}
+                            type="button"
+                            onClick={() => setAnnotationColor(color.key)}
+                            aria-label={color.label}
+                            className={cn(
+                              "flex h-7 w-7 items-center justify-center rounded-full border transition",
+                              annotationColor === color.key
+                                ? "border-white/50 bg-white/20"
+                                : "border-white/10 bg-white/5",
+                            )}
+                          >
+                            <span className={cn("h-2.5 w-2.5 rounded-full", color.tone)} />
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1">
+                        {([
+                          { key: "thin", label: "S" },
+                          { key: "medium", label: "M" },
+                          { key: "thick", label: "L" },
+                        ] as const).map((thickness) => (
+                          <button
+                            key={thickness.key}
+                            type="button"
+                            onClick={() => setAnnotationThickness(thickness.key)}
+                            className={cn(
+                              "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold transition",
+                              annotationThickness === thickness.key
+                                ? "bg-white text-black"
+                                : "bg-white/10 text-white/70 hover:text-white",
+                            )}
+                          >
+                            {thickness.label}
+                          </button>
+                        ))}
+                      </div>
                       <button
-                        key={tool.key}
                         type="button"
-                        onClick={() => setAnnotationTool(tool.key)}
-                        aria-label={tool.label}
-                        title={tool.label}
-                        className={cn(
-                          "flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold transition",
-                          annotationTool === tool.key
-                            ? "border-white/40 bg-white text-black"
-                            : "border-white/10 bg-white/5 text-white/70 hover:text-white",
-                        )}
+                        onClick={handleUndo}
+                        disabled={annotationStrokes.length === 0}
+                        aria-label="Undo"
+                        className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:text-white disabled:opacity-30"
                       >
-                        <Icon className="h-4 w-4" />
+                        <Undo2 className="h-3.5 w-3.5" />
                       </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                  <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-1">
-                    {([
-                      { key: "red", label: "Красный", tone: "bg-red-500" },
-                      { key: "yellow", label: "Жёлтый", tone: "bg-yellow-400" },
-                      { key: "green", label: "Зелёный", tone: "bg-emerald-500" },
-                      { key: "blue", label: "Синий", tone: "bg-blue-500" },
-                      { key: "white", label: "Белый", tone: "bg-white" },
-                    ] as const).map((color) => (
                       <button
-                        key={color.key}
                         type="button"
-                        onClick={() => setAnnotationColor(color.key)}
-                        aria-label={color.label}
-                        title={color.label}
-                        className={cn(
-                          "flex h-7 w-7 items-center justify-center rounded-full border transition",
-                          annotationColor === color.key ? "border-white/50 bg-white/20" : "border-white/10 bg-white/5",
-                        )}
+                        onClick={handleRedo}
+                        disabled={redoStrokes.length === 0}
+                        aria-label="Redo"
+                        className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:text-white disabled:opacity-30"
                       >
-                        <span className={cn("h-2.5 w-2.5 rounded-full", color.tone)} />
+                        <Redo2 className="h-3.5 w-3.5" />
                       </button>
-                    ))}
+                    </div>
+
+                    {/* Отправить */}
+                    <button
+                      type="button"
+                      onClick={() => void submitFeedback()}
+                      disabled={!canSubmit}
+                      className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-40"
+                    >
+                      {submitting ? "Отправляю..." : "Отправить"}
+                    </button>
                   </div>
-                  <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1">
-                    {([
-                      { key: "thin", label: "S" },
-                      { key: "medium", label: "M" },
-                      { key: "thick", label: "L" },
-                    ] as const).map((thickness) => (
-                      <button
-                        key={thickness.key}
-                        type="button"
-                        onClick={() => setAnnotationThickness(thickness.key)}
-                        aria-label={`Толщина ${thickness.label}`}
-                        className={cn(
-                          "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold transition",
-                          annotationThickness === thickness.key
-                            ? "bg-white text-black"
-                            : "bg-white/10 text-white/70 hover:text-white",
-                        )}
-                      >
-                        {thickness.label}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleUndo}
-                    disabled={annotationStrokes.length === 0}
-                    aria-label="Undo"
-                    className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full border text-white/70 transition",
-                      annotationStrokes.length === 0
-                        ? "border-white/5 bg-white/5 text-white/30"
-                        : "border-white/10 bg-white/10 hover:text-white",
-                    )}
-                  >
-                    <Undo2 className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRedo}
-                    disabled={redoStrokes.length === 0}
-                    aria-label="Redo"
-                    className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full border text-white/70 transition",
-                      redoStrokes.length === 0
-                        ? "border-white/5 bg-white/5 text-white/30"
-                        : "border-white/10 bg-white/10 hover:text-white",
-                    )}
-                  >
-                    <Redo2 className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void submitFeedback()}
-                    disabled={!canSubmit}
-                    className={cn(
-                      "flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold transition",
-                      canSubmit ? "bg-white text-black hover:bg-white/90" : "bg-white/10 text-white/40",
-                    )}
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                    Отправить
-                  </button>
-                  <button
-                    type="button"
-                    onClick={stopAnnotationMode}
-                    aria-label="Закрыть режим рисования"
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 hover:text-white"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+                )}
+
+                {/* Кружок-кнопка */}
+                <button
+                  type="button"
+                  onClick={toggleAnnotationMode}
+                  disabled={isVersionLocked || !playerReady}
+                  aria-label={annotationMode ? "Закрыть рисование" : "Рисовать"}
+                  className={cn(
+                    "flex h-11 w-11 items-center justify-center rounded-full border shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition",
+                    annotationMode
+                      ? "border-white/40 bg-white text-black"
+                      : "border-white/10 bg-black/70 text-white/70 hover:text-white",
+                  )}
+                >
+                  {annotationMode ? <X className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+                </button>
               </div>
 
               {activeAnnotation ? (
@@ -1139,21 +1143,6 @@ export default function ClientPortalPage(): JSX.Element {
           <form onSubmit={submitFeedback} className="border-t border-white/10 bg-black/40 p-4">
             <div className="mb-2 flex items-center justify-between gap-2">
               <label className="block text-xs text-white/60">Добавить правку</label>
-              <button
-                type="button"
-                onClick={toggleAnnotationMode}
-                disabled={isVersionLocked || !playerReady}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold transition",
-                  annotationMode
-                    ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200"
-                    : "border-white/10 bg-white/5 text-white/70 hover:text-white",
-                  (!playerReady || isVersionLocked) && "cursor-not-allowed opacity-60",
-                )}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                {annotationMode ? "Рисование" : "Рисовать"}
-              </button>
             </div>
             <Input
               value={authorName}
