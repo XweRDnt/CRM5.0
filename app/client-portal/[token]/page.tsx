@@ -944,31 +944,51 @@ export default function ClientPortalPage(): JSX.Element {
       return null;
     }
 
-    const time = Math.max(0, Math.round(timecodeSec));
-    const thumbnailUrl = `https://preview.kinescope.io/${videoId}/${time}/preview.jpg`;
-    addLog(`url: ${thumbnailUrl}`);
+    let posterUrl: string | null = null;
+    try {
+      const response = await fetch(`/api/public/portal/poster?videoId=${encodeURIComponent(videoId)}`);
+      if (!response.ok) {
+        addLog(`poster fetch error: ${response.status}`);
+        return null;
+      }
+      const payload = (await response.json().catch(() => null)) as { url?: string | null } | null;
+      posterUrl = payload?.url ?? null;
+    } catch {
+      addLog("poster fetch error");
+      return null;
+    }
+
+    if (!posterUrl) {
+      addLog("NO poster url");
+      return null;
+    }
+    addLog(`poster url: ${posterUrl}`);
 
     return new Promise<string | null>((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => {
         addLog(`loaded! ${img.width}x${img.height}`);
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width || 1280;
-        canvas.height = img.height || 720;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width || 1280;
+          canvas.height = img.height || 720;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        } catch {
           resolve(null);
-          return;
         }
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL("image/png"));
       };
       img.onerror = () => {
         addLog("ERROR loading image");
         resolve(null);
       };
-      img.src = thumbnailUrl;
+      img.src = posterUrl;
     });
   };
 

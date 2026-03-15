@@ -289,6 +289,23 @@ export class KinescopeService {
     };
   }
 
+  async getVideoPosterUrl(kinescopeVideoId: string): Promise<string | null> {
+    this.ensureApiTokenConfigured();
+    if (!kinescopeVideoId || !kinescopeVideoId.trim()) {
+      return null;
+    }
+
+    try {
+      const payload = await this.request<{
+        poster?: { url?: string };
+        data?: { poster?: { url?: string } };
+      }>(`/videos/${kinescopeVideoId}`, { method: "GET" });
+      return payload.poster?.url ?? payload.data?.poster?.url ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
     if (!this.webhookSecret) {
       return true;
