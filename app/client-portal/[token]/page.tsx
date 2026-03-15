@@ -192,7 +192,12 @@ export default function ClientPortalPage(): JSX.Element {
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
-  const [authorName, setAuthorName] = useState("");
+  const [authorName, setAuthorName] = useState(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    return localStorage.getItem("portal_author_name") ?? "";
+  });
   const [commentText, setCommentText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [annotationMode, setAnnotationMode] = useState(false);
@@ -268,6 +273,12 @@ export default function ClientPortalPage(): JSX.Element {
       window.clearInterval(interval);
     };
   }, [activeVersion, playerReady, readKinescopeTimeSafe]);
+
+  useEffect(() => {
+    if (authorName) {
+      localStorage.setItem("portal_author_name", authorName);
+    }
+  }, [authorName]);
 
   const annotationMatchWindowSec = 1;
   useEffect(() => {
@@ -1198,7 +1209,7 @@ export default function ClientPortalPage(): JSX.Element {
               disabled={isVersionLocked}
               value={commentText}
               onChange={(event) => setCommentText(event.target.value)}
-              placeholder="Опишите правку..."
+              placeholder={hasStrokes ? "Комментарий (необязательно)" : "Опишите правку..."}
               className="mb-3 w-full resize-none rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white/20"
             />
             <Button
