@@ -214,6 +214,7 @@ export default function ClientPortalPage(): JSX.Element {
   const [mobileDrawingState, setMobileDrawingState] = useState<DrawingState | null>(null);
   const [mobilePendingText, setMobilePendingText] = useState<PendingText | null>(null);
   const [mobileWidgetPos, setMobileWidgetPos] = useState(DEFAULT_MOBILE_WIDGET_POS);
+  const [mobileFrameSize, setMobileFrameSize] = useState<{ w: number; h: number } | null>(null);
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
   const handleToolbarEvent = (event: React.SyntheticEvent): void => {
     stopAnnotationToolbarEvent(event);
@@ -306,6 +307,7 @@ export default function ClientPortalPage(): JSX.Element {
     setPendingText(null);
     setIsMobileAnnotationOpen(false);
     setMobileFrameDataUrl(null);
+    setMobileFrameSize(null);
     setMobileAnnotationStrokes([]);
     setMobileRedoStrokes([]);
     setMobileDrawingState(null);
@@ -410,6 +412,7 @@ export default function ClientPortalPage(): JSX.Element {
 
     setIsMobileAnnotationOpen(true);
     setMobileFrameDataUrl(null);
+    setMobileFrameSize(null);
     setMobileAnnotationStrokes([]);
     setMobileRedoStrokes([]);
     setMobileDrawingState(null);
@@ -426,6 +429,7 @@ export default function ClientPortalPage(): JSX.Element {
     } catch {
       if (mobileCaptureIdRef.current === captureId) {
         setMobileFrameDataUrl(null);
+        setMobileFrameSize(null);
       }
     }
   };
@@ -433,6 +437,7 @@ export default function ClientPortalPage(): JSX.Element {
   const closeMobileAnnotation = (): void => {
     setIsMobileAnnotationOpen(false);
     setMobileFrameDataUrl(null);
+    setMobileFrameSize(null);
     setMobileAnnotationStrokes([]);
     setMobileRedoStrokes([]);
     setMobileDrawingState(null);
@@ -597,6 +602,51 @@ export default function ClientPortalPage(): JSX.Element {
   const pushMobileStroke = (stroke: AnnotationStroke): void => {
     setMobileAnnotationStrokes((prev) => [...prev, stroke]);
     setMobileRedoStrokes([]);
+  };
+
+  const getMobileImageRect = (): React.CSSProperties => {
+    if (!mobileFrameDataUrl || typeof window === "undefined") {
+      return { inset: 0 };
+    }
+
+    const container = document.querySelector('[data-testid="mobile-annotation-fullscreen"]') as HTMLElement | null;
+    if (!container) {
+      return { inset: 0 };
+    }
+
+    const toolbar = document.querySelector('[data-testid="mobile-annotation-toolbar"]') as HTMLElement | null;
+    const toolbarH = toolbar?.clientHeight ?? 0;
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight - toolbarH;
+    if (containerW <= 0 || containerH <= 0) {
+      return { inset: 0 };
+    }
+
+    const imgW = mobileFrameSize?.w ?? 1920;
+    const imgH = mobileFrameSize?.h ?? 1080;
+    const imgRatio = imgW / imgH;
+    const containerRatio = containerW / containerH;
+
+    let renderW: number;
+    let renderH: number;
+
+    if (containerRatio > imgRatio) {
+      renderH = containerH;
+      renderW = containerH * imgRatio;
+    } else {
+      renderW = containerW;
+      renderH = containerW / imgRatio;
+    }
+
+    const offsetX = (containerW - renderW) / 2;
+    const offsetY = (containerH - renderH) / 2 + toolbarH;
+
+    return {
+      left: offsetX,
+      top: offsetY,
+      width: renderW,
+      height: renderH,
+    };
   };
 
   type MobileTouchPoint = { clientX: number; clientY: number };
@@ -1515,23 +1565,27 @@ export default function ClientPortalPage(): JSX.Element {
           data-testid="mobile-annotation-fullscreen"
           className="fixed inset-0 z-[9999] bg-[#0b0b0b] text-white"
         >
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 flex items-center justify-center">
             {mobileFrameDataUrl ? (
               <img
                 src={mobileFrameDataUrl}
                 alt="Annotation frame"
                 className="h-full w-full object-contain"
+                onLoad={(event) => {
+                  const img = event.currentTarget;
+                  setMobileFrameSize({ w: img.naturalWidth, h: img.naturalHeight });
+                }}
               />
             ) : (
               <div className="h-full w-full bg-[#0b0b0b]" />
             )}
           </div>
 
-          <div className="absolute inset-0 z-10">
+          <div className="absolute inset-0 z-10 flex items-center justify-center">
             <div
               ref={mobileOverlayRef}
-              className="absolute inset-0"
-              style={{ touchAction: "none" }}
+              className="absolute"
+              style={{ touchAction: "none", ...getMobileImageRect() }}
               onTouchStart={handleMobileTouchStart}
               onTouchMove={handleMobileTouchMove}
               onTouchEnd={handleMobileTouchEnd}
@@ -1556,7 +1610,10 @@ export default function ClientPortalPage(): JSX.Element {
             </div>
           </div>
 
-          <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-black/70 px-4 py-3 text-sm">
+          <div
+            data-testid="mobile-annotation-toolbar"
+            className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-black/70 px-4 py-3 text-sm"
+          >
             <button
               type="button"
               onClick={closeMobileAnnotation}
