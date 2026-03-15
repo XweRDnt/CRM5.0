@@ -18,9 +18,11 @@ import { normalizeClientPoint } from "@/lib/annotations/coords";
 import { getAnnotationToggle, getPlaybackAction, stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
 import { getDrawingSurfaceClass } from "@/lib/annotations/overlay";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
-import { Pencil } from "lucide-react";
+import { ArrowUpRight, Circle, Minus, PenLine, Pencil, Redo2, Square, Type, Undo2 } from "lucide-react";
 
 const SUBMIT_TIMEOUT_MS = 15000;
+const MOBILE_WIDGET_STORAGE_KEY = "video-feedback:mobile-annotation-widget";
+const DEFAULT_MOBILE_WIDGET_POS = { x: 12, y: 56 };
 
 type PortalVersion = {
   id: string;
@@ -179,6 +181,10 @@ export default function ClientPortalPage(): JSX.Element {
 
   const kinescopeRef = useRef<KinescopePlayerRef | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const mobileOverlayRef = useRef<HTMLDivElement | null>(null);
+  const mobileCaptureIdRef = useRef(0);
+  const mobileWidgetOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const mobileWidgetSizeRef = useRef<{ width: number; height: number } | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const lastKnownTimeRef = useRef(0);
   const [playerCurrentTimeSec, setPlayerCurrentTimeSec] = useState(0);
@@ -199,6 +205,13 @@ export default function ClientPortalPage(): JSX.Element {
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [pendingText, setPendingText] = useState<PendingText | null>(null);
+  const [isMobileAnnotationOpen, setIsMobileAnnotationOpen] = useState(false);
+  const [mobileFrameDataUrl, setMobileFrameDataUrl] = useState<string | null>(null);
+  const [mobileAnnotationStrokes, setMobileAnnotationStrokes] = useState<AnnotationStroke[]>([]);
+  const [mobileRedoStrokes, setMobileRedoStrokes] = useState<AnnotationStroke[]>([]);
+  const [mobileDrawingState, setMobileDrawingState] = useState<DrawingState | null>(null);
+  const [mobilePendingText, setMobilePendingText] = useState<PendingText | null>(null);
+  const [mobileWidgetPos, setMobileWidgetPos] = useState(DEFAULT_MOBILE_WIDGET_POS);
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
   const handleToolbarEvent = (event: React.SyntheticEvent): void => {
     stopAnnotationToolbarEvent(event);
@@ -239,6 +252,45 @@ export default function ClientPortalPage(): JSX.Element {
     return player.getCurrentTime();
   }, []);
 
+  const isMobileAnnotationEnabled = (): boolean => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    if (window.matchMedia?.("(max-width: 768px)").matches) {
+      return true;
+    }
+    return typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = window.localStorage.getItem(MOBILE_WIDGET_STORAGE_KEY);
+    if (!stored) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(stored) as { x?: unknown; y?: unknown };
+      if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+        setMobileWidgetPos({ x: parsed.x, y: parsed.y });
+      }
+    } catch {
+      // ignore malformed stored value
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileAnnotationOpen) {
+      return;
+    }
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [isMobileAnnotationOpen]);
+
   useEffect(() => {
     setPlayerReady(false);
     setPlayerCurrentTimeSec(0);
@@ -250,6 +302,12 @@ export default function ClientPortalPage(): JSX.Element {
     setActiveAnnotation(null);
     setDrawingState(null);
     setPendingText(null);
+    setIsMobileAnnotationOpen(false);
+    setMobileFrameDataUrl(null);
+    setMobileAnnotationStrokes([]);
+    setMobileRedoStrokes([]);
+    setMobileDrawingState(null);
+    setMobilePendingText(null);
   }, [activeVersion?.id, safeVideoUrl, activeVersion?.kinescopeVideoId]);
 
   useEffect(() => {
@@ -324,6 +382,69 @@ export default function ClientPortalPage(): JSX.Element {
     setPendingText(null);
   };
 
+  const openMobileAnnotation = async (): Promise<void> => {
+    if (!activeVersion) {
+      toast.error("Version not found");
+      return;
+    }
+
+    if (!playerReady) {
+      toast.error(m.portal.playerNotReady);
+      return;
+    }
+
+    kinescopeRef.current?.pause();
+    setIsPlayerPlaying(false);
+
+    const kinescopeTime = await readKinescopeTimeSafe();
+    const directTime = Math.max(0, Math.floor(Number.isFinite(kinescopeTime) ? kinescopeTime : 0));
+    const normalized = Math.max(directTime, lastKnownTimeRef.current, playerCurrentTimeSec);
+    setCapturedTimecodeSec(normalized);
+
+    setAnnotationMode(false);
+    setActiveAnnotation(null);
+    setDrawingState(null);
+    setPendingText(null);
+
+    setIsMobileAnnotationOpen(true);
+    setMobileFrameDataUrl(null);
+    setMobileAnnotationStrokes([]);
+    setMobileRedoStrokes([]);
+    setMobileDrawingState(null);
+    setMobilePendingText(null);
+
+    const captureId = mobileCaptureIdRef.current + 1;
+    mobileCaptureIdRef.current = captureId;
+
+    try {
+      const frameDataUrl = await captureFrameDataUrl(normalized);
+      if (mobileCaptureIdRef.current === captureId) {
+        setMobileFrameDataUrl(frameDataUrl);
+      }
+    } catch {
+      if (mobileCaptureIdRef.current === captureId) {
+        setMobileFrameDataUrl(null);
+      }
+    }
+  };
+
+  const closeMobileAnnotation = (): void => {
+    setIsMobileAnnotationOpen(false);
+    setMobileFrameDataUrl(null);
+    setMobileAnnotationStrokes([]);
+    setMobileRedoStrokes([]);
+    setMobileDrawingState(null);
+    setMobilePendingText(null);
+  };
+
+  const applyMobileAnnotation = (): void => {
+    if (mobileAnnotationStrokes.length > 0) {
+      setAnnotationStrokes((prev) => [...prev, ...mobileAnnotationStrokes]);
+      setRedoStrokes([]);
+    }
+    closeMobileAnnotation();
+  };
+
   const stopAnnotationMode = (): void => {
     setAnnotationMode(false);
     setDrawingState(null);
@@ -331,6 +452,14 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const toggleAnnotationMode = (): void => {
+    if (isMobileAnnotationEnabled()) {
+      if (isMobileAnnotationOpen) {
+        closeMobileAnnotation();
+        return;
+      }
+      void openMobileAnnotation();
+      return;
+    }
     const toggle = getAnnotationToggle(annotationMode);
     if (toggle.nextEnabled) {
       void startAnnotationMode();
@@ -461,6 +590,175 @@ export default function ClientPortalPage(): JSX.Element {
       color: annotationColor,
       thickness: annotationThickness,
     };
+  };
+
+  const pushMobileStroke = (stroke: AnnotationStroke): void => {
+    setMobileAnnotationStrokes((prev) => [...prev, stroke]);
+    setMobileRedoStrokes([]);
+  };
+
+  const getMobileOverlayPoint = (touch: Touch, target: HTMLDivElement): { x: number; y: number } | null => {
+    const rect = mobileOverlayRef.current?.getBoundingClientRect() ?? target.getBoundingClientRect();
+    return normalizeClientPoint(touch.clientX, touch.clientY, rect);
+  };
+
+  const handleMobileTouchStart = (event: React.TouchEvent<HTMLDivElement>): void => {
+    if (!isMobileAnnotationOpen) {
+      return;
+    }
+    if (event.touches.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    if (annotationTool === "text") {
+      const point = getMobileOverlayPoint(event.touches[0], event.currentTarget);
+      if (!point) {
+        return;
+      }
+      setMobilePendingText({ x: point.x, y: point.y, value: "" });
+      return;
+    }
+    const point = getMobileOverlayPoint(event.touches[0], event.currentTarget);
+    if (!point) {
+      return;
+    }
+    if (annotationTool === "freehand") {
+      setMobileDrawingState({ tool: annotationTool, points: [point] });
+      return;
+    }
+    setMobileDrawingState({ tool: annotationTool, points: [point, point] });
+  };
+
+  const handleMobileTouchMove = (event: React.TouchEvent<HTMLDivElement>): void => {
+    if (!mobileDrawingState) {
+      return;
+    }
+    if (event.touches.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    const point = getMobileOverlayPoint(event.touches[0], event.currentTarget);
+    if (!point) {
+      return;
+    }
+    setMobileDrawingState((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      if (prev.tool === "freehand") {
+        return { ...prev, points: [...prev.points, point] };
+      }
+      const nextPoints = [...prev.points];
+      nextPoints[1] = point;
+      return { ...prev, points: nextPoints };
+    });
+  };
+
+  const handleMobileTouchEnd = (event: React.TouchEvent<HTMLDivElement>): void => {
+    if (!mobileDrawingState) {
+      return;
+    }
+    event.preventDefault();
+    const touch = event.changedTouches[0];
+    if (!touch) {
+      setMobileDrawingState(null);
+      return;
+    }
+    const point = getMobileOverlayPoint(touch, event.currentTarget);
+    if (!point) {
+      setMobileDrawingState(null);
+      return;
+    }
+    const finalized =
+      mobileDrawingState.tool === "freehand"
+        ? { ...mobileDrawingState, points: [...mobileDrawingState.points, point] }
+        : { ...mobileDrawingState, points: [mobileDrawingState.points[0], point] };
+    const stroke = buildStrokeFromState(finalized);
+    if (stroke) {
+      pushMobileStroke(stroke);
+    }
+    setMobileDrawingState(null);
+  };
+
+  const confirmMobileTextShape = (): void => {
+    if (!mobilePendingText) {
+      return;
+    }
+    const trimmed = mobilePendingText.value.trim();
+    if (trimmed) {
+      pushMobileStroke({
+        type: "text",
+        points: [{ x: mobilePendingText.x, y: mobilePendingText.y }],
+        text: trimmed,
+        color: annotationColor,
+        thickness: annotationThickness,
+      });
+    }
+    setMobilePendingText(null);
+  };
+
+  const handleMobileUndo = (): void => {
+    setMobileAnnotationStrokes((prev) => {
+      if (prev.length === 0) {
+        return prev;
+      }
+      const next = prev.slice(0, -1);
+      const last = prev[prev.length - 1];
+      setMobileRedoStrokes((redo) => [last, ...redo]);
+      return next;
+    });
+  };
+
+  const handleMobileRedo = (): void => {
+    setMobileRedoStrokes((prev) => {
+      if (prev.length === 0) {
+        return prev;
+      }
+      const [nextStroke, ...rest] = prev;
+      setMobileAnnotationStrokes((strokes) => [...strokes, nextStroke]);
+      return rest;
+    });
+  };
+
+  const handleMobileWidgetTouchStart = (event: React.TouchEvent<HTMLDivElement>): void => {
+    if (event.touches.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    const touch = event.touches[0];
+    const rect = event.currentTarget.getBoundingClientRect();
+    mobileWidgetOffsetRef.current = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    mobileWidgetSizeRef.current = { width: rect.width, height: rect.height };
+  };
+
+  const handleMobileWidgetTouchMove = (event: React.TouchEvent<HTMLDivElement>): void => {
+    if (event.touches.length === 0) {
+      return;
+    }
+    if (!mobileWidgetOffsetRef.current) {
+      return;
+    }
+    event.preventDefault();
+    const touch = event.touches[0];
+    const offset = mobileWidgetOffsetRef.current;
+    const size = mobileWidgetSizeRef.current;
+    const rawX = touch.clientX - offset.x;
+    const rawY = touch.clientY - offset.y;
+    const maxX = size ? window.innerWidth - size.width - 8 : window.innerWidth - 56;
+    const maxY = size ? window.innerHeight - size.height - 8 : window.innerHeight - 56;
+    const clampedX = Math.max(8, Math.min(rawX, maxX));
+    const clampedY = Math.max(8, Math.min(rawY, maxY));
+    setMobileWidgetPos({ x: clampedX, y: clampedY });
+  };
+
+  const handleMobileWidgetTouchEnd = (): void => {
+    mobileWidgetOffsetRef.current = null;
+    mobileWidgetSizeRef.current = null;
+    try {
+      window.localStorage.setItem(MOBILE_WIDGET_STORAGE_KEY, JSON.stringify(mobileWidgetPos));
+    } catch {
+      // ignore storage errors
+    }
   };
 
   const handlePointerDown = (event: React.PointerEvent): void => {
@@ -792,7 +1090,7 @@ export default function ClientPortalPage(): JSX.Element {
     }
   };
 
-  const overlayVisible = annotationMode || activeAnnotation !== null;
+  const overlayVisible = (annotationMode || activeAnnotation !== null) && !isMobileAnnotationOpen;
   const previewStroke: AnnotationStroke | null = drawingState
     ? drawingState.tool === "freehand"
       ? {
@@ -814,6 +1112,29 @@ export default function ClientPortalPage(): JSX.Element {
   const overlayStrokes = annotationMode
     ? [...annotationStrokes, ...(previewStroke ? [previewStroke] : [])]
     : activeAnnotation?.strokes ?? [];
+
+  const mobilePreviewStroke: AnnotationStroke | null = mobileDrawingState
+    ? mobileDrawingState.tool === "freehand"
+      ? {
+          type: "freehand",
+          points: mobileDrawingState.points,
+          color: annotationColor,
+          thickness: annotationThickness,
+        }
+      : mobileDrawingState.points.length >= 2
+        ? {
+            type: mobileDrawingState.tool,
+            points: [mobileDrawingState.points[0], mobileDrawingState.points[1]],
+            color: annotationColor,
+            thickness: annotationThickness,
+          }
+        : null
+    : null;
+
+  const mobileOverlayStrokes = [
+    ...mobileAnnotationStrokes,
+    ...(mobilePreviewStroke ? [mobilePreviewStroke] : []),
+  ];
 
   const renderStroke = (stroke: AnnotationStroke, index: number): JSX.Element => (
     <g key={`stroke-${index}`} dangerouslySetInnerHTML={{ __html: strokeToSvg(stroke) }} />
@@ -1177,6 +1498,254 @@ export default function ClientPortalPage(): JSX.Element {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {isMobileAnnotationOpen ? (
+        <div
+          data-testid="mobile-annotation-fullscreen"
+          className="fixed inset-0 z-[9999] bg-[#0b0b0b] text-white"
+        >
+          <div className="absolute inset-0">
+            {mobileFrameDataUrl ? (
+              <img
+                src={mobileFrameDataUrl}
+                alt="Annotation frame"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="h-full w-full bg-[#0b0b0b]" />
+            )}
+          </div>
+
+          <div className="absolute inset-0 z-10">
+            <div
+              ref={mobileOverlayRef}
+              className="absolute inset-0"
+              style={{ touchAction: "none" }}
+              onTouchStart={handleMobileTouchStart}
+              onTouchMove={handleMobileTouchMove}
+              onTouchEnd={handleMobileTouchEnd}
+              onTouchCancel={() => mobileDrawingState && setMobileDrawingState(null)}
+            >
+              <svg {...getOverlaySvgProps()} className="h-full w-full">
+                <defs>
+                  <marker
+                    id="arrowhead"
+                    markerWidth="6"
+                    markerHeight="6"
+                    refX="5"
+                    refY="3"
+                    orient="auto"
+                    markerUnits="strokeWidth"
+                  >
+                    <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
+                  </marker>
+                </defs>
+                {mobileOverlayStrokes.map((stroke, index) => renderStroke(stroke, index))}
+              </svg>
+            </div>
+          </div>
+
+          <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-black/70 px-4 py-3 text-sm">
+            <button
+              type="button"
+              onClick={closeMobileAnnotation}
+              className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-white/80"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              onClick={applyMobileAnnotation}
+              className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-black"
+            >
+              Готово
+            </button>
+          </div>
+
+          <div
+            className="absolute z-30 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/70 px-2 py-2"
+            style={{ transform: `translate(${mobileWidgetPos.x}px, ${mobileWidgetPos.y}px)` }}
+            onTouchStart={(event) => {
+              stopAnnotationToolbarEvent(event);
+              handleMobileWidgetTouchStart(event);
+            }}
+            onTouchMove={(event) => {
+              stopAnnotationToolbarEvent(event);
+              handleMobileWidgetTouchMove(event);
+            }}
+            onTouchEnd={(event) => {
+              stopAnnotationToolbarEvent(event);
+              handleMobileWidgetTouchEnd();
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setAnnotationTool("arrow")}
+              aria-label="Arrow"
+              title="Arrow"
+              className={cn(
+                "rounded-full p-2",
+                annotationTool === "arrow" ? "bg-white text-black" : "bg-white/10 text-white/70",
+              )}
+            >
+              <ArrowUpRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnnotationTool("rect")}
+              aria-label="Rectangle"
+              title="Rectangle"
+              className={cn(
+                "rounded-full p-2",
+                annotationTool === "rect" ? "bg-white text-black" : "bg-white/10 text-white/70",
+              )}
+            >
+              <Square className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnnotationTool("ellipse")}
+              aria-label="Ellipse"
+              title="Ellipse"
+              className={cn(
+                "rounded-full p-2",
+                annotationTool === "ellipse" ? "bg-white text-black" : "bg-white/10 text-white/70",
+              )}
+            >
+              <Circle className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnnotationTool("line")}
+              aria-label="Line"
+              title="Line"
+              className={cn(
+                "rounded-full p-2",
+                annotationTool === "line" ? "bg-white text-black" : "bg-white/10 text-white/70",
+              )}
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnnotationTool("freehand")}
+              aria-label="Freehand"
+              title="Freehand"
+              className={cn(
+                "rounded-full p-2",
+                annotationTool === "freehand" ? "bg-white text-black" : "bg-white/10 text-white/70",
+              )}
+            >
+              <PenLine className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnnotationTool("text")}
+              aria-label="Text"
+              title="Text"
+              className={cn(
+                "rounded-full p-2",
+                annotationTool === "text" ? "bg-white text-black" : "bg-white/10 text-white/70",
+              )}
+            >
+              <Type className="h-4 w-4" />
+            </button>
+            <span className="h-4 w-px bg-white/10" aria-hidden />
+            {([
+              { key: "red", tone: "bg-red-500" },
+              { key: "yellow", tone: "bg-yellow-400" },
+              { key: "green", tone: "bg-emerald-500" },
+              { key: "blue", tone: "bg-blue-500" },
+              { key: "white", tone: "bg-white" },
+            ] as const).map((color) => (
+              <button
+                key={color.key}
+                type="button"
+                onClick={() => setAnnotationColor(color.key)}
+                aria-label={color.key}
+                title={color.key}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full",
+                  annotationColor === color.key ? "bg-white/30" : "bg-white/10",
+                )}
+              >
+                <span className={cn("h-3 w-3 rounded-full", color.tone)} />
+              </button>
+            ))}
+            <span className="h-4 w-px bg-white/10" aria-hidden />
+            {([
+              { key: "thin", thickness: "h-[2px] w-5" },
+              { key: "medium", thickness: "h-[4px] w-5" },
+              { key: "thick", thickness: "h-[6px] w-5" },
+            ] as const).map((thickness) => (
+              <button
+                key={thickness.key}
+                type="button"
+                onClick={() => setAnnotationThickness(thickness.key)}
+                aria-label={thickness.key}
+                title={thickness.key}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full",
+                  annotationThickness === thickness.key ? "bg-white text-black" : "bg-white/10 text-white/80",
+                )}
+              >
+                <span className={cn("block rounded bg-current", thickness.thickness)} />
+              </button>
+            ))}
+            <span className="h-4 w-px bg-white/10" aria-hidden />
+            <button
+              type="button"
+              onClick={handleMobileUndo}
+              disabled={mobileAnnotationStrokes.length === 0}
+              aria-label="Undo"
+              title="Undo"
+              className={cn(
+                "rounded-full p-2",
+                mobileAnnotationStrokes.length === 0 ? "bg-white/5 text-white/30" : "bg-white/10 text-white/70",
+              )}
+            >
+              <Undo2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleMobileRedo}
+              disabled={mobileRedoStrokes.length === 0}
+              aria-label="Redo"
+              title="Redo"
+              className={cn(
+                "rounded-full p-2",
+                mobileRedoStrokes.length === 0 ? "bg-white/5 text-white/30" : "bg-white/10 text-white/70",
+              )}
+            >
+              <Redo2 className="h-4 w-4" />
+            </button>
+          </div>
+
+          {mobilePendingText ? (
+            <div
+              className="absolute z-40 rounded-md border border-white/10 bg-black/80 p-2"
+              style={{ left: `${mobilePendingText.x * 100}%`, top: `${mobilePendingText.y * 100}%` }}
+            >
+              <input
+                autoFocus
+                value={mobilePendingText.value}
+                onChange={(event) => setMobilePendingText({ ...mobilePendingText, value: event.target.value })}
+                onBlur={confirmMobileTextShape}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    confirmMobileTextShape();
+                  }
+                  if (event.key === "Escape") {
+                    setMobilePendingText(null);
+                  }
+                }}
+                placeholder="Текст"
+                className="w-40 rounded bg-black/60 px-2 py-1 text-xs text-white outline-none"
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </main>
   );
 }

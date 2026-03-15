@@ -65,3 +65,15 @@ ode.
 **Вывод:** Для тестов и скриптов в этой среде использовать 
 pm.cmd и 
 ode .\node_modules\....
+
+---
+
+## [2026-03-15] Baseline vitest run падает без prisma generate и API окружения
+
+**Симптом:** `npm.cmd test` падает на многих suite с ошибкой `@prisma/client did not initialize yet`, а API tests падают с `ECONNREFUSED`.
+
+**Причина:** Prisma client не сгенерен в worktree, и не поднят API/DB для интеграционных тестов.
+
+**Решение:** Для локальных проверок запускать точечные UI-тесты. Полный прогон требует `prisma generate` и поднятого окружения.
+
+**Вывод:** При проверке UI-фич использовать таргетный запуск vitest по файлу.
