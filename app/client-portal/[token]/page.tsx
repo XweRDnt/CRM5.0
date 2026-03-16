@@ -206,7 +206,17 @@ export default function ClientPortalPage(): JSX.Element {
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [pendingText, setPendingText] = useState<PendingText | null>(null);
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
+  const blurActiveElement = (): void => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) {
+      active.blur();
+    }
+  };
   const handleToolbarEvent = (event: React.SyntheticEvent): void => {
+    blurActiveElement();
     stopAnnotationToolbarEvent(event);
   };
 
@@ -311,6 +321,7 @@ export default function ClientPortalPage(): JSX.Element {
       return;
     }
 
+    blurActiveElement();
     kinescopeRef.current?.pause();
 
     const kinescopeTime = await readKinescopeTimeSafe();
