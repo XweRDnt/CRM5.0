@@ -83,7 +83,6 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
             text: true,
             timecodeSec: true,
             annotationData: true,
-            annotationPreview: true,
             createdAt: true,
             authorName: true,
             authorEmail: true,
@@ -124,7 +123,6 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
           text: item.text,
           timecodeSec: item.timecodeSec,
           annotationData: item.annotationData,
-          annotationPreview: item.annotationPreview,
           createdAt: item.createdAt,
           authorName:
             item.authorName ??

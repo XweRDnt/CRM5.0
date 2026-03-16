@@ -15,7 +15,6 @@ const createPublicFeedbackSchema = z
     text: z.string().max(5000).optional(),
     category: z.nativeEnum(FeedbackCategory).optional(),
     annotationData: z.unknown().optional(),
-    annotationPreview: z.string().url().optional(),
   })
   .superRefine((value, ctx) => {
     const text = value.text?.trim() ?? "";
@@ -78,7 +77,6 @@ export async function POST(request: Request): Promise<Response> {
         text: normalizedText,
         category: payload.category ?? null,
         annotationData: payload.annotationData ?? Prisma.DbNull,
-        annotationPreview: payload.annotationPreview ?? null,
         status: FeedbackStatus.NEW,
       },
       select: {
@@ -91,7 +89,6 @@ export async function POST(request: Request): Promise<Response> {
         text: true,
         category: true,
         annotationData: true,
-        annotationPreview: true,
         status: true,
         createdAt: true,
         updatedAt: true,

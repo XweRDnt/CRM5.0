@@ -610,20 +610,6 @@ export default function VersionDetailPage(): JSX.Element {
                           <span className="break-words text-neutral-700 dark:text-neutral-300">{item.author.name}</span>
                         </div>
 
-                        {item.annotationPreview ? (
-                          <button
-                            type="button"
-                            onClick={() => seekToTimecode(item.timecodeSec, item.annotationData)}
-                            className="mb-3 block w-full"
-                          >
-                            <img
-                              src={item.annotationPreview}
-                              alt="Annotation preview"
-                              className="w-full rounded-md border border-neutral-200 dark:border-neutral-700"
-                            />
-                          </button>
-                        ) : null}
-
                         <p className="mb-3 break-words text-sm text-neutral-900 dark:text-neutral-100">&quot;{item.text}&quot;</p>
 
                         <div className="flex flex-wrap gap-2">

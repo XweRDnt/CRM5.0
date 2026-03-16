@@ -445,7 +445,6 @@ export interface CreateFeedbackInput {
   text: string;
   category?: FeedbackCategory;
   annotationData?: AnnotationData | null;
-  annotationPreview?: string | null;
 }
 
 export interface FeedbackResponse {
@@ -462,7 +461,6 @@ export interface FeedbackResponse {
   category: FeedbackCategory | null;
   status: FeedbackStatus;
   annotationData?: AnnotationData | null;
-  annotationPreview?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

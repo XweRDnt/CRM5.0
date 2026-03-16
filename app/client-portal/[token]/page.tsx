@@ -41,7 +41,6 @@ type PortalFeedbackItem = {
   text: string;
   timecodeSec: number | null;
   annotationData?: AnnotationData | null;
-  annotationPreview?: string | null;
   createdAt: string;
   authorName: string;
   authorEmail: string | null;

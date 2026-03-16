@@ -19,7 +19,6 @@ type FeedbackWithAuthor = {
   timecodeSec: number | null;
   text: string;
   annotationData: unknown | null;
-  annotationPreview: string | null;
   category: "CONTENT" | "DESIGN" | "SOUND" | "LEGAL" | "OTHER" | null;
   status: "NEW" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
   createdAt: Date;
@@ -47,7 +46,6 @@ export class FeedbackService {
       text,
       category,
       annotationData,
-      annotationPreview,
     } = input;
 
     if (!text?.trim() || text.length > 5000) {
@@ -108,7 +106,6 @@ export class FeedbackService {
         text,
         category: category ?? null,
         annotationData: annotationData ?? Prisma.DbNull,
-        annotationPreview: annotationPreview ?? null,
         status: FeedbackStatus.NEW,
       },
       include: {
@@ -342,7 +339,6 @@ export class FeedbackService {
       category: feedback.category,
       status: feedback.status,
       annotationData: (feedback.annotationData as FeedbackResponse["annotationData"]) ?? null,
-      annotationPreview: feedback.annotationPreview ?? null,
       createdAt: feedback.createdAt,
       updatedAt: feedback.updatedAt,
     };
