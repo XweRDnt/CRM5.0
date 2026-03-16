@@ -80,32 +80,6 @@ describe("FeedbackService.createFeedback", () => {
     expect(result.status).toBe("NEW");
   });
 
-  it("should store annotation preview when provided", async () => {
-    const tenant = await createTestTenant("agency-fb-2b");
-    const user = await createTestUser(tenant.id, "user2b@test.com");
-    const client = await createTestClient(tenant.id, "client2b@test.com");
-    const project = await createTestProject(tenant.id, client.id, "Project");
-    const version = await createTestAssetVersion(project.id, user.id);
-
-    const result = await feedbackService.createFeedback({
-      assetVersionId: version.id,
-      tenantId: tenant.id,
-      authorType: "CLIENT",
-      authorEmail: "client@acme.com",
-      authorName: "Preview Client",
-      text: "Annotate this frame",
-      annotationData: {
-        version: 1,
-        strokes: [
-          { type: "line", points: [{ x: 0.1, y: 0.2 }, { x: 0.9, y: 0.8 }], color: "red", thickness: "thin" },
-        ],
-      },
-      annotationPreview: "https://bucket.s3.eu-central-1.amazonaws.com/annotations/test.png",
-    });
-
-    expect(result.annotationPreview).toBe("https://bucket.s3.eu-central-1.amazonaws.com/annotations/test.png");
-  });
-
   it("should fail if asset version does not exist", async () => {
     const tenant = await createTestTenant("agency-fb-3");
 

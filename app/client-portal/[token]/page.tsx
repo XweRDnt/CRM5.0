@@ -11,7 +11,7 @@ import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/Kin
 import { cn } from "@/lib/utils/cn";
 import { getMessages } from "@/lib/i18n/messages";
 import { formatTimecode } from "@/lib/utils/time";
-import { buildSvgMarkup, strokeToSvg } from "@/lib/annotations/render";
+import { strokeToSvg } from "@/lib/annotations/render";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { normalizeClientPoint } from "@/lib/annotations/coords";
@@ -625,90 +625,6 @@ export default function ClientPortalPage(): JSX.Element {
     }
   };
 
-  const captureFrameDataUrl = async (_timecodeSec: number): Promise<string | null> => {
-    const videoId = activeVersion?.kinescopeVideoId ?? null;
-    if (!videoId) {
-      return null;
-    }
-
-    let posterUrl: string | null = null;
-    try {
-      const response = await fetch(`/api/public/portal/poster?videoId=${encodeURIComponent(videoId)}`);
-      if (!response.ok) {
-        return null;
-      }
-      const payload = (await response.json().catch(() => null)) as { url?: string | null } | null;
-      posterUrl = payload?.url ?? null;
-    } catch {
-      return null;
-    }
-
-    if (!posterUrl) {
-      return null;
-    }
-
-    return new Promise<string | null>((resolve) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width || 1280;
-          canvas.height = img.height || 720;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            resolve(null);
-            return;
-          }
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL("image/png"));
-        } catch {
-          resolve(null);
-        }
-      };
-      img.onerror = () => {
-        resolve(null);
-      };
-      img.src = posterUrl;
-    });
-  };
-
-  const overlaySvgOnFrame = async (frameDataUrl: string, strokes: AnnotationStroke[]): Promise<string | null> => {
-    const frameImage = new Image();
-    frameImage.crossOrigin = "anonymous";
-    frameImage.src = frameDataUrl;
-    await new Promise<void>((resolve, reject) => {
-      frameImage.onload = () => resolve();
-      frameImage.onerror = () => reject(new Error("Failed to load frame image"));
-    });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = frameImage.width;
-    canvas.height = frameImage.height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return null;
-    }
-    ctx.drawImage(frameImage, 0, 0);
-
-    const svgMarkup = buildSvgMarkup(strokes);
-    const svgBlob = new Blob([svgMarkup], { type: "image/svg+xml" });
-    const svgUrl = URL.createObjectURL(svgBlob);
-    try {
-      const svgImage = new Image();
-      svgImage.src = svgUrl;
-      await new Promise<void>((resolve, reject) => {
-        svgImage.onload = () => resolve();
-        svgImage.onerror = () => reject(new Error("Failed to load SVG overlay"));
-      });
-      ctx.drawImage(svgImage, 0, 0, canvas.width, canvas.height);
-    } finally {
-      URL.revokeObjectURL(svgUrl);
-    }
-
-    return canvas.toDataURL("image/png");
-  };
-
   const submitFeedback = async (event?: React.FormEvent): Promise<void> => {
     event?.preventDefault();
     if (!activeVersion) {
@@ -731,31 +647,6 @@ export default function ClientPortalPage(): JSX.Element {
 
     if (annotationStrokes.length > 0) {
       payload.annotationData = { version: 1, strokes: annotationStrokes } satisfies AnnotationData;
-      try {
-        const previewTimecode = capturedTimecodeSec ?? playerCurrentTimeSec;
-        const frameDataUrl = await captureFrameDataUrl(previewTimecode);
-        if (frameDataUrl) {
-          const merged = await overlaySvgOnFrame(frameDataUrl, annotationStrokes);
-          if (merged) {
-            const previewResponse = await fetch("/api/public/feedback/preview", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                assetVersionId: activeVersion.id,
-                pngBase64: merged.replace(/^data:image\/png;base64,/, ""),
-              }),
-            });
-            if (previewResponse.ok) {
-              const previewJson = (await previewResponse.json().catch(() => null)) as { url?: string } | null;
-              if (previewJson?.url) {
-                payload.annotationPreview = previewJson.url;
-              }
-            }
-          }
-        }
-      } catch {
-        // Preview is optional; proceed without it if capture fails.
-      }
     }
 
     try {
