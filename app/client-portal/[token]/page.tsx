@@ -872,7 +872,11 @@ export default function ClientPortalPage(): JSX.Element {
             </div>
           ) : null}
 
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black">
+          <div
+            className="relative overflow-hidden rounded-2xl border border-white/10 bg-black"
+            onPointerDownCapture={blurActiveElement}
+            onTouchStartCapture={blurActiveElement}
+          >
             <KinescopePlayer
               ref={kinescopeRef}
               className="w-full"
