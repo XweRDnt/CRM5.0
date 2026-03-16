@@ -419,7 +419,9 @@ export default function ClientPortalPage(): JSX.Element {
   const pushStroke = (stroke: AnnotationStroke): void => {
     setAnnotationStrokes((prev) => [...prev, stroke]);
     setRedoStrokes([]);
-    window.setTimeout(() => textAreaRef.current?.focus(), 0);
+    if (!annotationMode) {
+      window.setTimeout(() => textAreaRef.current?.focus(), 0);
+    }
   };
 
   const buildStrokeFromState = (state: DrawingState): AnnotationStroke | null => {
