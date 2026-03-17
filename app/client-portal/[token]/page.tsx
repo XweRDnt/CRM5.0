@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { cn } from "@/lib/utils/cn";
@@ -15,10 +14,10 @@ import { strokeToSvg } from "@/lib/annotations/render";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { normalizeClientPoint } from "@/lib/annotations/coords";
-import { getAnnotationToggle, stopAnnotationToolbarEvent } from "@/lib/annotations/interaction";
+import { getAnnotationToggle } from "@/lib/annotations/interaction";
 import { getDrawingSurfaceClass } from "@/lib/annotations/overlay";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
-import { ArrowUpRight, Circle, Minus, Pencil, Redo2, Send, Square, Type, Undo2, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Circle, Minus, Pencil, Redo2, Send, Square, Type, Undo2 } from "lucide-react";
 
 const SUBMIT_TIMEOUT_MS = 15000;
 
@@ -179,11 +178,11 @@ export default function ClientPortalPage(): JSX.Element {
 
   const kinescopeRef = useRef<KinescopePlayerRef | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
-  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const commentInputDesktopRef = useRef<HTMLInputElement | null>(null);
+  const commentInputMobileRef = useRef<HTMLInputElement | null>(null);
   const lastKnownTimeRef = useRef(0);
   const [playerCurrentTimeSec, setPlayerCurrentTimeSec] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
-  const [isPlayerPlaying, setIsPlayerPlaying] = useState(false);
   const [capturedTimecodeSec, setCapturedTimecodeSec] = useState<number | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
@@ -204,6 +203,7 @@ export default function ClientPortalPage(): JSX.Element {
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [pendingText, setPendingText] = useState<PendingText | null>(null);
+  const [openThreadIds, setOpenThreadIds] = useState<string[]>([]);
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
   const blurActiveElement = (): void => {
     if (typeof document === "undefined") {
@@ -214,9 +214,13 @@ export default function ClientPortalPage(): JSX.Element {
       active.blur();
     }
   };
-  const handleToolbarEvent = (event: React.SyntheticEvent): void => {
-    blurActiveElement();
-    stopAnnotationToolbarEvent(event);
+  const focusCommentInput = (): void => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+    const target = isDesktop ? commentInputDesktopRef.current : commentInputMobileRef.current;
+    target?.focus();
   };
 
   const safeVideoUrl = (activeVersion?.streamUrl ?? activeVersion?.fileUrl ?? "").trim();
@@ -286,16 +290,28 @@ export default function ClientPortalPage(): JSX.Element {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-[#1a1a1a] px-4 py-6 text-white">
-        <div className="mx-auto h-40 max-w-5xl animate-pulse rounded-2xl bg-[#111111]" />
+      <main
+        className="min-h-screen px-4 py-6 text-white"
+        style={{
+          background:
+            "radial-gradient(ellipse at 10% 15%, rgba(80,70,210,0.28) 0%, transparent 50%), radial-gradient(ellipse at 90% 85%, rgba(180,60,120,0.18) 0%, transparent 48%), radial-gradient(ellipse at 60% 5%, rgba(50,60,190,0.15) 0%, transparent 40%), #09090f",
+        }}
+      >
+        <div className="mx-auto h-40 max-w-5xl animate-pulse rounded-2xl bg-white/[0.05]" />
       </main>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="min-h-screen bg-[#1a1a1a] px-4 py-6 text-white">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-[#111111] p-6">
+      <main
+        className="min-h-screen px-4 py-6 text-white"
+        style={{
+          background:
+            "radial-gradient(ellipse at 10% 15%, rgba(80,70,210,0.28) 0%, transparent 50%), radial-gradient(ellipse at 90% 85%, rgba(180,60,120,0.18) 0%, transparent 48%), radial-gradient(ellipse at 60% 5%, rgba(50,60,190,0.15) 0%, transparent 40%), #09090f",
+        }}
+      >
+        <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-white/[0.04] p-6">
           <h1 className="text-xl font-semibold">{m.portal.title}</h1>
           <p className="mt-3 text-sm text-red-400">{error instanceof Error ? error.message : "Portal unavailable"}</p>
         </div>
@@ -316,7 +332,8 @@ export default function ClientPortalPage(): JSX.Element {
     }
 
     if (!playerReady) {
-      toast.error(m.portal.playerNotReady);
+      setCapturedTimecodeSec(lastKnownTimeRef.current);
+      setAnnotationMode(true);
       return;
     }
 
@@ -348,6 +365,11 @@ export default function ClientPortalPage(): JSX.Element {
       return;
     }
     stopAnnotationMode();
+  };
+  const toggleThread = (threadId: string): void => {
+    setOpenThreadIds((prev) =>
+      prev.includes(threadId) ? prev.filter((id) => id !== threadId) : [...prev, threadId],
+    );
   };
 
   const getOverlayPoint = (event: React.PointerEvent | React.MouseEvent<HTMLDivElement>): { x: number; y: number } | null => {
@@ -430,7 +452,7 @@ export default function ClientPortalPage(): JSX.Element {
     setAnnotationStrokes((prev) => [...prev, stroke]);
     setRedoStrokes([]);
     if (!annotationMode) {
-      window.setTimeout(() => textAreaRef.current?.focus(), 0);
+      window.setTimeout(() => focusCommentInput(), 0);
     }
   };
 
@@ -593,7 +615,6 @@ export default function ClientPortalPage(): JSX.Element {
 
     const normalized = normalizeAnnotationData(annotation);
     setActiveAnnotation(normalized);
-    setIsPlayerPlaying(false);
     setAnnotationMode(false);
   };
 
@@ -693,6 +714,9 @@ export default function ClientPortalPage(): JSX.Element {
   const hasComment = trimmedComment.length > 0;
   const hasStrokes = annotationStrokes.length > 0;
   const canSubmit = !submitting && !isVersionLocked && trimmedAuthor.length > 0 && (hasComment || hasStrokes);
+  const visibleFeedback = data.feedback.filter(
+    (item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text),
+  );
   const overlayVisible = annotationMode || activeAnnotation !== null;
   const previewStroke: AnnotationStroke | null = drawingState
     ? drawingState.tool === "freehand"
@@ -721,37 +745,43 @@ export default function ClientPortalPage(): JSX.Element {
   );
 
   return (
-    <main className="min-h-screen bg-[#1a1a1a] text-white">
-      <header className="sticky top-0 z-30 h-12 border-b border-white/10 bg-[#111111]">
+    <main
+      className="min-h-screen text-white"
+      style={{
+        background:
+          "radial-gradient(ellipse at 10% 15%, rgba(80,70,210,0.28) 0%, transparent 50%), radial-gradient(ellipse at 90% 85%, rgba(180,60,120,0.18) 0%, transparent 48%), radial-gradient(ellipse at 60% 5%, rgba(50,60,190,0.15) 0%, transparent 40%), #09090f",
+      }}
+    >
+      <header className="fixed left-4 right-4 top-3 z-40 h-12 rounded-2xl border border-white/10 bg-white/[0.045] backdrop-blur-2xl">
         <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4">
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-0.5">
             <span className="text-sm font-semibold text-white">{data.project.name}</span>
-            <span className="text-xs text-white/60">Версия {activeVersion?.versionNumber ?? "—"}</span>
+            <span className="text-[10px] text-white/30">Версия {activeVersion?.versionNumber ?? "—"}</span>
           </div>
           <Button
             onClick={() => setApproveDialogOpen(true)}
             disabled={isVersionLocked || !activeVersion}
             className={cn(
-              "h-8 rounded-full px-4 text-xs font-semibold",
+              "h-7 rounded-full px-4 text-[11px] font-semibold",
               isVersionLocked
-                ? "bg-white/10 text-white/50"
-                : "bg-emerald-500 text-white hover:bg-emerald-400",
+                ? "bg-white/10 text-white/40"
+                : "bg-[#4F8EF7] text-white hover:bg-[#5a97ff]",
             )}
           >
-            {isVersionLocked ? m.portal.approved : "Утвердить версию"}
+            {isVersionLocked ? m.portal.approved : "Утвердить"}
           </Button>
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 pb-6 pt-4 lg:min-h-[calc(100vh-3rem)] lg:flex-row">
-        <section className="flex w-full flex-col gap-4 lg:w-[70%]">
+      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 pb-32 pt-20 lg:min-h-[calc(100vh-3rem)] lg:flex-row lg:pb-8">
+        <section className="flex w-full flex-col gap-3 lg:w-[70%]">
           {data.versions.length > 1 ? (
-            <div className="flex items-center gap-2 text-xs text-white/60">
+            <div className="flex items-center gap-2 text-[11px] text-white/40">
               <span>Версия</span>
               <select
                 value={activeVersion?.id ?? ""}
                 onChange={(event) => selectVersion(event.target.value)}
-                className="rounded-md border border-white/10 bg-[#111111] px-2 py-1 text-xs text-white"
+                className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/70 backdrop-blur-xl"
               >
                 {data.versions.map((version) => (
                   <option key={version.id} value={version.id}>
@@ -763,7 +793,7 @@ export default function ClientPortalPage(): JSX.Element {
           ) : null}
 
           <div
-            className="relative overflow-hidden rounded-2xl border border-white/10 bg-black"
+            className="relative overflow-hidden rounded-2xl bg-black shadow-[0_8px_40px_rgba(0,0,0,0.5),_0_0_0_0.5px_rgba(255,255,255,0.07)]"
             onPointerDownCapture={blurActiveElement}
             onTouchStartCapture={blurActiveElement}
           >
@@ -776,11 +806,11 @@ export default function ClientPortalPage(): JSX.Element {
               onTimeUpdate={(seconds) => updatePlayerTime(seconds)}
               onPlay={() => {
                 setPlayerReady(true);
-                setIsPlayerPlaying(true);
                 setActiveAnnotation(null);
               }}
-              onPause={() => setIsPlayerPlaying(false)}
             />
+
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t from-black/80 to-transparent" />
 
             <div className="pointer-events-none absolute inset-0 z-20">
               <div
@@ -812,147 +842,6 @@ export default function ClientPortalPage(): JSX.Element {
                     {overlayStrokes.map((stroke, index) => renderStroke(stroke, index))}
                   </svg>
                 ) : null}
-              </div>
-
-              {/* Floating annotation widget */}
-              <div
-                className="pointer-events-auto absolute z-40"
-                style={{
-                  right: "0.75rem",
-                  bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
-                }}
-                onPointerDown={handleToolbarEvent}
-                onPointerUp={handleToolbarEvent}
-                onClick={handleToolbarEvent}
-              >
-                {/* Панель инструментов — видна только в annotationMode */}
-                {annotationMode && (
-                  <div className="mb-2 flex flex-col items-end gap-2">
-                    {/* Инструменты */}
-                    <div className="flex flex-wrap justify-end gap-1.5 rounded-2xl border border-white/10 bg-black/80 p-2 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
-                      {([
-                        { key: "arrow", label: "Стрелка", icon: ArrowUpRight },
-                        { key: "rect", label: "Прямоугольник", icon: Square },
-                        { key: "ellipse", label: "Эллипс", icon: Circle },
-                        { key: "line", label: "Линия", icon: Minus },
-                        { key: "freehand", label: "Карандаш", icon: Pencil },
-                        { key: "text", label: "Текст", icon: Type },
-                      ] as const).map((tool) => {
-                        const Icon = tool.icon;
-                        return (
-                          <button
-                            key={tool.key}
-                            type="button"
-                            onClick={() => setAnnotationTool(tool.key)}
-                            aria-label={tool.label}
-                            title={tool.label}
-                            className={cn(
-                              "flex h-9 w-9 items-center justify-center rounded-full border text-[11px] font-semibold transition",
-                              annotationTool === tool.key
-                                ? "border-white/40 bg-white text-black"
-                                : "border-white/10 bg-white/5 text-white/70 hover:text-white",
-                            )}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Цвета + толщины + undo/redo */}
-                    <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/80 p-2 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
-                      <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1">
-                        {([
-                          { key: "red", label: "Красный", tone: "bg-red-500" },
-                          { key: "yellow", label: "Жёлтый", tone: "bg-yellow-400" },
-                          { key: "green", label: "Зелёный", tone: "bg-emerald-500" },
-                          { key: "blue", label: "Синий", tone: "bg-blue-500" },
-                          { key: "white", label: "Белый", tone: "bg-white" },
-                        ] as const).map((color) => (
-                          <button
-                            key={color.key}
-                            type="button"
-                            onClick={() => setAnnotationColor(color.key)}
-                            aria-label={color.label}
-                            className={cn(
-                              "flex h-7 w-7 items-center justify-center rounded-full border transition",
-                              annotationColor === color.key
-                                ? "border-white/50 bg-white/20"
-                                : "border-white/10 bg-white/5",
-                            )}
-                          >
-                            <span className={cn("h-2.5 w-2.5 rounded-full", color.tone)} />
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1">
-                        {([
-                          { key: "thin", label: "S" },
-                          { key: "medium", label: "M" },
-                          { key: "thick", label: "L" },
-                        ] as const).map((thickness) => (
-                          <button
-                            key={thickness.key}
-                            type="button"
-                            onClick={() => setAnnotationThickness(thickness.key)}
-                            className={cn(
-                              "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold transition",
-                              annotationThickness === thickness.key
-                                ? "bg-white text-black"
-                                : "bg-white/10 text-white/70 hover:text-white",
-                            )}
-                          >
-                            {thickness.label}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleUndo}
-                        disabled={annotationStrokes.length === 0}
-                        aria-label="Undo"
-                        className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:text-white disabled:opacity-30"
-                      >
-                        <Undo2 className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRedo}
-                        disabled={redoStrokes.length === 0}
-                        aria-label="Redo"
-                        className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:text-white disabled:opacity-30"
-                      >
-                        <Redo2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Отправить */}
-                    <button
-                      type="button"
-                      onClick={() => void submitFeedback()}
-                      disabled={!canSubmit}
-                      className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-40"
-                    >
-                      {submitting ? "Отправляю..." : "Отправить"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Кружок-кнопка */}
-                <button
-                  type="button"
-                  onClick={toggleAnnotationMode}
-                  disabled={isVersionLocked || !playerReady}
-                  aria-label={annotationMode ? "Закрыть рисование" : "Рисовать"}
-                  className={cn(
-                    "flex h-11 w-11 items-center justify-center rounded-full border shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition",
-                    annotationMode
-                      ? "border-white/40 bg-white text-black"
-                      : "border-white/10 bg-black/70 text-white/70 hover:text-white",
-                  )}
-                >
-                  {annotationMode ? <X className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-                </button>
               </div>
 
               {activeAnnotation ? (
@@ -992,22 +881,166 @@ export default function ClientPortalPage(): JSX.Element {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#111111] px-4 py-3">
-            <div className="text-sm text-white/70">
-              Текущее время: <span className="font-semibold text-white">{formatTimecode(playerCurrentTimeSec)}</span>
-              {capturedTimecodeSec !== null ? (
-                <span className="ml-2 text-xs text-emerald-400">Выбрано: {formatTimecode(capturedTimecodeSec)}</span>
-              ) : null}
+          <div
+            className={cn(
+              "hidden items-center gap-2 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] px-3 backdrop-blur-xl transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)] lg:flex",
+              annotationMode ? "max-h-20 py-2 opacity-100" : "max-h-0 py-0 opacity-0 border-transparent",
+            )}
+          >
+            <div className="flex items-center gap-1">
+              {([
+                { key: "arrow", label: "Стрелка", icon: ArrowUpRight },
+                { key: "rect", label: "Прямоугольник", icon: Square },
+                { key: "ellipse", label: "Эллипс", icon: Circle },
+                { key: "line", label: "Линия", icon: Minus },
+                { key: "freehand", label: "Карандаш", icon: Pencil },
+                { key: "text", label: "Текст", icon: Type },
+              ] as const).map((tool) => {
+                const Icon = tool.icon;
+                return (
+                  <button
+                    key={tool.key}
+                    type="button"
+                    onClick={() => setAnnotationTool(tool.key)}
+                    aria-label={tool.label}
+                    title={tool.label}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-xl text-white/40 transition hover:text-white",
+                      annotationTool === tool.key && "bg-white text-black",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                );
+              })}
             </div>
-            <Button
-              onClick={() => textAreaRef.current?.focus()}
-              type="button"
-              disabled={!playerReady || isVersionLocked}
-              className="h-9 rounded-full bg-[#007AFF] px-4 text-xs font-semibold text-white hover:bg-[#0A84FF]"
-            >
-              Добавить правку
-            </Button>
+            <div className="h-5 w-px bg-white/10" />
+            <div className="flex items-center gap-2">
+              {([
+                { key: "red", label: "Красный", tone: "bg-red-500" },
+                { key: "yellow", label: "Жёлтый", tone: "bg-yellow-400" },
+                { key: "green", label: "Зелёный", tone: "bg-emerald-500" },
+                { key: "blue", label: "Синий", tone: "bg-blue-500" },
+                { key: "white", label: "Белый", tone: "bg-white" },
+              ] as const).map((color) => (
+                <button
+                  key={color.key}
+                  type="button"
+                  onClick={() => setAnnotationColor(color.key)}
+                  aria-label={color.label}
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full transition",
+                    annotationColor === color.key
+                      ? "ring-2 ring-white/60 ring-offset-1 ring-offset-transparent"
+                      : "ring-1 ring-transparent",
+                  )}
+                >
+                  <span className={cn("h-4 w-4 rounded-full", color.tone)} />
+                </button>
+              ))}
+            </div>
+            <div className="h-5 w-px bg-white/10" />
+            <div className="flex items-center gap-1">
+              {([
+                { key: "thin", label: "S" },
+                { key: "medium", label: "M" },
+                { key: "thick", label: "L" },
+              ] as const).map((thickness) => (
+                <button
+                  key={thickness.key}
+                  type="button"
+                  onClick={() => setAnnotationThickness(thickness.key)}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-xl text-[11px] font-semibold transition",
+                    annotationThickness === thickness.key
+                      ? "bg-white text-black"
+                      : "text-white/40 hover:text-white",
+                  )}
+                >
+                  {thickness.label}
+                </button>
+              ))}
+            </div>
+            <div className="h-5 w-px bg-white/10" />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={annotationStrokes.length === 0}
+                aria-label="Undo"
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-white/40 transition hover:text-white disabled:opacity-30"
+              >
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleRedo}
+                disabled={redoStrokes.length === 0}
+                aria-label="Redo"
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-white/40 transition hover:text-white disabled:opacity-30"
+              >
+                <Redo2 className="h-4 w-4" />
+              </button>
+            </div>
           </div>
+
+          <form
+            onSubmit={submitFeedback}
+            className="hidden items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2.5 backdrop-blur-xl lg:flex"
+          >
+            <button
+              type="button"
+              onClick={() => setCapturedTimecodeSec(null)}
+              className="flex-shrink-0 rounded-lg border border-blue-400/30 bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-300"
+            >
+              {formatTimecode(capturedTimecodeSec ?? playerCurrentTimeSec)}
+            </button>
+            <div className="h-4 w-px bg-white/10" />
+            <input
+              value={authorName}
+              onChange={(event) => setAuthorName(event.target.value)}
+              placeholder="Имя"
+              required
+              disabled={isVersionLocked}
+              className="w-24 flex-shrink-0 bg-transparent text-sm text-white/50 outline-none placeholder:text-white/25"
+            />
+            <div className="h-4 w-px bg-white/10" />
+            <input
+              ref={commentInputDesktopRef}
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  if (canSubmit) {
+                    void submitFeedback();
+                  }
+                }
+              }}
+              placeholder={hasStrokes ? "Комментарий (необязательно)" : "Добавить правку..."}
+              disabled={isVersionLocked}
+              className="flex-1 bg-transparent text-sm text-white/70 outline-none placeholder:text-white/25"
+            />
+            <button
+              type="button"
+              onClick={toggleAnnotationMode}
+              disabled={isVersionLocked}
+              aria-label={annotationMode ? "Закрыть рисование" : "Рисовать"}
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/40 transition",
+                annotationMode && "border-blue-400/40 bg-blue-500/15 text-blue-300",
+              )}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+            <Button
+              type="submit"
+              disabled={!canSubmit}
+              className="h-8 w-8 rounded-xl bg-[#4F8EF7] p-0 text-white hover:bg-[#5a97ff] disabled:opacity-40"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
 
           {activeVersion && activeVersion.processingStatus !== "READY" ? (
             <p className="text-xs text-white/50">
@@ -1019,68 +1052,268 @@ export default function ClientPortalPage(): JSX.Element {
           {isVersionLocked && <p className="text-xs text-white/40">{m.portal.approvalLocked}</p>}
         </section>
 
-        <aside className="flex w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111111] lg:h-[calc(100vh-4.5rem)] lg:w-[30%]">
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            <div className="text-sm font-semibold text-white/80">Комментарии</div>
-            {data.feedback.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-white/50">
+        <aside className="flex w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl lg:h-[calc(100vh-4.5rem)] lg:w-[30%]">
+          <div className="border-b border-white/10 px-4 pb-3 pt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/30">
+            Правки
+          </div>
+          <div className="flex-1 space-y-2 overflow-y-auto px-3 pb-4 pt-3">
+            {visibleFeedback.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/40">
                 Правок пока нет
               </div>
             ) : (
-              data.feedback
-                .filter((item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text))
-                .map((item) => (
-                  <article key={item.id} className="rounded-xl border border-white/10 bg-black/30 p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-white/80">{item.authorName}</span>
+              visibleFeedback.map((item) => {
+                const isOpen = openThreadIds.includes(item.id);
+                return (
+                  <article
+                    key={item.id}
+                    onClick={() => toggleThread(item.id)}
+                    className={cn(
+                      "group cursor-pointer rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition",
+                      isOpen ? "border-blue-400/30" : "hover:border-blue-400/25",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-white/70">{item.authorName}</span>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            seekToTimecode(item.timecodeSec, item.annotationData);
+                          }}
+                          className={cn(
+                            "rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                            item.timecodeSec !== null
+                              ? "bg-blue-500/10 text-blue-300"
+                              : "bg-white/5 text-white/30",
+                          )}
+                        >
+                          {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                        </button>
+                      </div>
+                      <p className="text-sm leading-relaxed text-white/55">{item.text}</p>
+                      {item.annotationData ? (
+                        <div className="mt-2 flex items-center gap-2 text-[11px] text-blue-300/70">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                          с аннотацией
+                        </div>
+                      ) : null}
+                      <div className="mt-2 flex items-center gap-2 text-[10px] text-white/30">
+                        <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-white/40">
+                          Новая
+                        </span>
+                        <span className="text-white/25">0 ответов</span>
+                      </div>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "mt-0.5 h-4 w-4 text-white/20 transition group-hover:text-blue-300",
+                        isOpen && "rotate-180 text-blue-300",
+                      )}
+                    />
+                  </div>
+                  <div
+                    onClick={(event) => event.stopPropagation()}
+                    className={cn(
+                      "mt-3 overflow-hidden border-t border-white/10 pt-0 transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
+                      isOpen ? "max-h-48 pt-3 opacity-100" : "max-h-0 pt-0 opacity-0",
+                    )}
+                  >
+                    <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">
+                      Ответы появятся здесь
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        disabled
+                        placeholder="Ответить..."
+                        className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/40 placeholder:text-white/20"
+                      />
                       <button
                         type="button"
-                        onClick={() => seekToTimecode(item.timecodeSec, item.annotationData)}
-                        className="rounded-full bg-blue-500/10 px-2 py-1 text-[11px] font-semibold text-blue-300 hover:text-blue-200"
+                        disabled
+                        className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.06] text-white/30"
                       >
-                        {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                        <Send className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    <p className="text-sm leading-relaxed text-white/80">{item.text}</p>
-                  </article>
-                ))
+                  </div>
+                </article>
+                );
+              })
             )}
           </div>
-
-          <form onSubmit={submitFeedback} className="border-t border-white/10 bg-black/40 p-4">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <label className="block text-xs text-white/60">Добавить правку</label>
-            </div>
-            <Input
-              value={authorName}
-              onChange={(event) => setAuthorName(event.target.value)}
-              placeholder="Ваше имя"
-              required
-              disabled={isVersionLocked}
-              className="mb-3 h-9 rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white/20"
-            />
-            <textarea
-              ref={textAreaRef}
-              rows={4}
-              disabled={isVersionLocked}
-              value={commentText}
-              onChange={(event) => setCommentText(event.target.value)}
-              placeholder={hasStrokes ? "Комментарий (необязательно)" : "Опишите правку..."}
-              className="mb-3 w-full resize-none rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-white/20"
-            />
-            <Button
-              type="submit"
-              disabled={!canSubmit}
-              className="w-full rounded-full bg-white text-sm font-semibold text-black hover:bg-white/90"
-            >
-              {submitting ? m.feedback.submitting : "Отправить"}
-            </Button>
-          </form>
         </aside>
       </div>
 
+      <div className="lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 px-4 pb-6 pt-2 [background:linear-gradient(to_top,rgba(9,9,15,0.97)_65%,transparent)]">
+          <div
+            className={cn(
+              "flex items-center gap-2 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.05] px-3 backdrop-blur-xl transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
+              annotationMode ? "max-h-20 py-2 opacity-100" : "max-h-0 py-0 opacity-0 border-transparent",
+            )}
+          >
+            <div className="flex items-center gap-1">
+              {([
+                { key: "arrow", label: "Стрелка", icon: ArrowUpRight },
+                { key: "rect", label: "Прямоугольник", icon: Square },
+                { key: "ellipse", label: "Эллипс", icon: Circle },
+                { key: "line", label: "Линия", icon: Minus },
+                { key: "freehand", label: "Карандаш", icon: Pencil },
+                { key: "text", label: "Текст", icon: Type },
+              ] as const).map((tool) => {
+                const Icon = tool.icon;
+                return (
+                  <button
+                    key={tool.key}
+                    type="button"
+                    onClick={() => setAnnotationTool(tool.key)}
+                    aria-label={tool.label}
+                    title={tool.label}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-xl text-white/40 transition hover:text-white",
+                      annotationTool === tool.key && "bg-white text-black",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                );
+              })}
+            </div>
+            <div className="h-5 w-px bg-white/10" />
+            <div className="flex items-center gap-2">
+              {([
+                { key: "red", label: "Красный", tone: "bg-red-500" },
+                { key: "yellow", label: "Жёлтый", tone: "bg-yellow-400" },
+                { key: "green", label: "Зелёный", tone: "bg-emerald-500" },
+                { key: "blue", label: "Синий", tone: "bg-blue-500" },
+                { key: "white", label: "Белый", tone: "bg-white" },
+              ] as const).map((color) => (
+                <button
+                  key={color.key}
+                  type="button"
+                  onClick={() => setAnnotationColor(color.key)}
+                  aria-label={color.label}
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full transition",
+                    annotationColor === color.key
+                      ? "ring-2 ring-white/60 ring-offset-1 ring-offset-transparent"
+                      : "ring-1 ring-transparent",
+                  )}
+                >
+                  <span className={cn("h-4 w-4 rounded-full", color.tone)} />
+                </button>
+              ))}
+            </div>
+            <div className="h-5 w-px bg-white/10" />
+            <div className="flex items-center gap-1">
+              {([
+                { key: "thin", label: "S" },
+                { key: "medium", label: "M" },
+                { key: "thick", label: "L" },
+              ] as const).map((thickness) => (
+                <button
+                  key={thickness.key}
+                  type="button"
+                  onClick={() => setAnnotationThickness(thickness.key)}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-xl text-[11px] font-semibold transition",
+                    annotationThickness === thickness.key
+                      ? "bg-white text-black"
+                      : "text-white/40 hover:text-white",
+                  )}
+                >
+                  {thickness.label}
+                </button>
+              ))}
+            </div>
+            <div className="h-5 w-px bg-white/10" />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={annotationStrokes.length === 0}
+                aria-label="Undo"
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-white/40 transition hover:text-white disabled:opacity-30"
+              >
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleRedo}
+                disabled={redoStrokes.length === 0}
+                aria-label="Redo"
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-white/40 transition hover:text-white disabled:opacity-30"
+              >
+                <Redo2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <form
+            onSubmit={submitFeedback}
+            className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2.5 backdrop-blur-xl"
+          >
+            <button
+              type="button"
+              onClick={() => setCapturedTimecodeSec(null)}
+              className="flex-shrink-0 rounded-lg border border-blue-400/30 bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-300"
+            >
+              {formatTimecode(capturedTimecodeSec ?? playerCurrentTimeSec)}
+            </button>
+            <div className="h-4 w-px bg-white/10" />
+            <input
+              value={authorName}
+              onChange={(event) => setAuthorName(event.target.value)}
+              placeholder="Имя"
+              required
+              disabled={isVersionLocked}
+              className="w-16 flex-shrink-0 bg-transparent text-[13px] text-white/50 outline-none placeholder:text-white/25"
+            />
+            <div className="h-4 w-px bg-white/10" />
+            <input
+              ref={commentInputMobileRef}
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  if (canSubmit) {
+                    void submitFeedback();
+                  }
+                }
+              }}
+              placeholder={hasStrokes ? "Комментарий (необязательно)" : "Добавить правку..."}
+              disabled={isVersionLocked}
+              className="flex-1 bg-transparent text-[13px] text-white/75 outline-none placeholder:text-white/25"
+            />
+            <button
+              type="button"
+              onClick={toggleAnnotationMode}
+              disabled={isVersionLocked}
+              aria-label={annotationMode ? "Закрыть рисование" : "Рисовать"}
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/40 transition",
+                annotationMode && "border-blue-400/40 bg-blue-500/15 text-blue-300",
+              )}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+            <Button
+              type="submit"
+              disabled={!canSubmit}
+              className="h-9 w-9 rounded-xl bg-[#4F8EF7] p-0 text-white hover:bg-[#5a97ff] disabled:opacity-40"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
+      </div>
+
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-3xl border border-white/10 bg-[#141414] text-white">
           <DialogHeader>
             <DialogTitle>{m.portal.approveDialogTitle}</DialogTitle>
             <DialogDescription>{m.portal.approveDialogDescription}</DialogDescription>
@@ -1089,7 +1322,11 @@ export default function ClientPortalPage(): JSX.Element {
             <Button variant="outline" onClick={() => setApproveDialogOpen(false)} disabled={approving}>
               {m.portal.cancel}
             </Button>
-            <Button onClick={approveVersion} disabled={approving || !activeVersion}>
+            <Button
+              onClick={approveVersion}
+              disabled={approving || !activeVersion}
+              className="rounded-full bg-[#4F8EF7] text-white hover:bg-[#5a97ff]"
+            >
               {approving ? "..." : m.portal.approveConfirm}
             </Button>
           </DialogFooter>
