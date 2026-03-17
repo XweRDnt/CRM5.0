@@ -86,6 +86,15 @@
 - По умолчанию активен фильтр **«Все»**.
 - `REJECTED` исключается из списков, фильтров и счётчиков (полностью не показывается в UI).
 
+## Implementation Notes (clarifications)
+- **Auto‑view timing:** запускать один раз при первичной загрузке списка для выбранной версии (и повторять при смене версии).
+- **Mutation strategy:** PATCH для каждого `NEW` элемента (батч‑эндпоинта нет). Допускается параллельный запуск запросов через `Promise.allSettled`.
+- **Optimistic UI:** сразу помечать элементы как `VIEWED` в локальном состоянии; при ошибке PATCH — вернуть статус в `NEW` и показать toast об ошибке.
+- **Toast system:** использовать существующий `toast` из `@/components/ui/toast` на этом экране.
+- **Missing status:** если `feedbackResponse.status` отсутствует, трактовать как `NEW` (для фильтров и счётчиков).
+- **REJECTED:** исключать из `visibleFeedback` до применения фильтра и подсчёта счётчиков.
+- **Component boundaries:** остаёмся в одном файле `page.tsx`, допускаются локальные helper‑функции без выноса в общий UI‑слой.
+
 ## Data/Schema Changes
 - Prisma enum `FeedbackStatus`:
   - Добавить `VIEWED`.
