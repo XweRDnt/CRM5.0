@@ -30,6 +30,7 @@ enum ProjectStatus {
 
 enum FeedbackStatus {
   NEW
+  VIEWED
   IN_PROGRESS
   RESOLVED
   REJECTED

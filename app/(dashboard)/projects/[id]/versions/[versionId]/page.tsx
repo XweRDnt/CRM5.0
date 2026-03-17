@@ -1,12 +1,11 @@
-"use client";
+﻿"use client";
 
 import useSWR from "swr";
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Download, Loader2, Send } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
 import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
@@ -17,54 +16,42 @@ import { strokeToSvg } from "@/lib/annotations/render";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getAnnotationPlaybackPolicy } from "@/lib/annotations/behavior";
-import {
-  EDITOR_FEEDBACK_STATUSES,
-  FEEDBACK_STATUS_LABELS,
-  VERSION_STATUS_LABELS,
-  toVersionUiStatus,
-} from "@/lib/constants/status-ui";
+import { VERSION_STATUS_LABELS, toVersionUiStatus } from "@/lib/constants/status-ui";
 import type { AnnotationData, AnnotationStroke, AssetVersionResponse, FeedbackResponse, ProjectResponse } from "@/types";
 
 type ApiWrapped<T> = T | { data: T };
 type VersionUiStatus = ReturnType<typeof toVersionUiStatus>;
-type AppTheme = "light" | "dark";
+type FeedbackFilter = "all" | "NEW" | "VIEWED" | "IN_PROGRESS" | "RESOLVED";
 
-const VERSION_BADGE_STYLES: Record<AppTheme, Record<VersionUiStatus, CSSProperties>> = {
-  light: {
-    DRAFT: { borderColor: "#6b7280", backgroundColor: "#e5e7eb", color: "#111827" },
-    IN_REVIEW: { borderColor: "#b45309", backgroundColor: "#fde68a", color: "#78350f" },
-    CHANGES_REQUESTED: { borderColor: "#b91c1c", backgroundColor: "#fecaca", color: "#7f1d1d" },
-    APPROVED: { borderColor: "#047857", backgroundColor: "#bbf7d0", color: "#064e3b" },
-  },
-  dark: {
-    DRAFT: { borderColor: "#6b7280", backgroundColor: "rgba(55, 65, 81, 0.7)", color: "#f3f4f6" },
-    IN_REVIEW: { borderColor: "#d97706", backgroundColor: "rgba(217, 119, 6, 0.25)", color: "#fde68a" },
-    CHANGES_REQUESTED: { borderColor: "#dc2626", backgroundColor: "rgba(220, 38, 38, 0.25)", color: "#fecaca" },
-    APPROVED: { borderColor: "#059669", backgroundColor: "rgba(5, 150, 105, 0.25)", color: "#bbf7d0" },
-  },
+const VERSION_BADGE_CLASSES: Record<VersionUiStatus, string> = {
+  DRAFT: "border-white/20 bg-white/10 text-white/70",
+  IN_REVIEW: "border-amber-400/30 bg-amber-400/15 text-amber-200",
+  CHANGES_REQUESTED: "border-rose-400/30 bg-rose-400/15 text-rose-200",
+  APPROVED: "border-emerald-400/30 bg-emerald-400/15 text-emerald-200",
 };
 
-const ACTIVE_VERSION_BUTTON_STYLES: Record<AppTheme, CSSProperties> = {
-  light: { borderColor: "#2563eb", backgroundColor: "#dbeafe", color: "#1e3a8a" },
-  dark: { borderColor: "#3b82f6", backgroundColor: "rgba(59, 130, 246, 0.25)", color: "#bfdbfe" },
+const STATUS_BADGE_LABELS: Record<FeedbackStatus, string> = {
+  NEW: "Новая",
+  VIEWED: "Просмотрено",
+  IN_PROGRESS: "В работе",
+  RESOLVED: "Готово",
+  REJECTED: "Отклонена",
 };
 
-const APPROVED_BANNER_STYLES: Record<AppTheme, CSSProperties> = {
-  light: { borderColor: "#34d399", backgroundColor: "#d1fae5", color: "#065f46" },
-  dark: { borderColor: "rgba(16, 185, 129, 0.45)", backgroundColor: "rgba(16, 185, 129, 0.2)", color: "#a7f3d0" },
+const STATUS_BADGE_CLASSES: Record<FeedbackStatus, string> = {
+  NEW: "border-amber-400/30 bg-amber-400/15 text-amber-200",
+  VIEWED: "border-white/15 bg-white/8 text-white/55",
+  IN_PROGRESS: "border-blue-400/30 bg-blue-400/15 text-blue-200",
+  RESOLVED: "border-emerald-400/30 bg-emerald-400/15 text-emerald-200",
+  REJECTED: "border-rose-400/30 bg-rose-400/15 text-rose-200",
 };
 
-const FEEDBACK_ACTIVE_STYLES: Record<AppTheme, Record<"NEW" | "IN_PROGRESS" | "RESOLVED", CSSProperties>> = {
-  light: {
-    NEW: { borderColor: "#dc2626", backgroundColor: "#fecaca", color: "#7f1d1d" },
-    IN_PROGRESS: { borderColor: "#d97706", backgroundColor: "#fde68a", color: "#78350f" },
-    RESOLVED: { borderColor: "#059669", backgroundColor: "#bbf7d0", color: "#064e3b" },
-  },
-  dark: {
-    NEW: { borderColor: "#dc2626", backgroundColor: "rgba(220, 38, 38, 0.25)", color: "#fecaca" },
-    IN_PROGRESS: { borderColor: "#d97706", backgroundColor: "rgba(217, 119, 6, 0.25)", color: "#fde68a" },
-    RESOLVED: { borderColor: "#059669", backgroundColor: "rgba(5, 150, 105, 0.25)", color: "#bbf7d0" },
-  },
+const FILTER_LABELS: Record<FeedbackFilter, string> = {
+  all: "Все",
+  NEW: "Новые",
+  VIEWED: "Просмотрено",
+  IN_PROGRESS: "В работе",
+  RESOLVED: "Готово",
 };
 function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
@@ -222,27 +209,13 @@ export default function VersionDetailPage(): JSX.Element {
   );
 
   const [activeVersionId, setActiveVersionId] = useState<string>(versionId);
-  const [pendingFeedbackId, setPendingFeedbackId] = useState<string | null>(null);
-  const [appTheme, setAppTheme] = useState<AppTheme>("light");
+  const [activeFilter, setActiveFilter] = useState<FeedbackFilter>("all");
+  const [openThreadIds, setOpenThreadIds] = useState<Set<string>>(() => new Set());
   const [resettingPortalLink, setResettingPortalLink] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState(false);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
+  const autoViewedVersionsRef = useRef<Set<string>>(new Set());
 
-    useEffect(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-
-    const root = document.documentElement;
-    const readTheme = (): void => {
-      setAppTheme(root.getAttribute("data-app-theme") === "dark" ? "dark" : "light");
-    };
-
-    readTheme();
-    const observer = new MutationObserver(readTheme);
-    observer.observe(root, { attributes: true, attributeFilter: ["data-app-theme"] });
-    return () => observer.disconnect();
-  }, []);
   useEffect(() => {
     if (versionId) {
       setActiveVersionId(versionId);
@@ -251,6 +224,11 @@ export default function VersionDetailPage(): JSX.Element {
 
   useEffect(() => {
     setActiveAnnotation(null);
+  }, [activeVersionId]);
+
+  useEffect(() => {
+    setActiveFilter("all");
+    setOpenThreadIds(new Set());
   }, [activeVersionId]);
 
   useEffect(() => {
@@ -281,7 +259,35 @@ export default function VersionDetailPage(): JSX.Element {
       });
   }, [activeVersion, feedbackResponse]);
 
-  const hasClientFeedback = versionFeedback.length > 0;
+  const visibleBaseFeedback = useMemo(
+    () => versionFeedback.filter((item) => item.status !== "REJECTED"),
+    [versionFeedback],
+  );
+
+  const feedbackCounts = useMemo(() => {
+    const counts: Record<Exclude<FeedbackFilter, "all">, number> = {
+      NEW: 0,
+      VIEWED: 0,
+      IN_PROGRESS: 0,
+      RESOLVED: 0,
+    };
+    for (const item of visibleBaseFeedback) {
+      const status = (item.status ?? "NEW") as Exclude<FeedbackFilter, "all">;
+      if (status in counts) {
+        counts[status] += 1;
+      }
+    }
+    return counts;
+  }, [visibleBaseFeedback]);
+
+  const filteredFeedback = useMemo(() => {
+    if (activeFilter === "all") {
+      return visibleBaseFeedback;
+    }
+    return visibleBaseFeedback.filter((item) => (item.status ?? "NEW") === activeFilter);
+  }, [activeFilter, visibleBaseFeedback]);
+
+  const hasClientFeedback = visibleBaseFeedback.length > 0;
   const versionUiStatus = activeVersion ? toVersionUiStatus(activeVersion.status, hasClientFeedback) : "DRAFT";
   const isActiveVersionApproved = versionUiStatus === "APPROVED";
   const playbackPolicy = getAnnotationPlaybackPolicy();
@@ -289,6 +295,18 @@ export default function VersionDetailPage(): JSX.Element {
   const renderStroke = (stroke: AnnotationStroke, index: number): JSX.Element => (
     <g key={`stroke-${index}`} dangerouslySetInnerHTML={{ __html: strokeToSvg(stroke) }} />
   );
+
+  const toggleThread = (threadId: string): void => {
+    setOpenThreadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(threadId)) {
+        next.delete(threadId);
+      } else {
+        next.add(threadId);
+      }
+      return next;
+    });
+  };
 
   const seekToTimecode = (timecodeSec: number | null, annotation: FeedbackResponse["annotationData"]): void => {
     const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
@@ -299,35 +317,53 @@ export default function VersionDetailPage(): JSX.Element {
     setActiveAnnotation(normalizeAnnotationData(annotation));
   };
 
-  const handleChangeFeedbackStatus = async (feedbackId: string, status: FeedbackStatus): Promise<void> => {
-    const current = feedbackResponse.find((item) => item.id === feedbackId);
-    if (!current || current.status === status) {
+  useEffect(() => {
+    if (!activeVersion || !isOwnerOrPm || feedbackLoading) {
+      return;
+    }
+    if (autoViewedVersionsRef.current.has(activeVersion.id)) {
       return;
     }
 
-    setPendingFeedbackId(feedbackId);
+    const newItems = visibleBaseFeedback.filter((item) => (item.status ?? "NEW") === "NEW");
+    autoViewedVersionsRef.current.add(activeVersion.id);
+    if (newItems.length === 0) {
+      return;
+    }
 
-    await mutateFeedback(
-      async (previous) => {
+    const ids = newItems.map((item) => item.id);
+
+    mutateFeedback(
+      (previous) => {
         const prevItems = previous ?? [];
-        const optimistic = prevItems.map((item) => (item.id === feedbackId ? { ...item, status } : item));
-
-        try {
-          await apiFetch(`/api/feedback/${feedbackId}`, {
-            method: "PATCH",
-            body: JSON.stringify({ status }),
-          });
-          return optimistic;
-        } catch {
-          toast.error("Не удалось обновить статус правки");
-          return prevItems;
-        } finally {
-          setPendingFeedbackId(null);
-        }
+        return prevItems.map((item) => (ids.includes(item.id) ? { ...item, status: "VIEWED" } : item));
       },
       { revalidate: false },
     );
-  };
+
+    void (async () => {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          apiFetch(`/api/feedback/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: "VIEWED" }),
+          }),
+        ),
+      );
+
+      const failedIds = ids.filter((_, index) => results[index]?.status === "rejected");
+      if (failedIds.length > 0) {
+        mutateFeedback(
+          (previous) => {
+            const prevItems = previous ?? [];
+            return prevItems.map((item) => (failedIds.includes(item.id) ? { ...item, status: "NEW" } : item));
+          },
+          { revalidate: false },
+        );
+        toast.error("Не удалось отметить некоторые правки как просмотренные");
+      }
+    })();
+  }, [activeVersion, feedbackLoading, isOwnerOrPm, mutateFeedback, visibleBaseFeedback]);
 
   const handleCopyPublicLink = async (): Promise<void> => {
     if (!project?.portalToken) {
@@ -415,77 +451,100 @@ export default function VersionDetailPage(): JSX.Element {
     }
   };
 
+  const glassPanelClass = "rounded-[18px] border border-white/10 bg-white/[0.048] backdrop-blur-2xl";
+  const glassCardClass = "rounded-[13px] border border-white/10 bg-white/[0.04]";
+  const pillBase = "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors";
+  const filterActive = "border-indigo-400/40 bg-indigo-500/20 text-indigo-200";
+  const filterInactive = "border-white/10 bg-white/5 text-white/45 hover:border-white/20 hover:text-white/70";
+  const canReply = isOwnerOrPm;
+
   if (projectLoading || versionsLoading || !project) {
     return (
-      <Card>
-        <CardContent className="py-10">
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-500 dark:text-blue-400" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className={cn("flex items-center justify-center py-10 text-white", glassPanelClass)}>
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-300" />
+      </div>
     );
   }
 
   if (!activeVersion) {
     return (
-      <Card>
-        <CardContent className="py-8 text-sm text-neutral-700 dark:text-neutral-400">Версия не найдена.</CardContent>
-      </Card>
+      <div className={cn("py-8 text-center text-sm text-white/60", glassPanelClass)}>Версия не найдена.</div>
     );
   }
 
   return (
-    <div className="max-w-full space-y-4 overflow-x-hidden px-1 sm:px-0">
-      <header className="space-y-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 space-y-2">
-            <h1 className="break-words text-xl font-semibold text-neutral-900 dark:text-neutral-100 sm:text-2xl">{project.name}</h1>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base font-medium text-neutral-900 dark:text-neutral-100 sm:text-lg">Версия {activeVersion.versionNumber}</span>
-              <span
-                className="inline-flex rounded-full border px-2.5 py-1 text-xs font-medium"
-                style={VERSION_BADGE_STYLES[appTheme][versionUiStatus]}
+    <main
+      className="min-h-screen text-white"
+      style={{
+        background:
+          "radial-gradient(ellipse at 8% 12%, rgba(80,70,210,0.28) 0%, transparent 48%), radial-gradient(ellipse at 92% 88%, rgba(180,60,120,0.18) 0%, transparent 45%), #09090f",
+      }}
+    >
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4">
+        <header className={cn("space-y-3 p-4", glassPanelClass)}>
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0 space-y-2">
+              <h1 className="break-words text-xl font-semibold text-white sm:text-2xl">{project.name}</h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-white/70">Версия {activeVersion.versionNumber}</span>
+                <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-xs font-medium", VERSION_BADGE_CLASSES[versionUiStatus])}>
+                  {VERSION_STATUS_LABELS[versionUiStatus]}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <Button
+                variant="outline"
+                onClick={handleCopyPublicLink}
+                className="w-full rounded-full border-white/10 bg-white/[0.05] text-white/70 hover:bg-white/[0.1] sm:w-auto"
               >
-                {VERSION_STATUS_LABELS[versionUiStatus]}
-              </span>
+                Публичная ссылка
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleOpenPublicLink}
+                disabled={!project?.portalToken}
+                className="w-full rounded-full border-white/10 bg-white/[0.05] text-white/70 hover:bg-white/[0.1] sm:w-auto"
+              >
+                Открыть портал
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleResetPublicLink}
+                disabled={resettingPortalLink}
+                className="w-full rounded-full border-white/10 bg-white/[0.05] text-white/70 hover:bg-white/[0.1] sm:w-auto"
+              >
+                {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
+              </Button>
+              {isOwnerOrPm && (
+                <Button
+                  variant="destructive"
+                  onClick={() => void handleDeleteVersion()}
+                  disabled={deletingVersion}
+                  className="w-full rounded-full bg-red-500/15 text-red-200 hover:bg-red-500/25 sm:w-auto"
+                >
+                  {deletingVersion ? "Удаление..." : "Удалить версию"}
+                </Button>
+              )}
             </div>
           </div>
+        </header>
 
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button variant="outline" onClick={handleCopyPublicLink} className="w-full sm:w-auto">
-              Публичная ссылка
-            </Button>
-            <Button variant="outline" onClick={handleOpenPublicLink} disabled={!project?.portalToken} className="w-full sm:w-auto">
-              Открыть портал
-            </Button>
-            <Button variant="outline" onClick={handleResetPublicLink} disabled={resettingPortalLink} className="w-full sm:w-auto">
-              {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
-            </Button>
-            {isOwnerOrPm && (
-              <Button variant="destructive" onClick={() => void handleDeleteVersion()} disabled={deletingVersion} className="w-full sm:w-auto">
-                {deletingVersion ? "Удаление..." : "Удалить версию"}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div className="pb-1">
+        <div className={cn("px-3 py-2", glassPanelClass)}>
           <div className="flex flex-wrap gap-2">
             {versions.map((version) => {
               const isActive = version.id === activeVersion.id;
-
               return (
                 <button
                   key={version.id}
                   type="button"
                   className={cn(
-                    "rounded-md border px-3 py-1.5 text-sm transition-colors",
+                    "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
                     isActive
-                      ? "font-medium"
-                      : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/60 dark:text-neutral-300 dark:hover:bg-neutral-800",
+                      ? "border-indigo-400/40 bg-indigo-500/20 text-indigo-200"
+                      : "border-white/10 bg-white/[0.03] text-white/45 hover:border-white/20 hover:text-white/70",
                   )}
-                  style={isActive ? ACTIVE_VERSION_BUTTON_STYLES[appTheme] : undefined}
                   onClick={() => setActiveVersionId(version.id)}
                 >
                   Версия {version.versionNumber}
@@ -498,17 +557,15 @@ export default function VersionDetailPage(): JSX.Element {
               triggerText="+ Создать новую версию"
               triggerVariant="outline"
               triggerSize="sm"
-              triggerClassName="w-full basis-full sm:w-auto sm:basis-auto sm:whitespace-nowrap"
+              triggerClassName="w-full basis-full rounded-full border-white/15 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white sm:w-auto sm:basis-auto sm:whitespace-nowrap"
             />
           </div>
         </div>
-      </header>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <div className="min-w-0 space-y-3 xl:col-span-3">
-          <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
-            <CardContent className="p-2 sm:p-4">
-              <div className="relative">
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-3">
+            <div className={cn("p-2 sm:p-3", glassPanelClass)}>
+              <div className="relative overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f]">
                 <KinescopePlayer
                   ref={kinescopeRef}
                   className="w-full"
@@ -539,7 +596,7 @@ export default function VersionDetailPage(): JSX.Element {
                       {overlayStrokes.map((stroke, index) =>
                         renderStroke(
                           stroke.type === "arrow"
-                            ? { ...stroke, points: stroke.points } // marker id stays consistent in SVG output
+                            ? { ...stroke, points: stroke.points }
                             : stroke,
                           index,
                         ),
@@ -556,98 +613,176 @@ export default function VersionDetailPage(): JSX.Element {
                 ) : null}
               </div>
               {activeVersion.processingStatus !== "READY" ? (
-                <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+                <p className="mt-2 text-xs text-white/55">
                   {activeVersion.processingStatus === "FAILED"
                     ? "Обработка видео в Kinescope завершилась с ошибкой."
-                    : "Kinescope еще обрабатывает видео. Воспроизведение может быть временно недоступно."}
+                    : "Kinescope ещё обрабатывает видео. Воспроизведение может быть временно недоступно."}
                 </p>
               ) : null}
-            </CardContent>
-          </Card>
+            </div>
 
-          <p className="break-words text-xs leading-relaxed text-neutral-700 dark:text-neutral-400">
-            {activeVersion.fileName} • Загрузил: {activeVersion.uploadedBy.name} • {formatDate(activeVersion.createdAt)}
-          </p>
-        </div>
+            <p className="break-words text-xs leading-relaxed text-white/45">
+              {activeVersion.fileName} • Загружил: {activeVersion.uploadedBy.name} • {formatDate(activeVersion.createdAt)}
+            </p>
+          </div>
 
-        <aside className="min-w-0 xl:col-span-2">
-          <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
-            <CardContent className="space-y-3 p-3 sm:p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100 sm:text-lg">Правки ({versionFeedback.length})</h2>
-                {feedbackLoading && <Loader2 className="h-4 w-4 animate-spin text-blue-500 dark:text-blue-400" />}
+          <aside className={cn("min-w-0 space-y-3 p-3 sm:p-4", glassPanelClass)}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
+                Правки ({visibleBaseFeedback.length})
+              </h2>
+              {feedbackLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-300" />}
+            </div>
+
+            {isActiveVersionApproved && (
+              <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-3 py-2 text-xs text-emerald-200">
+                Версия утверждена клиентом
               </div>
+            )}
 
-              {isActiveVersionApproved && (
-                <div className="rounded-md border px-3 py-2 text-sm" style={APPROVED_BANNER_STYLES[appTheme]}>
-                  Версия утверждена клиентом
-                </div>
-              )}
+            <div className="grid grid-cols-4 gap-2">
+              <div className={cn("px-2 py-2 text-center", glassCardClass)}>
+                <div className="text-lg font-semibold text-amber-300">{feedbackCounts.NEW}</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Новые</div>
+              </div>
+              <div className={cn("px-2 py-2 text-center", glassCardClass)}>
+                <div className="text-lg font-semibold text-white/70">{feedbackCounts.VIEWED}</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Просмотрено</div>
+              </div>
+              <div className={cn("px-2 py-2 text-center", glassCardClass)}>
+                <div className="text-lg font-semibold text-blue-300">{feedbackCounts.IN_PROGRESS}</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">В работе</div>
+              </div>
+              <div className={cn("px-2 py-2 text-center", glassCardClass)}>
+                <div className="text-lg font-semibold text-emerald-300">{feedbackCounts.RESOLVED}</div>
+                <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Готово</div>
+              </div>
+            </div>
 
-              {versionFeedback.length === 0 ? (
-                <p className="text-sm text-neutral-700 dark:text-neutral-400">Клиент ещё не оставил правок</p>
-              ) : (
-                <div className="min-w-0 space-y-2">
-                  {versionFeedback.map((item) => {
-                    const isNew = item.status === "NEW";
+            <button
+              type="button"
+              onClick={() => toast.info("В разработке")}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
+            >
+              <Download className="h-4 w-4" />
+              Выгрузить XML
+            </button>
 
-                    return (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          "rounded-md border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/70",
-                          isNew && "border-l-2 border-l-red-500",
-                        )}
-                      >
-                        <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
-                          <button
-                            type="button"
-                            className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                            onClick={() => seekToTimecode(item.timecodeSec, item.annotationData)}
-                          >
-                            [{formatTimecode(item.timecodeSec)}]
-                          </button>
-                          <span className="break-words text-neutral-700 dark:text-neutral-300">{item.author.name}</span>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setActiveFilter(filter)}
+                  className={cn(pillBase, activeFilter === filter ? filterActive : filterInactive)}
+                >
+                  {FILTER_LABELS[filter]}
+                </button>
+              ))}
+            </div>
+
+            {filteredFeedback.length === 0 ? (
+              <div className={cn("px-4 py-6 text-center text-sm text-white/45", glassCardClass)}>
+                Правок пока нет
+              </div>
+            ) : (
+              <div className="max-h-[calc(100vh-380px)] space-y-2 overflow-y-auto pr-1">
+                {filteredFeedback.map((item) => {
+                  const isOpen = openThreadIds.has(item.id);
+                  const status = (item.status ?? "NEW") as FeedbackStatus;
+                  return (
+                    <article
+                      key={item.id}
+                      onClick={() => toggleThread(item.id)}
+                      className={cn(
+                        "cursor-pointer p-3 transition",
+                        glassCardClass,
+                        isOpen ? "border-indigo-400/30 bg-white/[0.06]" : "hover:border-white/20",
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <span className="text-xs font-medium text-white/70">{item.author.name}</span>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                seekToTimecode(item.timecodeSec, item.annotationData);
+                              }}
+                              className={cn(
+                                "rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                                item.timecodeSec !== null
+                                  ? "bg-indigo-500/15 text-indigo-200"
+                                  : "bg-white/5 text-white/30",
+                              )}
+                            >
+                              {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                            </button>
+                          </div>
+                          <p className="text-sm leading-relaxed text-white/70">{item.text}</p>
+                          {item.annotationData ? (
+                            <div className="mt-2 flex items-center gap-2 text-[11px] text-indigo-200/70">
+                              <span className="h-1.5 w-1.5 rounded-full bg-indigo-300" />
+                              с аннотацией
+                            </div>
+                          ) : null}
+                          <div className="mt-2 flex items-center gap-2 text-[10px] text-white/35">
+                            <span className={cn("inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold", STATUS_BADGE_CLASSES[status])}>
+                              {STATUS_BADGE_LABELS[status]}
+                            </span>
+                            <span className="text-white/30">0 ответов</span>
+                          </div>
                         </div>
-
-                        <p className="mb-3 break-words text-sm text-neutral-900 dark:text-neutral-100">&quot;{item.text}&quot;</p>
-
-                        <div className="flex flex-wrap gap-2">
-                          {EDITOR_FEEDBACK_STATUSES.map((status) => {
-                            const isActive = item.status === status;
-                            const disabled = pendingFeedbackId === item.id;
-
-                            return (
-                              <button
-                                key={status}
-                                type="button"
-                                disabled={disabled}
-                                onClick={() => handleChangeFeedbackStatus(item.id, status)}
-                                className={cn(
-                                  "max-w-full rounded-md border px-2.5 py-1 text-left text-xs whitespace-normal break-words transition-colors disabled:cursor-not-allowed disabled:opacity-60",
-                                  isActive
-                                    ? "border"
-                                    : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/60 dark:text-neutral-300 dark:hover:bg-neutral-800",
-                                )}
-                                style={isActive ? FEEDBACK_ACTIVE_STYLES[appTheme][status] : undefined}
-                              >
-                                {FEEDBACK_STATUS_LABELS[status]}
-                              </button>
-                            );
-                          })}
+                        <div className={cn("mt-1 h-4 w-4 text-white/35 transition", isOpen && "rotate-180 text-indigo-200")}>
+                          <ChevronDown className="h-4 w-4" />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </aside>
-      </section>
-    </div>
+                      <div
+                        onClick={(event) => event.stopPropagation()}
+                        className={cn(
+                          "mt-3 overflow-hidden border-t border-white/10 pt-0 transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
+                          isOpen ? "max-h-48 pt-3 opacity-100" : "max-h-0 pt-0 opacity-0",
+                        )}
+                      >
+                        <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/45">
+                          Ответы появятся здесь
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            disabled={!canReply}
+                            placeholder="Ответить клиенту..."
+                            className={cn(
+                              "flex-1 rounded-xl border px-3 py-2 text-xs outline-none transition",
+                              canReply
+                                ? "border-white/10 bg-white/[0.05] text-white/70 placeholder:text-white/30"
+                                : "border-white/5 bg-white/[0.03] text-white/30 placeholder:text-white/20",
+                            )}
+                          />
+                          <button
+                            type="button"
+                            disabled={!canReply}
+                            className={cn(
+                              "flex h-8 w-8 items-center justify-center rounded-xl transition",
+                              canReply ? "bg-indigo-500/25 text-indigo-100" : "bg-white/[0.05] text-white/30",
+                            )}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </aside>
+        </section>
+      </div>
+    </main>
   );
 }
+
 
 
 

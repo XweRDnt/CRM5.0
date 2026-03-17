@@ -23,6 +23,7 @@ export const VERSION_STATUS_BADGE_CLASSES: Record<VersionUiStatus, string> = {
 
 export const FEEDBACK_STATUS_LABELS: Record<FeedbackStatus, string> = {
   NEW: "Новая",
+  VIEWED: "Просмотрено",
   IN_PROGRESS: "В работе",
   RESOLVED: "Готово",
   REJECTED: "Отклонена",
