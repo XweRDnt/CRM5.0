@@ -20,6 +20,7 @@ import type { AnnotationData, AnnotationStroke, AssetVersionResponse, FeedbackRe
 
 type ApiWrapped<T> = T | { data: T };
 type FeedbackFilter = "all" | "NEW" | "VIEWED" | "IN_PROGRESS" | "RESOLVED";
+type MobileSection = "feedback" | "versions" | "team";
 type ProjectMemberRole = "pm" | "editor";
 type WorkspaceMember = {
   userId: string;
@@ -261,6 +262,7 @@ export default function VersionDetailPage(): JSX.Element {
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [employeesModalOpen, setEmployeesModalOpen] = useState(false);
   const [deleteMenuPosition, setDeleteMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [mobileSection, setMobileSection] = useState<MobileSection>("feedback");
   const [memberSearch, setMemberSearch] = useState("");
   const [memberRoleDrafts, setMemberRoleDrafts] = useState<Record<string, ProjectMemberRole>>({});
   const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
@@ -286,6 +288,7 @@ export default function VersionDetailPage(): JSX.Element {
     setDeleteMenuPosition(null);
     setShareMenuOpen(false);
     setEmployeesModalOpen(false);
+    setMobileSection("feedback");
   }, [activeVersionId]);
 
   useEffect(() => {
@@ -368,6 +371,16 @@ export default function VersionDetailPage(): JSX.Element {
       return fullName.includes(query) || member.email.toLowerCase().includes(query);
     });
   }, [memberSearch, workspaceMembers]);
+
+  const versionClientFeedbackCounts = useMemo(() => {
+    return feedbackResponse.reduce<Record<string, number>>((acc, item) => {
+      if (item.authorType !== "CLIENT" || item.status === "REJECTED") {
+        return acc;
+      }
+      acc[item.assetVersionId] = (acc[item.assetVersionId] ?? 0) + 1;
+      return acc;
+    }, {});
+  }, [feedbackResponse]);
 
   const hasClientFeedback = visibleBaseFeedback.length > 0;
   const versionUiStatus = activeVersion ? toVersionUiStatus(activeVersion.status, hasClientFeedback) : "DRAFT";
@@ -628,6 +641,225 @@ export default function VersionDetailPage(): JSX.Element {
   const canReply = isOwnerOrPm;
   const publicPortalLink = project?.portalToken ? createPublicPortalLink(project.portalToken) : "";
 
+  const feedbackListContent = (
+    <>
+      {feedbackLoading ? <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/45">Загрузка правок...</div> : null}
+
+      {!feedbackLoading && filteredFeedback.length === 0 ? (
+        <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/45">
+          Правок пока нет
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredFeedback.map((item) => {
+            const isOpen = openThreadIds.has(item.id);
+            const status = (item.status ?? "NEW") as FeedbackStatus;
+            return (
+              <article
+                key={item.id}
+                onClick={() => toggleThread(item.id)}
+                className={cn(
+                  "overflow-hidden rounded-[24px] border transition cursor-pointer",
+                  FEEDBACK_CARD_CLASSES[status],
+                  isOpen ? FEEDBACK_CARD_OPEN_CLASSES[status] : "",
+                )}
+              >
+                <div className="relative flex gap-3 p-3.5">
+                  {!isOpen && status === "NEW" ? <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-indigo-400 shadow-[0_0_14px_rgba(124,140,255,0.72)]" /> : null}
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-white/95">{item.author.name}</span>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          seekToTimecode(item.timecodeSec, item.annotationData);
+                        }}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                          item.timecodeSec !== null
+                            ? "border-sky-300/15 bg-sky-400/10 text-sky-100"
+                            : "border-white/10 bg-white/[0.04] text-white/35",
+                        )}
+                      >
+                        {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                      </button>
+                    </div>
+
+                    <p className="text-sm leading-6 text-white/72">{item.text}</p>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {item.annotationData ? (
+                        <span className="inline-flex items-center gap-2 text-[11px] text-sky-200/75">
+                          <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                          С аннотацией
+                        </span>
+                      ) : null}
+                      <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[status])}>
+                        {STATUS_BADGE_LABELS[status]}
+                      </span>
+                      <span className="text-[11px] text-white/30">0 ответов</span>
+                    </div>
+                  </div>
+
+                  <ChevronDown className={cn("mt-1 h-4 w-4 shrink-0 text-white/30 transition", isOpen && "rotate-180 text-white/80")} />
+                </div>
+
+                <div
+                  onClick={(event) => event.stopPropagation()}
+                  className={cn(
+                    "grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out",
+                    isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                  )}
+                >
+                  <div className="min-h-0">
+                    <div className="mx-4 border-t border-white/10 pt-3">
+                      <span className="text-[10px] uppercase tracking-[0.16em] text-white/30">Thread</span>
+                      <p className="mt-2 text-xs leading-6 text-white/55">
+                        Ответы появятся здесь. Зона уже собрана как более плотный PM-review thread.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 p-3.5">
+                      <input
+                        disabled={!canReply}
+                        placeholder="Ответить клиенту..."
+                        className={cn(
+                          "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-white outline-none placeholder:text-white/30",
+                          !canReply && "text-white/30 placeholder:text-white/15",
+                        )}
+                      />
+                      <button
+                        type="button"
+                        disabled={!canReply}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(67,87,255,0.22),rgba(56,189,248,0.12))] text-indigo-100 transition hover:border-indigo-300/35 hover:text-white disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-white/20"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+
+  const versionsListContent = (
+    <div className="space-y-3">
+      {versions.map((version) => {
+        const isActive = version.id === activeVersion.id;
+        const totalFeedback = versionClientFeedbackCounts[version.id] ?? 0;
+        const uiStatus = toVersionUiStatus(version.status, totalFeedback > 0);
+        return (
+          <button
+            key={version.id}
+            type="button"
+            onClick={() => setActiveVersionId(version.id)}
+            onContextMenu={(event) => handleVersionContextMenu(event, version.id)}
+            onPointerDown={(event) => handleVersionPointerDown(event, version.id)}
+            onPointerUp={clearLongPressTimer}
+            onPointerCancel={clearLongPressTimer}
+            onPointerLeave={clearLongPressTimer}
+            className={cn(
+              "w-full rounded-[20px] border p-4 text-left transition",
+              isActive
+                ? "border-indigo-300/28 bg-[linear-gradient(180deg,rgba(22,25,40,0.98),rgba(15,18,30,0.98))] shadow-[0_18px_36px_rgba(63,90,255,0.12)]"
+                : "border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.9),rgba(10,12,20,0.94))]",
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white/95">Версия {version.versionNumber}</p>
+                <p className="mt-1 text-xs text-white/45">{totalFeedback > 0 ? `${totalFeedback} правок` : "Без правок"}</p>
+              </div>
+              {isActive ? <span className="rounded-full border border-indigo-300/24 bg-indigo-400/12 px-2.5 py-1 text-[10px] font-semibold text-indigo-100">Активна</span> : null}
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-white/60">
+                {VERSION_STATUS_LABELS[uiStatus]}
+              </span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const teamListContent = (
+    <div className="space-y-3">
+      <div className="pm-people-search">
+        <Search className="h-4 w-4" />
+        <input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Поиск по имени или email" />
+      </div>
+      {workspaceMembersLoading ? (
+        <div className="pm-people-empty">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Загружаю сотрудников...</span>
+        </div>
+      ) : filteredWorkspaceMembers.length === 0 ? (
+        <div className="pm-people-empty">Ничего не найдено.</div>
+      ) : (
+        filteredWorkspaceMembers.map((member) => {
+          const projectMember = projectMembersByUserId.get(member.userId);
+          const draftRole = memberRoleDrafts[member.userId] ?? projectMember?.roleOnProject ?? "editor";
+          const isSaving = savingMemberId === member.userId;
+          const fullName = `${member.firstName} ${member.lastName}`.trim();
+
+          return (
+            <div key={member.userId} className="pm-person-row">
+              <div className="pm-person-meta">
+                <div className="pm-person-avatar">{(member.firstName[0] ?? member.email[0] ?? "?").toUpperCase()}</div>
+                <div className="min-w-0">
+                  <div className="pm-person-name-row">
+                    <p className="pm-person-name">{fullName || member.email}</p>
+                    {projectMember ? (
+                      <span className="pm-person-state">
+                        <Check className="h-3.5 w-3.5" />
+                        В проекте
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="pm-person-email">{member.email}</p>
+                </div>
+              </div>
+
+              <div className="pm-person-actions">
+                <div className="pm-role-switcher">
+                  {(["pm", "editor"] as ProjectMemberRole[]).map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      className={cn("pm-role-pill", draftRole === role && "pm-role-pill-active")}
+                      onClick={() =>
+                        setMemberRoleDrafts((current) => ({
+                          ...current,
+                          [member.userId]: role,
+                        }))
+                      }
+                    >
+                      {PROJECT_ROLE_LABELS[role]}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className="pm-btn pm-btn-muted pm-person-save"
+                  onClick={() => void handleProjectMemberSave(member.userId)}
+                  disabled={isSaving}
+                >
+                  {isSaving ? "Сохранение..." : projectMember ? "Обновить" : "Добавить"}
+                </button>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+
   if (projectLoading || versionsLoading || !project) {
     return (
       <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-white/10 bg-[#09090f] py-10 text-white">
@@ -643,19 +875,19 @@ export default function VersionDetailPage(): JSX.Element {
   }
 
   return (
-    <main className="pm-etalon h-[100dvh] overflow-hidden text-white">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1760px] flex-col gap-3 px-4 py-4 xl:px-6 xl:py-5">
-        <section className="shrink-0 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-6 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+    <main className="pm-etalon min-h-[100dvh] overflow-x-hidden text-white lg:h-[100dvh] lg:overflow-hidden">
+      <div className="mx-auto flex min-h-full w-full max-w-[1760px] flex-col gap-3 px-4 py-4 lg:h-full lg:min-h-0 xl:px-6 xl:py-5">
+        <section className="shrink-0 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:px-6">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-[clamp(24px,2.4vw,32px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
                 <span className="h-5 w-px bg-white/10" />
-                <span className="text-[13px] text-white/55">Версия {activeVersion.versionNumber}</span>
+                <span className="text-[13px] text-white/55">?????? {activeVersion.versionNumber}</span>
                 <span className="text-[13px] text-white/55">{VERSION_STATUS_LABELS[versionUiStatus]}</span>
                 {feedbackCounts.NEW > 0 ? (
                   <span className="rounded-full border border-red-400/25 bg-red-950/40 px-3 py-1 text-[11px] font-semibold text-red-200">
-                    Есть правки
+                    ???? ??????
                   </span>
                 ) : null}
               </div>
@@ -671,62 +903,200 @@ export default function VersionDetailPage(): JSX.Element {
                   setShareMenuOpen((current) => !current);
                 }}
               >
-                Поделиться
+                ??????????
               </button>
               {isOwnerOrPm ? (
                 <button
                   type="button"
-                  className="pm-btn pm-btn-muted"
+                  className="pm-btn pm-btn-muted hidden lg:inline-flex"
                   onClick={() => {
                     setShareMenuOpen(false);
                     setEmployeesModalOpen(true);
                   }}
                 >
-                  Сотрудники
+                  ??????????
                 </button>
               ) : null}
-              <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
-
+              {isOwnerOrPm ? (
+                <button type="button" className="pm-btn pm-btn-muted lg:hidden" onClick={() => setMobileSection("team")}>
+                  ??????????
+                </button>
+              ) : null}
+              <VersionUploadDialog projectId={projectId} triggerText="+ ????? ??????" triggerClassName="pm-btn pm-btn-primary" />
             </div>
           </div>
         </section>
 
-        <section className="shrink-0 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <section className="hidden shrink-0 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:block">
           <div className="flex shrink-0 items-center gap-2 overflow-x-auto scrollbar-none">
-        {versions.map((version) => {
-          const isActive = version.id === activeVersion.id;
-          return (
-            <button
-              key={version.id}
-              type="button"
-              className={cn(
-                "rounded-full border px-4 py-2 text-xs font-semibold transition",
-                isActive
-                  ? "border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.2),rgba(56,189,248,0.12))] text-indigo-100"
-                  : "border-white/10 bg-white/[0.03] text-white/40 hover:border-white/15 hover:text-white/75",
-              )}
-              onClick={() => setActiveVersionId(version.id)}
-              onContextMenu={(event) => handleVersionContextMenu(event, version.id)}
-              onPointerDown={(event) => handleVersionPointerDown(event, version.id)}
-              onPointerUp={clearLongPressTimer}
-              onPointerCancel={clearLongPressTimer}
-              onPointerLeave={clearLongPressTimer}
-            >
-              Версия {version.versionNumber}
-            </button>
-          );
-        })}
-        <VersionUploadDialog
-          projectId={projectId}
-          triggerText="+ Создать новую"
-          triggerVariant="outline"
-          triggerSize="sm"
-          triggerClassName="rounded-full border border-dashed border-white/15 bg-transparent px-4 py-2 text-xs font-semibold text-white/35 hover:border-white/20 hover:text-white/60"
-        />
+            {versions.map((version) => {
+              const isActive = version.id === activeVersion.id;
+              return (
+                <button
+                  key={version.id}
+                  type="button"
+                  className={cn(
+                    "rounded-full border px-4 py-2 text-xs font-semibold transition",
+                    isActive
+                      ? "border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.2),rgba(56,189,248,0.12))] text-indigo-100"
+                      : "border-white/10 bg-white/[0.03] text-white/40 hover:border-white/15 hover:text-white/75",
+                  )}
+                  onClick={() => setActiveVersionId(version.id)}
+                  onContextMenu={(event) => handleVersionContextMenu(event, version.id)}
+                  onPointerDown={(event) => handleVersionPointerDown(event, version.id)}
+                  onPointerUp={clearLongPressTimer}
+                  onPointerCancel={clearLongPressTimer}
+                  onPointerLeave={clearLongPressTimer}
+                >
+                  ?????? {version.versionNumber}
+                </button>
+              );
+            })}
+            <VersionUploadDialog
+              projectId={projectId}
+              triggerText="+ ??????? ?????"
+              triggerVariant="outline"
+              triggerSize="sm"
+              triggerClassName="rounded-full border border-dashed border-white/15 bg-transparent px-4 py-2 text-xs font-semibold text-white/35 hover:border-white/20 hover:text-white/60"
+            />
           </div>
         </section>
 
-        <section className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
+        <section className="space-y-3 lg:hidden">
+          <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+            <div className="relative aspect-video overflow-hidden rounded-[20px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)]">
+              <KinescopePlayer
+                ref={kinescopeRef}
+                className="h-full w-full"
+                videoId={activeVersion.kinescopeVideoId}
+                videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
+                onPlay={() => {
+                  if (playbackPolicy.hideOnPlay) {
+                    setActiveAnnotation(null);
+                  }
+                }}
+              />
+              {overlayStrokes.length > 0 ? (
+                <div className="pointer-events-none absolute inset-0">
+                  <svg {...getOverlaySvgProps()} className="h-full w-full">
+                    <defs>
+                      <marker id="arrowhead-mobile" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
+                      </marker>
+                    </defs>
+                    {overlayStrokes.map((stroke, index) =>
+                      renderStroke(
+                        stroke.type === "arrow"
+                          ? { ...stroke, points: stroke.points }
+                          : stroke,
+                        index,
+                      ),
+                    )}
+                  </svg>
+                  <button
+                    type="button"
+                    onClick={() => setActiveAnnotation(null)}
+                    className="pointer-events-auto absolute right-3 top-3 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_20px_rgba(0,0,0,0.25)] backdrop-blur"
+                  >
+                    ?????? ?????????
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">?????</div>
+              <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
+            </div>
+            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">???????????</div>
+              <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
+            </div>
+            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">? ??????</div>
+              <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
+            </div>
+            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">??????</div>
+              <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
+            </div>
+          </div>
+
+          <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+            <button
+              type="button"
+              onClick={() => toast.info("? ??????????")}
+              className="inline-flex items-center gap-2 rounded-[11px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-3.5 py-2 text-[13px] font-semibold text-indigo-100"
+            >
+              <Download className="h-3.5 w-3.5" />
+              ????????? XML ??? ?????????
+            </button>
+          </div>
+
+          <div className="sticky top-2 z-10 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.94)_0%,rgba(10,12,20,0.96)_100%)] p-2 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className={cn("grid gap-2", isOwnerOrPm ? "grid-cols-3" : "grid-cols-2")}>
+              <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "feedback" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("feedback")}>??????</button>
+              <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "versions" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("versions")}>??????</button>
+              {isOwnerOrPm ? <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "team" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("team")}>??????????</button> : null}
+            </div>
+          </div>
+
+          {mobileSection === "feedback" ? (
+            <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <div className="flex items-start justify-between gap-3 pb-3">
+                <div>
+                  <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
+                  <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
+                    ?????? <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
+                  </h2>
+                </div>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-none">
+                {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setActiveFilter(filter)}
+                    className={cn(
+                      "rounded-full border px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition",
+                      activeFilter === filter ? FILTER_ACTIVE_CLASSES[filter] : FILTER_IDLE_CLASSES[filter],
+                    )}
+                  >
+                    {FILTER_LABELS[filter]}
+                  </button>
+                ))}
+              </div>
+              {feedbackListContent}
+            </div>
+          ) : null}
+
+          {mobileSection === "versions" ? (
+            <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Versions</span>
+                  <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">??????</h2>
+                </div>
+                <VersionUploadDialog projectId={projectId} triggerText="+ ?????" triggerSize="sm" triggerClassName="pm-btn pm-btn-primary !h-10 !px-4 !text-xs" />
+              </div>
+              {versionsListContent}
+            </div>
+          ) : null}
+
+          {mobileSection === "team" && isOwnerOrPm ? (
+            <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <div className="mb-4">
+                <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Project access</span>
+                <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">??????????</h2>
+              </div>
+              {teamListContent}
+            </div>
+          ) : null}
+        </section>
+
+        <section className="hidden min-h-0 flex-1 gap-4 overflow-hidden lg:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
           <div className="left-col flex min-w-0 min-h-0 flex-col gap-3 overflow-hidden">
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="mx-auto w-full max-w-[1040px]">
@@ -746,15 +1116,7 @@ export default function VersionDetailPage(): JSX.Element {
                     <div className="pointer-events-none absolute inset-0">
                       <svg {...getOverlaySvgProps()} className="h-full w-full">
                         <defs>
-                          <marker
-                            id="arrowhead"
-                            markerWidth="6"
-                            markerHeight="6"
-                            refX="5"
-                            refY="3"
-                            orient="auto"
-                            markerUnits="strokeWidth"
-                          >
+                          <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
                             <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
                           </marker>
                         </defs>
@@ -772,30 +1134,29 @@ export default function VersionDetailPage(): JSX.Element {
                         onClick={() => setActiveAnnotation(null)}
                         className="pointer-events-auto absolute right-4 top-4 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_20px_rgba(0,0,0,0.25)] backdrop-blur"
                       >
-                        Скрыть аннотацию
+                        ?????? ?????????
                       </button>
                     </div>
                   ) : null}
                 </div>
               </div>
-
             </div>
 
             <div className="grid shrink-0 grid-cols-2 gap-2.5 xl:grid-cols-4">
               <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Новые</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">?????</div>
                 <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
               </div>
               <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Просмотрено</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">???????????</div>
                 <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
               </div>
               <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">В работе</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">? ??????</div>
                 <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
               </div>
               <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Готово</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">??????</div>
                 <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
               </div>
             </div>
@@ -803,13 +1164,13 @@ export default function VersionDetailPage(): JSX.Element {
             <div className="shrink-0 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <button
                 type="button"
-                onClick={() => toast.info("В разработке")}
+                onClick={() => toast.info("? ??????????")}
                 className="inline-flex items-center gap-2 rounded-[11px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-3.5 py-2 text-[13px] font-semibold text-indigo-100"
               >
                 <Download className="h-3.5 w-3.5" />
-                Выгрузить XML для монтажёра
+                ????????? XML ??? ?????????
               </button>
-              <p className="mt-1.5 text-[10px] leading-tight text-white/36">Все «Новые» и «Просмотренные» можно быстро перевести в производственный контур.</p>
+              <p className="mt-1.5 text-[10px] leading-tight text-white/36">??? ??????? ? ??????????????? ????? ?????? ????????? ? ???????????????? ??????.</p>
             </div>
           </div>
 
@@ -819,7 +1180,7 @@ export default function VersionDetailPage(): JSX.Element {
                 <div>
                   <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
                   <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
-                    Правки <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
+                    ?????? <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
                   </h2>
                 </div>
                 {feedbackLoading ? <Loader2 className="h-4 w-4 animate-spin text-sky-300" /> : null}
@@ -833,9 +1194,7 @@ export default function VersionDetailPage(): JSX.Element {
                     onClick={() => setActiveFilter(filter)}
                     className={cn(
                       "rounded-full border px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition",
-                      activeFilter === filter
-                        ? FILTER_ACTIVE_CLASSES[filter]
-                        : FILTER_IDLE_CLASSES[filter],
+                      activeFilter === filter ? FILTER_ACTIVE_CLASSES[filter] : FILTER_IDLE_CLASSES[filter],
                     )}
                   >
                     {FILTER_LABELS[filter]}
@@ -843,116 +1202,11 @@ export default function VersionDetailPage(): JSX.Element {
                 ))}
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                {feedbackLoading ? <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/45">Загрузка правок...</div> : null}
-
-                {!feedbackLoading && filteredFeedback.length === 0 ? (
-                  <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/45">
-                    Правок пока нет
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredFeedback.map((item) => {
-                      const isOpen = openThreadIds.has(item.id);
-                      const status = (item.status ?? "NEW") as FeedbackStatus;
-                      return (
-                        <article
-                          key={item.id}
-                          onClick={() => toggleThread(item.id)}
-                          className={cn(
-                            "overflow-hidden rounded-[24px] border transition cursor-pointer",
-                            FEEDBACK_CARD_CLASSES[status],
-                            isOpen ? FEEDBACK_CARD_OPEN_CLASSES[status] : "",
-                          )}
-                        >
-                          <div className="relative flex gap-3 p-3.5">
-                            {!isOpen && status === "NEW" ? <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-indigo-400 shadow-[0_0_14px_rgba(124,140,255,0.72)]" /> : null}
-                            <div className="min-w-0 flex-1">
-                              <div className="mb-2 flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-semibold text-white/95">{item.author.name}</span>
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    seekToTimecode(item.timecodeSec, item.annotationData);
-                                  }}
-                                  className={cn(
-                                    "rounded-full border px-2.5 py-1 text-[11px] font-bold",
-                                    item.timecodeSec !== null
-                                      ? "border-sky-300/15 bg-sky-400/10 text-sky-100"
-                                      : "border-white/10 bg-white/[0.04] text-white/35",
-                                  )}
-                                >
-                                  {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
-                                </button>
-                              </div>
-
-                              <p className="text-sm leading-6 text-white/72">{item.text}</p>
-
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                {item.annotationData ? (
-                                  <span className="inline-flex items-center gap-2 text-[11px] text-sky-200/75">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
-                                    С аннотацией
-                                  </span>
-                                ) : null}
-                                <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[status])}>
-                                  {STATUS_BADGE_LABELS[status]}
-                                </span>
-                                <span className="text-[11px] text-white/30">0 ответов</span>
-                              </div>
-                            </div>
-
-                            <ChevronDown className={cn("mt-1 h-4 w-4 shrink-0 text-white/30 transition", isOpen && "rotate-180 text-white/80")} />
-                          </div>
-
-                          <div
-                            onClick={(event) => event.stopPropagation()}
-                            className={cn(
-                              "grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out",
-                              isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-                            )}
-                          >
-                            <div className="min-h-0">
-                              <div className="mx-4 border-t border-white/10 pt-3">
-                                <span className="text-[10px] uppercase tracking-[0.16em] text-white/30">Thread</span>
-                                <p className="mt-2 text-xs leading-6 text-white/55">
-                                  Ответы появятся здесь. Зона уже собрана как более плотный PM-review thread.
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2 p-3.5">
-                                <input
-                                  disabled={!canReply}
-                                  placeholder="Ответить клиенту..."
-                                  className={cn(
-                                    "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-white outline-none placeholder:text-white/30",
-                                    !canReply && "text-white/30 placeholder:text-white/15",
-                                  )}
-                                />
-                                <button
-                                  type="button"
-                                  disabled={!canReply}
-                                  className={cn(
-                                    "flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(99,102,241,0.96),rgba(56,189,248,0.72))] text-white shadow-[0_10px_24px_rgba(67,87,255,0.22)]",
-                                    !canReply && "bg-white/10 text-white/30 shadow-none",
-                                  )}
-                                >
-                                  <Send className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">{feedbackListContent}</div>
             </div>
           </aside>
         </section>
       </div>
-
       {shareMenuOpen ? (
         <div className="pm-share-modal-backdrop">
           <div ref={shareMenuRef} className="pm-share-modal">
