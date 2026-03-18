@@ -884,16 +884,16 @@ export default function VersionDetailPage(): JSX.Element {
 
         <section className="space-y-3 pb-8 lg:hidden">
           <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-            <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="space-y-3">
               <div>
                 <div className="text-[10px] uppercase tracking-[0.14em] text-white/32">Версии</div>
-                <div className="mt-1 text-[13px] font-medium text-white/62">Переключение и загрузка новых сборок</div>
+                <div className="mt-1 text-[13px] leading-5 text-white/62">Переключение и загрузка новых сборок</div>
               </div>
               <VersionUploadDialog
                 projectId={projectId}
                 triggerText="+ Версия"
                 triggerSize="sm"
-                triggerClassName="pm-btn pm-btn-primary !h-10 !shrink-0 !px-4 !text-[12px] !whitespace-nowrap"
+                triggerClassName="pm-btn pm-btn-primary !h-10 !w-full !justify-center !px-4 !text-[12px]"
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -965,20 +965,20 @@ export default function VersionDetailPage(): JSX.Element {
             </div>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-            <div className="min-w-[88px] flex-1 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+          <div className="grid grid-cols-2 gap-2 min-[430px]:grid-cols-4">
+            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
               <div className="text-[9px] uppercase tracking-[0.14em] text-white/35">Новые</div>
               <div className="mt-1 text-[18px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
             </div>
-            <div className="min-w-[88px] flex-1 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
               <div className="text-[9px] uppercase tracking-[0.14em] text-white/35">Просмотрено</div>
               <div className="mt-1 text-[18px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
             </div>
-            <div className="min-w-[88px] flex-1 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
               <div className="text-[9px] uppercase tracking-[0.14em] text-white/35">В работе</div>
               <div className="mt-1 text-[18px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
             </div>
-            <div className="min-w-[88px] flex-1 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
               <div className="text-[9px] uppercase tracking-[0.14em] text-white/35">Готово</div>
               <div className="mt-1 text-[18px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
             </div>
