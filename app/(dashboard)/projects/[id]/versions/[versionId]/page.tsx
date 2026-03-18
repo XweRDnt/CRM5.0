@@ -52,6 +52,30 @@ const FILTER_ACTIVE_CLASSES: Record<FeedbackFilter, string> = {
   IN_PROGRESS: "border-sky-300/35 bg-[linear-gradient(135deg,rgba(56,189,248,0.24),rgba(14,165,233,0.14))] text-sky-100 shadow-[0_8px_24px_rgba(14,165,233,0.22)]",
   RESOLVED: "border-emerald-300/35 bg-[linear-gradient(135deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14))] text-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.2)]",
 };
+
+const FILTER_IDLE_CLASSES: Record<FeedbackFilter, string> = {
+  all: "border-slate-400/18 bg-slate-400/8 text-slate-200/70 hover:border-slate-300/28 hover:bg-slate-300/10 hover:text-slate-100",
+  NEW: "border-amber-400/18 bg-amber-400/8 text-amber-100/70 hover:border-amber-300/28 hover:bg-amber-300/10 hover:text-amber-50",
+  VIEWED: "border-violet-400/18 bg-violet-400/8 text-violet-100/70 hover:border-violet-300/28 hover:bg-violet-300/10 hover:text-violet-50",
+  IN_PROGRESS: "border-sky-400/18 bg-sky-400/8 text-sky-100/70 hover:border-sky-300/28 hover:bg-sky-300/10 hover:text-sky-50",
+  RESOLVED: "border-emerald-400/18 bg-emerald-400/8 text-emerald-100/70 hover:border-emerald-300/28 hover:bg-emerald-300/10 hover:text-emerald-50",
+};
+
+const FEEDBACK_CARD_CLASSES: Record<FeedbackStatus, string> = {
+  NEW: "border-amber-400/14 bg-[linear-gradient(180deg,rgba(20,22,33,0.96),rgba(18,16,12,0.98))] hover:border-amber-300/24",
+  VIEWED: "border-violet-400/14 bg-[linear-gradient(180deg,rgba(20,22,33,0.96),rgba(18,16,28,0.98))] hover:border-violet-300/24",
+  IN_PROGRESS: "border-sky-400/14 bg-[linear-gradient(180deg,rgba(20,22,33,0.96),rgba(12,18,28,0.98))] hover:border-sky-300/24",
+  RESOLVED: "border-emerald-400/14 bg-[linear-gradient(180deg,rgba(20,22,33,0.96),rgba(12,20,18,0.98))] hover:border-emerald-300/24",
+  REJECTED: "border-rose-400/14 bg-[linear-gradient(180deg,rgba(20,22,33,0.96),rgba(24,14,18,0.98))] hover:border-rose-300/24",
+};
+
+const FEEDBACK_CARD_OPEN_CLASSES: Record<FeedbackStatus, string> = {
+  NEW: "border-amber-300/28 shadow-[0_18px_36px_rgba(245,158,11,0.12)]",
+  VIEWED: "border-violet-300/28 shadow-[0_18px_36px_rgba(99,102,241,0.14)]",
+  IN_PROGRESS: "border-sky-300/28 shadow-[0_18px_36px_rgba(14,165,233,0.14)]",
+  RESOLVED: "border-emerald-300/28 shadow-[0_18px_36px_rgba(16,185,129,0.12)]",
+  REJECTED: "border-rose-300/28 shadow-[0_18px_36px_rgba(244,63,94,0.12)]",
+};
 function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
 }
@@ -712,7 +736,7 @@ export default function VersionDetailPage(): JSX.Element {
                       "rounded-full border px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition",
                       activeFilter === filter
                         ? FILTER_ACTIVE_CLASSES[filter]
-                        : "border-white/10 bg-white/[0.03] text-white/45 hover:border-white/15 hover:text-white/75",
+                        : FILTER_IDLE_CLASSES[filter],
                     )}
                   >
                     {FILTER_LABELS[filter]}
@@ -737,8 +761,9 @@ export default function VersionDetailPage(): JSX.Element {
                           key={item.id}
                           onClick={() => toggleThread(item.id)}
                           className={cn(
-                            "overflow-hidden rounded-[24px] border bg-[linear-gradient(180deg,rgba(20,22,33,0.94),rgba(14,16,25,0.96))] transition cursor-pointer",
-                            isOpen ? "border-indigo-300/25 shadow-[0_18px_36px_rgba(0,0,0,0.24)]" : "border-white/10 hover:border-white/20",
+                            "overflow-hidden rounded-[24px] border transition cursor-pointer",
+                            FEEDBACK_CARD_CLASSES[status],
+                            isOpen ? FEEDBACK_CARD_OPEN_CLASSES[status] : "",
                           )}
                         >
                           <div className="relative flex gap-3 p-3.5">
