@@ -480,9 +480,9 @@ export default function VersionDetailPage(): JSX.Element {
           "radial-gradient(ellipse at 8% 12%, rgba(80,70,210,0.28) 0%, transparent 48%), radial-gradient(ellipse at 92% 88%, rgba(180,60,120,0.18) 0%, transparent 45%), #09090f",
       }}
     >
-      <div className="mx-auto flex h-full max-w-6xl flex-col gap-4 px-4 py-4">
-        <header className={cn("space-y-3 p-4", glassPanelClass)}>
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div className="mx-auto flex h-full max-w-6xl flex-col gap-6 px-6 py-6 lg:px-8">
+        <header className={cn("space-y-4 p-5 sm:p-6", glassPanelClass)}>
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0 space-y-2">
               <h1 className="break-words text-xl font-semibold text-white sm:text-2xl">{project.name}</h1>
               <div className="flex flex-wrap items-center gap-2">
@@ -493,11 +493,11 @@ export default function VersionDetailPage(): JSX.Element {
               </div>
             </div>
 
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               <Button
                 variant="outline"
                 onClick={handleCopyPublicLink}
-                className="w-full rounded-full border-white/10 bg-white/[0.05] text-white/70 hover:bg-white/[0.1] sm:w-auto"
+                className="w-full rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1] sm:w-auto"
               >
                 Публичная ссылка
               </Button>
@@ -505,7 +505,7 @@ export default function VersionDetailPage(): JSX.Element {
                 variant="outline"
                 onClick={handleOpenPublicLink}
                 disabled={!project?.portalToken}
-                className="w-full rounded-full border-white/10 bg-white/[0.05] text-white/70 hover:bg-white/[0.1] sm:w-auto"
+                className="w-full rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1] sm:w-auto"
               >
                 Открыть портал
               </Button>
@@ -513,7 +513,7 @@ export default function VersionDetailPage(): JSX.Element {
                 variant="outline"
                 onClick={handleResetPublicLink}
                 disabled={resettingPortalLink}
-                className="w-full rounded-full border-white/10 bg-white/[0.05] text-white/70 hover:bg-white/[0.1] sm:w-auto"
+                className="w-full rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1] sm:w-auto"
               >
                 {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
               </Button>
@@ -522,7 +522,7 @@ export default function VersionDetailPage(): JSX.Element {
                   variant="destructive"
                   onClick={() => void handleDeleteVersion()}
                   disabled={deletingVersion}
-                  className="w-full rounded-full bg-red-500/15 text-red-200 hover:bg-red-500/25 sm:w-auto"
+                  className="w-full rounded-full bg-red-500/15 px-4 py-2 text-red-200 hover:bg-red-500/25 sm:w-auto"
                 >
                   {deletingVersion ? "Удаление..." : "Удалить версию"}
                 </Button>
@@ -531,8 +531,8 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
         </header>
 
-        <div className={cn("px-3 py-2", glassPanelClass)}>
-          <div className="flex flex-wrap gap-2">
+        <div className={cn("px-4 py-3 sm:px-5", glassPanelClass)}>
+          <div className="flex flex-wrap gap-3">
             {versions.map((version) => {
               const isActive = version.id === activeVersion.id;
               return (
@@ -540,7 +540,7 @@ export default function VersionDetailPage(): JSX.Element {
                   key={version.id}
                   type="button"
                   className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                    "rounded-full border px-4 py-2 text-xs font-semibold transition",
                     isActive
                       ? "border-indigo-400/40 bg-indigo-500/20 text-indigo-200"
                       : "border-white/10 bg-white/[0.03] text-white/45 hover:border-white/20 hover:text-white/70",
@@ -557,14 +557,14 @@ export default function VersionDetailPage(): JSX.Element {
               triggerText="+ Создать новую версию"
               triggerVariant="outline"
               triggerSize="sm"
-              triggerClassName="w-full basis-full rounded-full border-white/15 bg-white/[0.03] text-white/55 hover:border-white/25 hover:text-white sm:w-auto sm:basis-auto sm:whitespace-nowrap"
+              triggerClassName="w-full basis-full rounded-full border-white/15 bg-white/[0.03] px-4 py-2 text-white/55 hover:border-white/25 hover:text-white sm:w-auto sm:basis-auto sm:whitespace-nowrap"
             />
           </div>
         </div>
 
-        <section className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0 space-y-3 overflow-y-auto pr-1">
-            <div className={cn("p-2 sm:p-3", glassPanelClass)}>
+        <section className="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+          <div className="min-w-0 space-y-4 overflow-y-auto pr-2">
+            <div className={cn("p-3 sm:p-4", glassPanelClass)}>
               <div className="relative overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f]">
                 <KinescopePlayer
                   ref={kinescopeRef}
@@ -626,7 +626,7 @@ export default function VersionDetailPage(): JSX.Element {
             </p>
           </div>
 
-          <aside className={cn("min-w-0 space-y-3 overflow-y-auto p-3 sm:p-4", glassPanelClass)}>
+          <aside className={cn("min-w-0 space-y-4 overflow-y-auto p-4 sm:p-5", glassPanelClass)}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
                 Правки ({visibleBaseFeedback.length})
@@ -640,22 +640,22 @@ export default function VersionDetailPage(): JSX.Element {
               </div>
             )}
 
-            <div className="grid grid-cols-4 gap-2">
-              <div className={cn("px-2 py-2 text-center", glassCardClass)}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className={cn("min-w-[110px] px-3 py-3 text-center", glassCardClass)}>
                 <div className="text-lg font-semibold text-amber-300">{feedbackCounts.NEW}</div>
-                <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Новые</div>
+                <div className="whitespace-nowrap text-[10px] uppercase tracking-[0.12em] text-white/35">Новые</div>
               </div>
-              <div className={cn("px-2 py-2 text-center", glassCardClass)}>
+              <div className={cn("min-w-[110px] px-3 py-3 text-center", glassCardClass)}>
                 <div className="text-lg font-semibold text-white/70">{feedbackCounts.VIEWED}</div>
-                <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Просмотрено</div>
+                <div className="whitespace-nowrap text-[10px] uppercase tracking-[0.12em] text-white/35">Просмотрено</div>
               </div>
-              <div className={cn("px-2 py-2 text-center", glassCardClass)}>
+              <div className={cn("min-w-[110px] px-3 py-3 text-center", glassCardClass)}>
                 <div className="text-lg font-semibold text-blue-300">{feedbackCounts.IN_PROGRESS}</div>
-                <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">В работе</div>
+                <div className="whitespace-nowrap text-[10px] uppercase tracking-[0.12em] text-white/35">В работе</div>
               </div>
-              <div className={cn("px-2 py-2 text-center", glassCardClass)}>
+              <div className={cn("min-w-[110px] px-3 py-3 text-center", glassCardClass)}>
                 <div className="text-lg font-semibold text-emerald-300">{feedbackCounts.RESOLVED}</div>
-                <div className="text-[10px] uppercase tracking-[0.12em] text-white/35">Готово</div>
+                <div className="whitespace-nowrap text-[10px] uppercase tracking-[0.12em] text-white/35">Готово</div>
               </div>
             </div>
 
@@ -668,7 +668,7 @@ export default function VersionDetailPage(): JSX.Element {
               Выгрузить XML
             </button>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
                 <button
                   key={filter}
@@ -686,7 +686,7 @@ export default function VersionDetailPage(): JSX.Element {
                 Правок пока нет
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {filteredFeedback.map((item) => {
                   const isOpen = openThreadIds.has(item.id);
                   const status = (item.status ?? "NEW") as FeedbackStatus;
@@ -695,7 +695,7 @@ export default function VersionDetailPage(): JSX.Element {
                       key={item.id}
                       onClick={() => toggleThread(item.id)}
                       className={cn(
-                        "cursor-pointer p-3 transition",
+                        "cursor-pointer p-4 transition",
                         glassCardClass,
                         isOpen ? "border-indigo-400/30 bg-white/[0.06]" : "hover:border-white/20",
                       )}
