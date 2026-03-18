@@ -44,6 +44,14 @@ const FILTER_LABELS: Record<FeedbackFilter, string> = {
   IN_PROGRESS: "В работе",
   RESOLVED: "Готово",
 };
+
+const FILTER_ACTIVE_CLASSES: Record<FeedbackFilter, string> = {
+  all: "border-slate-300/30 bg-[linear-gradient(135deg,rgba(148,163,184,0.2),rgba(71,85,105,0.18))] text-slate-100 shadow-[0_8px_24px_rgba(71,85,105,0.2)]",
+  NEW: "border-amber-300/35 bg-[linear-gradient(135deg,rgba(251,191,36,0.24),rgba(245,158,11,0.14))] text-amber-100 shadow-[0_8px_24px_rgba(245,158,11,0.2)]",
+  VIEWED: "border-violet-300/35 bg-[linear-gradient(135deg,rgba(129,140,248,0.24),rgba(139,92,246,0.14))] text-violet-100 shadow-[0_8px_24px_rgba(99,102,241,0.22)]",
+  IN_PROGRESS: "border-sky-300/35 bg-[linear-gradient(135deg,rgba(56,189,248,0.24),rgba(14,165,233,0.14))] text-sky-100 shadow-[0_8px_24px_rgba(14,165,233,0.22)]",
+  RESOLVED: "border-emerald-300/35 bg-[linear-gradient(135deg,rgba(52,211,153,0.22),rgba(16,185,129,0.14))] text-emerald-100 shadow-[0_8px_24px_rgba(16,185,129,0.2)]",
+};
 function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
 }
@@ -703,7 +711,7 @@ export default function VersionDetailPage(): JSX.Element {
                     className={cn(
                       "rounded-full border px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition",
                       activeFilter === filter
-                        ? "border-indigo-300/30 bg-[linear-gradient(135deg,rgba(67,87,255,0.22),rgba(56,189,248,0.12))] text-white"
+                        ? FILTER_ACTIVE_CLASSES[filter]
                         : "border-white/10 bg-white/[0.03] text-white/45 hover:border-white/15 hover:text-white/75",
                     )}
                   >
