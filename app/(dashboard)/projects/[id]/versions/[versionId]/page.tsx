@@ -473,14 +473,8 @@ export default function VersionDetailPage(): JSX.Element {
   }
 
   return (
-    <main
-      className="h-[calc(100vh-88px)] min-h-0 overflow-hidden text-white"
-      style={{
-        background:
-          "radial-gradient(ellipse at 8% 12%, rgba(80,70,210,0.28) 0%, transparent 48%), radial-gradient(ellipse at 92% 88%, rgba(180,60,120,0.18) 0%, transparent 45%), #09090f",
-      }}
-    >
-      <div className="mx-auto flex h-full max-w-6xl flex-col gap-6 px-6 py-6 lg:px-8">
+    <main className="h-[calc(100vh-88px)] min-h-0 overflow-hidden text-white">
+      <div className="flex h-full w-full flex-col gap-6 px-6">
         <header className={cn("space-y-4 p-5 sm:p-6", glassPanelClass)}>
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0 space-y-2">
@@ -562,7 +556,7 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
         </div>
 
-        <section className="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <section className="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
           <div className="min-w-0 space-y-4 overflow-y-auto pr-2">
             <div className={cn("p-3 sm:p-4", glassPanelClass)}>
               <div className="relative overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f]">
@@ -654,128 +648,134 @@ export default function VersionDetailPage(): JSX.Element {
             </p>
           </div>
 
-          <aside className={cn("min-w-0 space-y-4 overflow-y-auto p-4 sm:p-5", glassPanelClass)}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
-                Правки ({visibleBaseFeedback.length})
-              </h2>
-              {feedbackLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-300" />}
-            </div>
-
-            {isActiveVersionApproved && (
-              <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-3 py-2 text-xs text-emerald-200">
-                Версия утверждена клиентом
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-3">
-              {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setActiveFilter(filter)}
-                  className={cn(pillBase, activeFilter === filter ? filterActive : filterInactive)}
-                >
-                  {FILTER_LABELS[filter]}
-                </button>
-              ))}
-            </div>
-
-            {filteredFeedback.length === 0 ? (
-              <div className={cn("px-4 py-6 text-center text-sm text-white/45", glassCardClass)}>
-                Правок пока нет
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredFeedback.map((item) => {
-                  const isOpen = openThreadIds.has(item.id);
-                  const status = (item.status ?? "NEW") as FeedbackStatus;
-                  return (
-                    <article
-                      key={item.id}
-                      onClick={() => toggleThread(item.id)}
-                      className={cn(
-                        "cursor-pointer p-4 transition",
-                        glassCardClass,
-                        isOpen ? "border-indigo-400/30 bg-white/[0.06]" : "hover:border-white/20",
-                      )}
+          <aside className="min-w-0">
+            <div className="flex h-full flex-col gap-4">
+              <div className={cn("sticky top-0 z-10 p-3 sm:p-4", glassPanelClass)}>
+                <div className="flex flex-wrap gap-3">
+                  {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setActiveFilter(filter)}
+                      className={cn(pillBase, activeFilter === filter ? filterActive : filterInactive)}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-1 flex items-center justify-between gap-2">
-                            <span className="text-xs font-medium text-white/70">{item.author.name}</span>
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                seekToTimecode(item.timecodeSec, item.annotationData);
-                              }}
-                              className={cn(
-                                "rounded-md px-2 py-0.5 text-[11px] font-semibold",
-                                item.timecodeSec !== null
-                                  ? "bg-indigo-500/15 text-indigo-200"
-                                  : "bg-white/5 text-white/30",
-                              )}
-                            >
-                              {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
-                            </button>
-                          </div>
-                          <p className="text-sm leading-relaxed text-white/70">{item.text}</p>
-                          {item.annotationData ? (
-                            <div className="mt-2 flex items-center gap-2 text-[11px] text-indigo-200/70">
-                              <span className="h-1.5 w-1.5 rounded-full bg-indigo-300" />
-                              с аннотацией
+                      {FILTER_LABELS[filter]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={cn("flex h-full flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-5", glassPanelClass)}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
+                    Правки ({visibleBaseFeedback.length})
+                  </h2>
+                  {feedbackLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-300" />}
+                </div>
+
+                {isActiveVersionApproved && (
+                  <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-3 py-2 text-xs text-emerald-200">
+                    Версия утверждена клиентом
+                  </div>
+                )}
+
+                {filteredFeedback.length === 0 ? (
+                  <div className={cn("px-4 py-6 text-center text-sm text-white/45", glassCardClass)}>
+                    Правок пока нет
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredFeedback.map((item) => {
+                      const isOpen = openThreadIds.has(item.id);
+                      const status = (item.status ?? "NEW") as FeedbackStatus;
+                      return (
+                        <article
+                          key={item.id}
+                          onClick={() => toggleThread(item.id)}
+                          className={cn(
+                            "cursor-pointer p-4 transition",
+                            glassCardClass,
+                            isOpen ? "border-indigo-400/30 bg-white/[0.06]" : "hover:border-white/20",
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-1 flex items-center justify-between gap-2">
+                                <span className="text-xs font-medium text-white/70">{item.author.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    seekToTimecode(item.timecodeSec, item.annotationData);
+                                  }}
+                                  className={cn(
+                                    "rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                                    item.timecodeSec !== null
+                                      ? "bg-indigo-500/15 text-indigo-200"
+                                      : "bg-white/5 text-white/30",
+                                  )}
+                                >
+                                  {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                                </button>
+                              </div>
+                              <p className="text-sm leading-relaxed text-white/70">{item.text}</p>
+                              {item.annotationData ? (
+                                <div className="mt-2 flex items-center gap-2 text-[11px] text-indigo-200/70">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-300" />
+                                  с аннотацией
+                                </div>
+                              ) : null}
+                              <div className="mt-2 flex items-center gap-2 text-[10px] text-white/35">
+                                <span className={cn("inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold", STATUS_BADGE_CLASSES[status])}>
+                                  {STATUS_BADGE_LABELS[status]}
+                                </span>
+                                <span className="text-white/30">0 ответов</span>
+                              </div>
                             </div>
-                          ) : null}
-                          <div className="mt-2 flex items-center gap-2 text-[10px] text-white/35">
-                            <span className={cn("inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold", STATUS_BADGE_CLASSES[status])}>
-                              {STATUS_BADGE_LABELS[status]}
-                            </span>
-                            <span className="text-white/30">0 ответов</span>
+                            <div className={cn("mt-1 h-4 w-4 text-white/35 transition", isOpen && "rotate-180 text-indigo-200")}>
+                              <ChevronDown className="h-4 w-4" />
+                            </div>
                           </div>
-                        </div>
-                        <div className={cn("mt-1 h-4 w-4 text-white/35 transition", isOpen && "rotate-180 text-indigo-200")}>
-                          <ChevronDown className="h-4 w-4" />
-                        </div>
-                      </div>
-                      <div
-                        onClick={(event) => event.stopPropagation()}
-                        className={cn(
-                          "mt-3 overflow-hidden border-t border-white/10 pt-0 transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
-                          isOpen ? "max-h-48 pt-3 opacity-100" : "max-h-0 pt-0 opacity-0",
-                        )}
-                      >
-                        <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/45">
-                          Ответы появятся здесь
-                        </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <input
-                            disabled={!canReply}
-                            placeholder="Ответить клиенту..."
+                          <div
+                            onClick={(event) => event.stopPropagation()}
                             className={cn(
-                              "flex-1 rounded-xl border px-3 py-2 text-xs outline-none transition",
-                              canReply
-                                ? "border-white/10 bg-white/[0.05] text-white/70 placeholder:text-white/30"
-                                : "border-white/5 bg-white/[0.03] text-white/30 placeholder:text-white/20",
-                            )}
-                          />
-                          <button
-                            type="button"
-                            disabled={!canReply}
-                            className={cn(
-                              "flex h-8 w-8 items-center justify-center rounded-xl transition",
-                              canReply ? "bg-indigo-500/25 text-indigo-100" : "bg-white/[0.05] text-white/30",
+                              "mt-3 overflow-hidden border-t border-white/10 pt-0 transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
+                              isOpen ? "max-h-48 pt-3 opacity-100" : "max-h-0 pt-0 opacity-0",
                             )}
                           >
-                            <Send className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
+                            <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/45">
+                              Ответы появятся здесь
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                              <input
+                                disabled={!canReply}
+                                placeholder="Ответить клиенту..."
+                                className={cn(
+                                  "flex-1 rounded-xl border px-3 py-2 text-xs outline-none transition",
+                                  canReply
+                                    ? "border-white/10 bg-white/[0.05] text-white/70 placeholder:text-white/30"
+                                    : "border-white/5 bg-white/[0.03] text-white/30 placeholder:text-white/20",
+                                )}
+                              />
+                              <button
+                                type="button"
+                                disabled={!canReply}
+                                className={cn(
+                                  "flex h-8 w-8 items-center justify-center rounded-xl transition",
+                                  canReply ? "bg-indigo-500/25 text-indigo-100" : "bg-white/[0.05] text-white/30",
+                                )}
+                              >
+                                <Send className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </aside>
         </section>
       </div>
