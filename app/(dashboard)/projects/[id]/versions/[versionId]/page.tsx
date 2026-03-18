@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChevronDown, Download, Loader2, Send } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
-import { Button } from "@/components/ui/button";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
 import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
@@ -20,15 +19,7 @@ import { VERSION_STATUS_LABELS, toVersionUiStatus } from "@/lib/constants/status
 import type { AnnotationData, AnnotationStroke, AssetVersionResponse, FeedbackResponse, ProjectResponse } from "@/types";
 
 type ApiWrapped<T> = T | { data: T };
-type VersionUiStatus = ReturnType<typeof toVersionUiStatus>;
 type FeedbackFilter = "all" | "NEW" | "VIEWED" | "IN_PROGRESS" | "RESOLVED";
-
-const VERSION_BADGE_CLASSES: Record<VersionUiStatus, string> = {
-  DRAFT: "border-white/20 bg-white/10 text-white/70",
-  IN_REVIEW: "border-amber-400/30 bg-amber-400/15 text-amber-200",
-  CHANGES_REQUESTED: "border-rose-400/30 bg-rose-400/15 text-rose-200",
-  APPROVED: "border-emerald-400/30 bg-emerald-400/15 text-emerald-200",
-};
 
 const STATUS_BADGE_LABELS: Record<FeedbackStatus, string> = {
   NEW: "Новая",
@@ -289,7 +280,6 @@ export default function VersionDetailPage(): JSX.Element {
 
   const hasClientFeedback = visibleBaseFeedback.length > 0;
   const versionUiStatus = activeVersion ? toVersionUiStatus(activeVersion.status, hasClientFeedback) : "DRAFT";
-  const isActiveVersionApproved = versionUiStatus === "APPROVED";
   const playbackPolicy = getAnnotationPlaybackPolicy();
   const overlayStrokes = activeAnnotation?.strokes ?? [];
   const renderStroke = (stroke: AnnotationStroke, index: number): JSX.Element => (
@@ -451,16 +441,11 @@ export default function VersionDetailPage(): JSX.Element {
     }
   };
 
-  const glassPanelClass = "rounded-[18px] border border-white/10 bg-white/[0.048] backdrop-blur-2xl";
-  const glassCardClass = "rounded-[13px] border border-white/10 bg-white/[0.04]";
-  const pillBase = "rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors whitespace-nowrap";
-  const filterActive = "border-indigo-400/40 bg-indigo-500/20 text-indigo-200";
-  const filterInactive = "border-white/10 bg-white/5 text-white/45 hover:border-white/20 hover:text-white/70";
   const canReply = isOwnerOrPm;
 
   if (projectLoading || versionsLoading || !project) {
     return (
-      <div className={cn("flex items-center justify-center py-10 text-white", glassPanelClass)}>
+      <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-white/10 bg-[#09090f] py-10 text-white">
         <Loader2 className="h-6 w-6 animate-spin text-indigo-300" />
       </div>
     );
@@ -468,101 +453,58 @@ export default function VersionDetailPage(): JSX.Element {
 
   if (!activeVersion) {
     return (
-      <div className={cn("py-8 text-center text-sm text-white/60", glassPanelClass)}>Версия не найдена.</div>
+      <div className="rounded-2xl border border-white/10 bg-[#09090f] py-8 text-center text-sm text-white/60">Версия не найдена.</div>
     );
   }
 
   return (
-    <main className="flex h-[100dvh] min-h-0 flex-col overflow-hidden text-white">
-      <div className="flex w-full shrink-0 flex-col gap-4 px-6 pt-6">
-        <div className={cn("flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6", glassPanelClass)}>
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-semibold text-white sm:text-2xl">{project.name}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white/60">
-              <span>Версия {activeVersion.versionNumber}</span>
-              <span className="text-white/40">·</span>
-              <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold", VERSION_BADGE_CLASSES[versionUiStatus])}>
-                {VERSION_STATUS_LABELS[versionUiStatus]}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
-            <Button
-              variant="outline"
-              onClick={handleCopyPublicLink}
-              className="rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1]"
-            >
-              Публичная ссылка
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleOpenPublicLink}
-              disabled={!project?.portalToken}
-              className="rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1]"
-            >
-              Открыть портал
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleResetPublicLink}
-              disabled={resettingPortalLink}
-              className="rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1]"
-            >
-              {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
-            </Button>
-            {isOwnerOrPm && (
-              <Button
-                variant="destructive"
-                onClick={() => void handleDeleteVersion()}
-                disabled={deletingVersion}
-                className="rounded-full bg-red-500/15 px-4 py-2 text-red-200 hover:bg-red-500/25"
-              >
-                {deletingVersion ? "Удаление..." : "Удалить версию"}
-              </Button>
-            )}
-          </div>
+    <main className="pm-etalon flex h-[calc(100dvh-130px)] min-h-[620px] flex-col overflow-hidden rounded-2xl border border-white/10 text-white">
+      <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-white/10 px-5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="truncate text-[15px] font-semibold text-white/90">{project.name}</span>
+          <span className="text-white/20">·</span>
+          <span className="text-xs text-white/40">Версия {activeVersion.versionNumber}</span>
+          {feedbackCounts.NEW > 0 && <span className="rounded-full border border-red-500/30 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-300">Есть правки</span>}
+          <span className="text-[10px] uppercase tracking-[0.06em] text-white/35">{VERSION_STATUS_LABELS[versionUiStatus]}</span>
         </div>
-
-        <div className={cn("px-4 py-3 sm:px-5", glassPanelClass)}>
-          <div className="flex flex-wrap gap-3">
-            {versions.map((version) => {
-              const isActive = version.id === activeVersion.id;
-              return (
-                <button
-                  key={version.id}
-                  type="button"
-                  className={cn(
-                    "rounded-full border px-4 py-2 text-xs font-semibold transition",
-                    isActive
-                      ? "border-indigo-400/40 bg-indigo-500/20 text-indigo-200"
-                      : "border-white/10 bg-white/[0.03] text-white/45 hover:border-white/20 hover:text-white/70",
-                  )}
-                  onClick={() => setActiveVersionId(version.id)}
-                >
-                  Версия {version.versionNumber}
-                </button>
-              );
-            })}
-
-            <VersionUploadDialog
-              projectId={projectId}
-              triggerText="+ Создать новую версию"
-              triggerVariant="outline"
-              triggerSize="sm"
-              triggerClassName="w-full basis-full rounded-full border-white/15 bg-white/[0.03] px-4 py-2 text-white/55 hover:border-white/25 hover:text-white sm:w-auto sm:basis-auto sm:whitespace-nowrap"
-            />
-          </div>
+        <div className="etalon-actions flex items-center gap-1.5">
+          <button type="button" className="btn et-btn-ghost" onClick={() => void handleCopyPublicLink()}>Публичная ссылка</button>
+          <button type="button" className="btn et-btn-ghost" onClick={handleOpenPublicLink} disabled={!project.portalToken}>Открыть портал</button>
+          <button type="button" className="btn et-btn-ghost" onClick={() => void handleResetPublicLink()} disabled={resettingPortalLink}>{resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}</button>
+          <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="btn et-btn-primary" />
+          {isOwnerOrPm ? <button type="button" className="btn et-btn-danger" onClick={() => void handleDeleteVersion()} disabled={deletingVersion}>{deletingVersion ? "Удаление..." : "Удалить версию"}</button> : null}
         </div>
+      </header>
+
+      <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-white/10 px-5 py-2 scrollbar-none">
+        {versions.map((version) => {
+          const isActive = version.id === activeVersion.id;
+          return (
+            <button
+              key={version.id}
+              type="button"
+              className={cn("rounded-full border px-3.5 py-1 text-[11.5px] transition", isActive ? "border-indigo-400/35 bg-indigo-500/15 text-indigo-200" : "border-white/10 text-white/35 hover:text-white/60")}
+              onClick={() => setActiveVersionId(version.id)}
+            >
+              Версия {version.versionNumber}
+            </button>
+          );
+        })}
+        <VersionUploadDialog
+          projectId={projectId}
+          triggerText="+ Создать новую"
+          triggerVariant="outline"
+          triggerSize="sm"
+          triggerClassName="rounded-full border border-dashed border-white/15 bg-transparent px-3.5 py-1 text-[11.5px] text-white/30 hover:text-white/55"
+        />
       </div>
 
-      <section className="flex flex-1 gap-6 overflow-hidden px-6 pb-6">
-          <div className="min-w-0 flex-1 space-y-4 overflow-y-auto pr-2">
-            <div className={cn("p-3 sm:p-4", glassPanelClass)}>
-              <div className="relative max-h-[45vh] overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f]">
+      <section className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="left-col flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
+          <div className="relative aspect-video overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f] shadow-[0_6px_32px_rgba(0,0,0,0.5)]">
                 <KinescopePlayer
                   ref={kinescopeRef}
-                  className="h-[45vh] max-h-[45vh] w-full"
+                  className="h-full w-full"
                   videoId={activeVersion.kinescopeVideoId}
                   videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
                   onPlay={() => {
@@ -599,92 +541,81 @@ export default function VersionDetailPage(): JSX.Element {
                     <button
                       type="button"
                       onClick={() => setActiveAnnotation(null)}
-                      className="pointer-events-auto absolute right-3 top-3 rounded-full border border-white/20 bg-black/60 px-3 py-1 text-xs text-white"
+                      className="pointer-events-auto absolute right-3 top-3 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1 text-[11px] text-white"
                     >
                       Скрыть
                     </button>
                   </div>
                 ) : null}
-              </div>
-              {activeVersion.processingStatus !== "READY" ? (
-                <p className="mt-2 text-xs text-white/55">
-                  {activeVersion.processingStatus === "FAILED"
-                    ? "Обработка видео в Kinescope завершилась с ошибкой."
-                    : "Kinescope ещё обрабатывает видео. Воспроизведение может быть временно недоступно."}
-                </p>
-              ) : null}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className={cn("min-w-[110px] px-3 py-3 text-center", glassCardClass)}>
-                <div className="text-lg font-semibold text-amber-300">{feedbackCounts.NEW}</div>
-                <div className="whitespace-nowrap text-[10px] uppercase tracking-[0.12em] text-white/35">Новые</div>
-              </div>
-              <div className={cn("min-w-[110px] px-3 py-3 text-center", glassCardClass)}>
-                <div className="text-lg font-semibold text-white/70">{feedbackCounts.VIEWED}</div>
-                <div className="whitespace-nowrap text-[10px] uppercase tracking-[0.12em] text-white/35">Просмотрено</div>
-              </div>
-              <div className={cn("min-w-[110px] px-3 py-3 text-center", glassCardClass)}>
-                <div className="text-lg font-semibold text-blue-300">{feedbackCounts.IN_PROGRESS}</div>
-                <div className="whitespace-nowrap text-[10px] uppercase tracking-[0.12em] text-white/35">В работе</div>
-              </div>
-              <div className={cn("min-w-[110px] px-3 py-3 text-center", glassCardClass)}>
-                <div className="text-lg font-semibold text-emerald-300">{feedbackCounts.RESOLVED}</div>
-                <div className="whitespace-nowrap text-[10px] uppercase tracking-[0.12em] text-white/35">Готово</div>
-              </div>
+          <p className="text-[11px] text-white/25">
+            {activeVersion.fileName} · Загрузил: {activeVersion.uploadedBy.name} · {formatDate(activeVersion.createdAt)}
+          </p>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-[10px] border border-white/10 bg-white/5 px-2 py-2.5 text-center">
+              <div className="text-xl font-semibold text-amber-300">{feedbackCounts.NEW}</div>
+              <div className="text-[9.5px] uppercase tracking-[0.04em] text-white/35">Новые</div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => toast.info("В разработке")}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
-            >
-              <Download className="h-4 w-4" />
-              Выгрузить XML
-            </button>
-
-            <p className="break-words text-xs leading-relaxed text-white/45">
-              {activeVersion.fileName} • Загружил: {activeVersion.uploadedBy.name} • {formatDate(activeVersion.createdAt)}
-            </p>
+            <div className="rounded-[10px] border border-white/10 bg-white/5 px-2 py-2.5 text-center">
+              <div className="text-xl font-semibold text-white/60">{feedbackCounts.VIEWED}</div>
+              <div className="text-[9.5px] uppercase tracking-[0.04em] text-white/35">Просмотрено</div>
+            </div>
+            <div className="rounded-[10px] border border-white/10 bg-white/5 px-2 py-2.5 text-center">
+              <div className="text-xl font-semibold text-blue-300">{feedbackCounts.IN_PROGRESS}</div>
+              <div className="text-[9.5px] uppercase tracking-[0.04em] text-white/35">В работе</div>
+            </div>
+            <div className="rounded-[10px] border border-white/10 bg-white/5 px-2 py-2.5 text-center">
+              <div className="text-xl font-semibold text-emerald-300">{feedbackCounts.RESOLVED}</div>
+              <div className="text-[9.5px] uppercase tracking-[0.04em] text-white/35">Готово</div>
+            </div>
           </div>
 
-          <aside className="flex min-w-0 flex-[0_0_minmax(380px,440px)] flex-col gap-4 overflow-hidden">
-            <div className="flex shrink-0 flex-col gap-4">
-              <div className={cn("sticky top-0 z-10 p-3 sm:p-4", glassPanelClass)}>
-                <div className="flex flex-nowrap gap-2 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => toast.info("В разработке")}
+            className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-indigo-400/25 bg-indigo-500/10 px-3 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Выгрузить XML для монтажёра
+          </button>
+          <p className="text-center text-[10px] text-white/20">Все «Новые» и «Просмотренные» → «В работе»</p>
+
+          {activeVersion.processingStatus !== "READY" ? (
+            <p className="text-xs text-white/55">
+              {activeVersion.processingStatus === "FAILED"
+                ? "Обработка видео в Kinescope завершилась с ошибкой."
+                : "Kinescope ещё обрабатывает видео. Воспроизведение может быть временно недоступно."}
+            </p>
+          ) : null}
+          </div>
+
+        <aside className="right-col flex w-[340px] shrink-0 flex-col overflow-hidden border-l border-white/10">
+          <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-white/10 px-3 py-2 scrollbar-none">
                   {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
                       onClick={() => setActiveFilter(filter)}
-                      className={cn(pillBase, activeFilter === filter ? filterActive : filterInactive)}
+                      className={cn("rounded-lg border px-2.5 py-1 text-[11px] whitespace-nowrap transition", activeFilter === filter ? "border-white/15 bg-white/10 text-white/75" : "border-white/10 text-white/35 hover:text-white/65")}
                     >
                       {FILTER_LABELS[filter]}
                     </button>
                   ))}
-                </div>
-              </div>
-            </div>
-            <div className={cn("flex flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-5", glassPanelClass)}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
-                  Правки ({visibleBaseFeedback.length})
-                </h2>
-                {feedbackLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-300" />}
-              </div>
+          </div>
+          <div className="px-3.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-white/30">
+            Правки <span className="font-normal text-white/20">({visibleBaseFeedback.length})</span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-3">
+            {feedbackLoading ? <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center text-xs text-white/40">Загрузка правок...</div> : null}
 
-              {isActiveVersionApproved && (
-                <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-3 py-2 text-xs text-emerald-200">
-                  Версия утверждена клиентом
-                </div>
-              )}
-
-              {filteredFeedback.length === 0 ? (
-                <div className={cn("px-4 py-6 text-center text-sm text-white/45", glassCardClass)}>
+            {!feedbackLoading && filteredFeedback.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-white/45">
                   Правок пока нет
                 </div>
               ) : (
-                <div className="space-y-3">
+              <div className="space-y-1.5">
                   {filteredFeedback.map((item) => {
                     const isOpen = openThreadIds.has(item.id);
                     const status = (item.status ?? "NEW") as FeedbackStatus;
@@ -693,15 +624,15 @@ export default function VersionDetailPage(): JSX.Element {
                         key={item.id}
                         onClick={() => toggleThread(item.id)}
                         className={cn(
-                          "cursor-pointer p-4 transition",
-                          glassCardClass,
-                          isOpen ? "border-indigo-400/30 bg-white/[0.06]" : "hover:border-white/20",
+                        "group cursor-pointer overflow-hidden rounded-xl border border-white/10 transition",
+                        isOpen ? "border-indigo-400/30" : "hover:border-white/20",
                         )}
                       >
-                        <div className="flex items-start gap-3">
+                        <div className={cn("relative flex items-start gap-2 px-3 py-2.5", isOpen ? "bg-indigo-500/10" : "bg-white/5 group-hover:bg-white/10")}>
+                          {!isOpen && status === "NEW" && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.8)]" />}
                           <div className="min-w-0 flex-1">
-                            <div className="mb-1 flex items-center justify-between gap-2">
-                              <span className="text-xs font-medium text-white/70">{item.author.name}</span>
+                            <div className="mb-1 flex items-center gap-1.5">
+                              <span className="text-xs font-medium text-white/75">{item.author.name}</span>
                               <button
                                 type="button"
                                 onClick={(event) => {
@@ -709,74 +640,95 @@ export default function VersionDetailPage(): JSX.Element {
                                   seekToTimecode(item.timecodeSec, item.annotationData);
                                 }}
                                 className={cn(
-                                  "rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                                  "rounded px-1.5 py-0.5 text-[10px] font-semibold",
                                   item.timecodeSec !== null
-                                    ? "bg-indigo-500/15 text-indigo-200"
-                                    : "bg-white/5 text-white/30",
+                                  ? "bg-blue-500/15 text-blue-300"
+                                  : "text-white/20",
                                 )}
                               >
-                                {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                                {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "—"}
                               </button>
                             </div>
-                            <p className="text-sm leading-relaxed text-white/70">{item.text}</p>
+                            <p className="text-xs leading-relaxed text-white/55">{item.text}</p>
                             {item.annotationData ? (
-                              <div className="mt-2 flex items-center gap-2 text-[11px] text-indigo-200/70">
-                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-300" />
+                              <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-blue-300/60">
+                                <span className="h-1 w-1 rounded-full bg-blue-300" />
                                 с аннотацией
                               </div>
                             ) : null}
-                            <div className="mt-2 flex items-center gap-2 text-[10px] text-white/35">
-                              <span className={cn("inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold", STATUS_BADGE_CLASSES[status])}>
+                            <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-white/30">
+                              <span className={cn("inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold", STATUS_BADGE_CLASSES[status])}>
                                 {STATUS_BADGE_LABELS[status]}
                               </span>
                               <span className="text-white/30">0 ответов</span>
                             </div>
                           </div>
-                          <div className={cn("mt-1 h-4 w-4 text-white/35 transition", isOpen && "rotate-180 text-indigo-200")}>
-                            <ChevronDown className="h-4 w-4" />
+                          <div className={cn("mt-1 h-4 w-4 text-white/30 transition", isOpen && "rotate-180 text-blue-300")}>
+                            <ChevronDown className="h-3.5 w-3.5" />
                           </div>
                         </div>
                         <div
                           onClick={(event) => event.stopPropagation()}
                           className={cn(
-                            "mt-3 overflow-hidden border-t border-white/10 pt-0 transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
-                            isOpen ? "max-h-48 pt-3 opacity-100" : "max-h-0 pt-0 opacity-0",
+                          "overflow-hidden border-t border-white/10 transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
+                          isOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0",
                           )}
                         >
-                          <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/45">
-                            Ответы появятся здесь
-                          </div>
-                          <div className="mt-2 flex items-center gap-2">
+                          <div className="flex items-center gap-2 p-2.5">
                             <input
                               disabled={!canReply}
                               placeholder="Ответить клиенту..."
                               className={cn(
-                                "flex-1 rounded-xl border px-3 py-2 text-xs outline-none transition",
+                                "flex-1 rounded-lg border px-2.5 py-1.5 text-xs outline-none transition",
                                 canReply
-                                  ? "border-white/10 bg-white/[0.05] text-white/70 placeholder:text-white/30"
-                                  : "border-white/5 bg-white/[0.03] text-white/30 placeholder:text-white/20",
+                                ? "border-white/10 bg-white/5 text-white/70 placeholder:text-white/30"
+                                : "border-white/10 bg-white/5 text-white/25 placeholder:text-white/15",
                               )}
                             />
                             <button
                               type="button"
                               disabled={!canReply}
                               className={cn(
-                                "flex h-8 w-8 items-center justify-center rounded-xl transition",
-                                canReply ? "bg-indigo-500/25 text-indigo-100" : "bg-white/[0.05] text-white/30",
+                                "flex h-7 w-7 items-center justify-center rounded-lg transition",
+                                canReply ? "bg-indigo-500 text-white" : "bg-white/10 text-white/30",
                               )}
                             >
-                              <Send className="h-3.5 w-3.5" />
+                              <Send className="h-3 w-3" />
                             </button>
                           </div>
                         </div>
                       </article>
                     );
                   })}
-                </div>
-              )}
-            </div>
-          </aside>
-        </section>
+              </div>
+            )}
+          </div>
+        </aside>
+      </section>
+      <style jsx global>{`
+        .pm-etalon {
+          background:
+            radial-gradient(ellipse at 8% 12%, rgba(80, 70, 210, 0.3) 0%, transparent 48%),
+            radial-gradient(ellipse at 92% 88%, rgba(180, 60, 120, 0.2) 0%, transparent 45%),
+            #09090f;
+        }
+        .pm-etalon .btn { padding: 6px 13px; border-radius: 8px; font-size: 12px; white-space: nowrap; }
+        .pm-etalon .btn:disabled { opacity: .55; cursor: not-allowed; }
+        .pm-etalon .et-btn-ghost { background: rgba(255,255,255,.05); border: .5px solid rgba(255,255,255,.1); color: rgba(255,255,255,.55); }
+        .pm-etalon .et-btn-ghost:hover { background: rgba(255,255,255,.09); color: rgba(255,255,255,.8); }
+        .pm-etalon .et-btn-primary { background: linear-gradient(135deg,#4f46e5,#6366f1); color: #fff; box-shadow: 0 2px 10px rgba(79,70,229,.3); }
+        .pm-etalon .et-btn-danger { background: rgba(239,68,68,.1); border: .5px solid rgba(239,68,68,.22); color: rgba(239,68,68,.75); }
+        .pm-etalon .left-col::-webkit-scrollbar, .pm-etalon .right-col::-webkit-scrollbar { width: 3px; }
+        .pm-etalon .left-col::-webkit-scrollbar-thumb, .pm-etalon .right-col::-webkit-scrollbar-thumb { background: rgba(255,255,255,.07); border-radius: 2px; }
+        @media (max-width: 1280px) {
+          .pm-etalon .etalon-actions { flex-wrap: wrap; }
+        }
+        @media (max-width: 1024px) {
+          .pm-etalon { height: auto; min-height: 0; }
+          .pm-etalon > section { flex-direction: column; }
+          .pm-etalon .right-col { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.08); max-height: 55vh; }
+        }
+      `}</style>
     </main>
   );
 }
