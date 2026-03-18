@@ -1374,9 +1374,9 @@ export default function VersionDetailPage(): JSX.Element {
       <style jsx global>{`
         .pm-etalon {
           background:
-            radial-gradient(circle at top left, rgba(67, 87, 255, 0.18), transparent 26%),
-            radial-gradient(circle at 80% 20%, rgba(22, 163, 74, 0.08), transparent 24%),
-            linear-gradient(180deg, #070811 0%, #0b0d14 48%, #090b12 100%);
+            radial-gradient(ellipse at 10% 15%, rgba(80, 70, 210, 0.28) 0%, transparent 50%),
+            radial-gradient(ellipse at 90% 85%, rgba(180, 60, 120, 0.18) 0%, transparent 48%),
+            #09090f;
         }
         .pm-btn {
           height: 42px;
