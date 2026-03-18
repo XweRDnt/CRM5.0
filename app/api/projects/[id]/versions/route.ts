@@ -2,6 +2,8 @@ import { VideoProcessingStatus } from "@prisma/client";
 import { withAuth, type AuthenticatedRequest } from "@/lib/middleware/auth";
 import { assetService, VersionConflictError } from "@/lib/services/asset.service";
 import { assertProjectAccess } from "@/lib/services/access-control.service";
+import { FeedbackService } from "@/lib/services/feedback.service";
+import { prisma } from "@/lib/utils/db";
 import { z } from "zod";
 import { handleAPIError } from "@/lib/utils/api-error";
 
@@ -41,6 +43,17 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context: { params
     const { id } = paramsSchema.parse(await context.params);
     await assertProjectAccess(req.user, id);
     const payload = createVersionSchema.parse(await req.json());
+    const previousVersion = await prisma.assetVersion.findFirst({
+      where: {
+        projectId: id,
+      },
+      orderBy: {
+        versionNo: "desc",
+      },
+      select: {
+        id: true,
+      },
+    });
 
     const version = await assetService.createVersion({
       projectId: id,
@@ -60,6 +73,14 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context: { params
       processingStatus: payload.processingStatus,
       processingError: payload.processingError,
     });
+
+    if (previousVersion && previousVersion.id !== version.id) {
+      const feedbackService = new FeedbackService(prisma);
+      await feedbackService.resolvePreviousVersionFeedback({
+        previousVersionId: previousVersion.id,
+        tenantId: req.user.tenantId,
+      });
+    }
 
     return Response.json(version, { status: 201 });
   } catch (error) {

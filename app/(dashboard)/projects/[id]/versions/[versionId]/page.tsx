@@ -18,7 +18,7 @@ import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getAnnotationPlaybackPolicy } from "@/lib/annotations/behavior";
 import { VERSION_STATUS_LABELS, toVersionUiStatus } from "@/lib/constants/status-ui";
-import type { AnnotationData, AnnotationStroke, AssetVersionResponse, FeedbackResponse, ProjectResponse } from "@/types";
+import type { AnnotationData, AnnotationStroke, AssetVersionResponse, FeedbackResponse, FeedbackThreadMessageResponse, ProjectResponse } from "@/types";
 
 type ApiWrapped<T> = T | { data: T };
 type FeedbackFilter = "all" | "NEW" | "VIEWED" | "IN_PROGRESS" | "RESOLVED";
@@ -109,6 +109,20 @@ function formatTimecode(seconds: number | null): string {
   const min = Math.floor(safe / 60);
   const sec = safe % 60;
   return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+function formatDateTime(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 const isValidAnnotationData = (value: unknown): value is AnnotationData => {
@@ -258,6 +272,11 @@ export default function VersionDetailPage(): JSX.Element {
   const [activeVersionId, setActiveVersionId] = useState<string>(versionId);
   const [activeFilter, setActiveFilter] = useState<FeedbackFilter>("all");
   const [openThreadIds, setOpenThreadIds] = useState<Set<string>>(() => new Set());
+  const [threadMessagesById, setThreadMessagesById] = useState<Record<string, FeedbackThreadMessageResponse[]>>({});
+  const [threadDrafts, setThreadDrafts] = useState<Record<string, string>>({});
+  const [threadLoadingById, setThreadLoadingById] = useState<Record<string, boolean>>({});
+  const [threadSubmittingById, setThreadSubmittingById] = useState<Record<string, boolean>>({});
+  const [xmlExporting, setXmlExporting] = useState(false);
   const [resettingPortalLink, setResettingPortalLink] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState(false);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
@@ -287,6 +306,10 @@ export default function VersionDetailPage(): JSX.Element {
   useEffect(() => {
     setActiveFilter("all");
     setOpenThreadIds(new Set());
+    setThreadMessagesById({});
+    setThreadDrafts({});
+    setThreadLoadingById({});
+    setThreadSubmittingById({});
     setDeleteMenuPosition(null);
     setShareMenuOpen(false);
     setEmployeesModalOpen(false);
@@ -382,18 +405,6 @@ export default function VersionDetailPage(): JSX.Element {
     <g key={`stroke-${index}`} dangerouslySetInnerHTML={{ __html: strokeToSvg(stroke) }} />
   );
 
-  const toggleThread = (threadId: string): void => {
-    setOpenThreadIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(threadId)) {
-        next.delete(threadId);
-      } else {
-        next.add(threadId);
-      }
-      return next;
-    });
-  };
-
   const seekToTimecode = (timecodeSec: number | null, annotation: FeedbackResponse["annotationData"]): void => {
     const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
     kinescopeRef.current?.seekTo(target);
@@ -404,7 +415,7 @@ export default function VersionDetailPage(): JSX.Element {
   };
 
   useEffect(() => {
-    if (!activeVersion || !isOwnerOrPm || feedbackLoading) {
+    if (!activeVersion || !user || feedbackLoading) {
       return;
     }
     if (autoViewedVersionsRef.current.has(activeVersion.id)) {
@@ -449,7 +460,122 @@ export default function VersionDetailPage(): JSX.Element {
         toast.error("Не удалось отметить некоторые правки как просмотренные");
       }
     })();
-  }, [activeVersion, feedbackLoading, isOwnerOrPm, mutateFeedback, visibleBaseFeedback]);
+  }, [activeVersion, feedbackLoading, mutateFeedback, user, visibleBaseFeedback]);
+
+  const loadThreadMessages = async (feedbackId: string): Promise<void> => {
+    if (threadLoadingById[feedbackId]) {
+      return;
+    }
+
+    setThreadLoadingById((current) => ({ ...current, [feedbackId]: true }));
+    try {
+      const messages = await apiFetch<FeedbackThreadMessageResponse[]>(`/api/feedback/${feedbackId}/thread`);
+      setThreadMessagesById((current) => ({ ...current, [feedbackId]: messages }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось загрузить тред");
+    } finally {
+      setThreadLoadingById((current) => ({ ...current, [feedbackId]: false }));
+    }
+  };
+
+  const markThreadRead = async (feedbackId: string): Promise<void> => {
+    try {
+      await apiFetch(`/api/feedback/${feedbackId}/thread/read`, { method: "POST" });
+      await mutateFeedback(
+        (previous) => (previous ?? []).map((item) => (item.id === feedbackId ? { ...item, threadUnreadCount: 0 } : item)),
+        { revalidate: false },
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось отметить тред прочитанным");
+    }
+  };
+
+  const toggleThread = async (threadId: string): Promise<void> => {
+    const isOpen = openThreadIds.has(threadId);
+
+    setOpenThreadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(threadId)) {
+        next.delete(threadId);
+      } else {
+        next.add(threadId);
+      }
+      return next;
+    });
+
+    if (isOpen) {
+      return;
+    }
+
+    if (!threadMessagesById[threadId]) {
+      await loadThreadMessages(threadId);
+    }
+
+    await markThreadRead(threadId);
+  };
+
+  const handleThreadReply = async (feedbackId: string): Promise<void> => {
+    const text = threadDrafts[feedbackId]?.trim() ?? "";
+    if (!text) {
+      return;
+    }
+
+    setThreadSubmittingById((current) => ({ ...current, [feedbackId]: true }));
+    try {
+      const message = await apiFetch<FeedbackThreadMessageResponse>(`/api/feedback/${feedbackId}/thread`, {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      });
+      setThreadMessagesById((current) => ({
+        ...current,
+        [feedbackId]: [...(current[feedbackId] ?? []), message],
+      }));
+      setThreadDrafts((current) => ({ ...current, [feedbackId]: "" }));
+      await mutateFeedback(
+        (previous) =>
+          (previous ?? []).map((item) =>
+            item.id === feedbackId
+              ? {
+                  ...item,
+                  threadMessageCount: (item.threadMessageCount ?? 0) + 1,
+                  lastThreadMessageAt: message.createdAt,
+                  lastThreadMessagePreview: message.text,
+                }
+              : item,
+          ),
+        { revalidate: false },
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось отправить сообщение");
+    } finally {
+      setThreadSubmittingById((current) => ({ ...current, [feedbackId]: false }));
+    }
+  };
+
+  const handleXmlExport = async (): Promise<void> => {
+    if (!activeVersion || xmlExporting) {
+      return;
+    }
+
+    setXmlExporting(true);
+    try {
+      await apiFetch(`/api/projects/${projectId}/versions/${activeVersion.id}/xml-export`, {
+        method: "POST",
+      });
+      await mutateFeedback(
+        (previous) =>
+          (previous ?? []).map((item) =>
+            item.assetVersionId === activeVersion.id && item.status !== "RESOLVED" ? { ...item, status: "IN_PROGRESS" } : item,
+          ),
+        { revalidate: false },
+      );
+      toast.success("Правки переведены в работу");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось подготовить XML");
+    } finally {
+      setXmlExporting(false);
+    }
+  };
 
   const handleCopyPublicLink = async (): Promise<void> => {
     if (!project?.portalToken) {
@@ -649,7 +775,7 @@ export default function VersionDetailPage(): JSX.Element {
             return (
               <article
                 key={item.id}
-                onClick={() => toggleThread(item.id)}
+                onClick={() => void toggleThread(item.id)}
                 className={cn(
                   "overflow-hidden rounded-[24px] border transition cursor-pointer",
                   FEEDBACK_CARD_CLASSES[status],
@@ -657,7 +783,11 @@ export default function VersionDetailPage(): JSX.Element {
                 )}
               >
                 <div className="relative flex gap-3 p-3.5">
-                  {!isOpen && status === "NEW" ? <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-indigo-400 shadow-[0_0_14px_rgba(124,140,255,0.72)]" /> : null}
+                  {!isOpen && (item.threadUnreadCount ?? 0) > 0 ? (
+                    <span className="absolute right-4 top-4 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-indigo-400 px-1.5 text-[10px] font-bold text-[#0b0d16] shadow-[0_0_14px_rgba(124,140,255,0.72)]">
+                      {item.threadUnreadCount}
+                    </span>
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold text-white/95">{item.author.name}</span>
@@ -690,7 +820,7 @@ export default function VersionDetailPage(): JSX.Element {
                       <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[status])}>
                         {STATUS_BADGE_LABELS[status]}
                       </span>
-                      <span className="text-[11px] text-white/30">0 ответов</span>
+                      <span className="text-[11px] text-white/30">{item.threadMessageCount ?? 0} ответов</span>
                     </div>
                   </div>
 
@@ -707,13 +837,30 @@ export default function VersionDetailPage(): JSX.Element {
                   <div className="min-h-0">
                     <div className="mx-4 border-t border-white/10 pt-3">
                       <span className="text-[10px] uppercase tracking-[0.16em] text-white/30">Thread</span>
-                      <p className="mt-2 text-xs leading-6 text-white/55">
-                        Ответы появятся здесь. Зона уже собрана как более плотный PM-review thread.
-                      </p>
+                      <div className="mt-2 space-y-2">
+                        {threadLoadingById[item.id] ? <p className="text-xs leading-6 text-white/55">Загрузка обсуждения...</p> : null}
+                        {!threadLoadingById[item.id] && (threadMessagesById[item.id]?.length ?? 0) === 0 ? (
+                          <p className="text-xs leading-6 text-white/55">Обсуждение ещё не начато.</p>
+                        ) : null}
+                        {(threadMessagesById[item.id] ?? []).map((message) => (
+                          <div key={message.id} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-white/88">{message.author.name}</p>
+                                <p className="text-[11px] text-white/35">{message.author.role}</p>
+                              </div>
+                              <p className="text-[10px] text-white/30">{formatDateTime(message.createdAt)}</p>
+                            </div>
+                            <p className="mt-2 text-xs leading-6 text-white/70">{message.text}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 p-3.5">
                       <input
-                        disabled={!canReply}
+                        value={threadDrafts[item.id] ?? ""}
+                        onChange={(event) => setThreadDrafts((current) => ({ ...current, [item.id]: event.target.value }))}
+                        disabled={!canReply || threadSubmittingById[item.id]}
                         placeholder="Ответить клиенту..."
                         className={cn(
                           "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-white outline-none placeholder:text-white/30",
@@ -722,7 +869,8 @@ export default function VersionDetailPage(): JSX.Element {
                       />
                       <button
                         type="button"
-                        disabled={!canReply}
+                        onClick={() => void handleThreadReply(item.id)}
+                        disabled={!canReply || threadSubmittingById[item.id] || !(threadDrafts[item.id]?.trim())}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(67,87,255,0.22),rgba(56,189,248,0.12))] text-indigo-100 transition hover:border-indigo-300/35 hover:text-white disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-white/20"
                       >
                         <Send className="h-3.5 w-3.5" />
@@ -976,7 +1124,8 @@ export default function VersionDetailPage(): JSX.Element {
           <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
             <button
               type="button"
-              onClick={() => toast.info("В разработке")}
+              onClick={() => void handleXmlExport()}
+              disabled={xmlExporting}
               className="inline-flex items-center gap-2 rounded-[11px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-3.5 py-2 text-[13px] font-semibold text-indigo-100"
             >
               <Download className="h-3.5 w-3.5" />
@@ -1080,7 +1229,8 @@ export default function VersionDetailPage(): JSX.Element {
             <div className="shrink-0 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <button
                 type="button"
-                onClick={() => toast.info("В разработке")}
+                onClick={() => void handleXmlExport()}
+                disabled={xmlExporting}
                 className="inline-flex items-center gap-2 rounded-[11px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-3.5 py-2 text-[13px] font-semibold text-indigo-100"
               >
                 <Download className="h-3.5 w-3.5" />

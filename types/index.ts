@@ -461,8 +461,51 @@ export interface FeedbackResponse {
   category: FeedbackCategory | null;
   status: FeedbackStatus;
   annotationData?: AnnotationData | null;
+  threadMessageCount?: number;
+  threadUnreadCount?: number;
+  lastThreadMessageAt?: Date | null;
+  lastThreadMessagePreview?: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface FeedbackThreadMessageResponse {
+  id: string;
+  feedbackItemId: string;
+  authorType: AuthorType;
+  author: {
+    id?: string;
+    name: string;
+    role: string;
+    email?: string;
+  };
+  text: string;
+  createdAt: Date;
+}
+
+export interface CreateFeedbackThreadMessageInput {
+  feedbackId: string;
+  tenantId: string;
+  authorType: AuthorType;
+  authorUserId?: string;
+  authorRole?: UserRole | "CLIENT";
+  authorName?: string;
+  clientIdentity?: string;
+  text: string;
+}
+
+export interface ListFeedbackWithThreadMetaInput {
+  projectId: string;
+  tenantId: string;
+  viewerUserId?: string;
+  clientIdentity?: string;
+}
+
+export interface MarkFeedbackThreadReadInput {
+  feedbackId: string;
+  tenantId: string;
+  userId?: string;
+  clientIdentity?: string;
 }
 
 export interface UpdateFeedbackStatusInput {

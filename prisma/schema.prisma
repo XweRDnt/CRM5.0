@@ -187,6 +187,7 @@ model User {
   projectLinks     ProjectMember[]
   uploadedVersions AssetVersion[]  @relation("UserUploadedVersions")
   feedbackItems    FeedbackItem[]  @relation("UserFeedback")
+  feedbackThreadMessages FeedbackThreadMessage[] @relation("FeedbackThreadAuthor")
   assignedTasks    AITask[]        @relation("UserAssignedTasks")
   pmScopeDecisions ScopeDecision[] @relation("PMScopeDecisions")
   ownedStages      WorkflowStage[] @relation("UserOwnedStages")
@@ -386,10 +387,44 @@ model FeedbackItem {
   assetVersion   AssetVersion     @relation(fields: [assetVersionId], references: [id], onDelete: Cascade)
   author         User?            @relation("UserFeedback", fields: [authorId], references: [id])
   scopeDecision  ScopeDecision?
+  threadMessages FeedbackThreadMessage[]
+  threadReads    FeedbackThreadRead[]
 
   @@index([assetVersionId])
   @@index([authorId])
   @@index([status])
+}
+
+model FeedbackThreadMessage {
+  id              String       @id @default(cuid())
+  feedbackItemId  String
+  authorType      AuthorType
+  authorUserId    String?
+  authorName      String
+  authorRoleLabel String
+  text            String
+  createdAt       DateTime     @default(now())
+  feedbackItem    FeedbackItem @relation(fields: [feedbackItemId], references: [id], onDelete: Cascade)
+  authorUser      User?        @relation("FeedbackThreadAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([feedbackItemId])
+  @@index([authorUserId])
+  @@index([createdAt])
+}
+
+model FeedbackThreadRead {
+  id             String       @id @default(cuid())
+  feedbackItemId String
+  userId         String?
+  clientIdentity String?
+  lastReadAt     DateTime
+  feedbackItem   FeedbackItem @relation(fields: [feedbackItemId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackItemId])
+  @@index([userId])
+  @@index([clientIdentity])
+  @@unique([feedbackItemId, userId])
+  @@unique([feedbackItemId, clientIdentity])
 }
 
 model AITask {

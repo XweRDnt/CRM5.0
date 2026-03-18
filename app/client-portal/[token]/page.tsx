@@ -16,7 +16,7 @@ import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { normalizeClientPoint } from "@/lib/annotations/coords";
 import { getAnnotationToggle } from "@/lib/annotations/interaction";
 import { getDrawingSurfaceClass } from "@/lib/annotations/overlay";
-import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType } from "@/types";
+import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType, FeedbackThreadMessageResponse } from "@/types";
 import { ArrowUpRight, ChevronDown, Circle, Minus, Pencil, Redo2, Send, Square, Type, Undo2 } from "lucide-react";
 
 const SUBMIT_TIMEOUT_MS = 15000;
@@ -43,6 +43,10 @@ type PortalFeedbackItem = {
   createdAt: string;
   authorName: string;
   authorEmail: string | null;
+  threadMessageCount?: number;
+  threadUnreadCount?: number;
+  lastThreadMessageAt?: string | null;
+  lastThreadMessagePreview?: string | null;
 };
 
 type PortalResponse = {
@@ -158,6 +162,20 @@ const normalizeAnnotationData = (value: unknown): AnnotationData | null => {
   return { version: 1, strokes };
 };
 
+const formatDateTime = (value: string | Date): string => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
 export default function ClientPortalPage(): JSX.Element {
   const m = getMessages();
   const params = useParams<{ token: string }>();
@@ -204,6 +222,10 @@ export default function ClientPortalPage(): JSX.Element {
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [pendingText, setPendingText] = useState<PendingText | null>(null);
   const [openThreadIds, setOpenThreadIds] = useState<string[]>([]);
+  const [threadMessagesById, setThreadMessagesById] = useState<Record<string, FeedbackThreadMessageResponse[]>>({});
+  const [threadDrafts, setThreadDrafts] = useState<Record<string, string>>({});
+  const [threadLoadingById, setThreadLoadingById] = useState<Record<string, boolean>>({});
+  const [threadSubmittingById, setThreadSubmittingById] = useState<Record<string, boolean>>({});
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
   const blurActiveElement = (): void => {
     if (typeof document === "undefined") {
@@ -366,10 +388,119 @@ export default function ClientPortalPage(): JSX.Element {
     }
     stopAnnotationMode();
   };
-  const toggleThread = (threadId: string): void => {
-    setOpenThreadIds((prev) =>
-      prev.includes(threadId) ? prev.filter((id) => id !== threadId) : [...prev, threadId],
-    );
+  const loadThreadMessages = async (threadId: string): Promise<void> => {
+    if (threadLoadingById[threadId]) {
+      return;
+    }
+
+    setThreadLoadingById((current) => ({ ...current, [threadId]: true }));
+    try {
+      const response = await fetch(`/api/public/feedback/${threadId}/thread?token=${encodeURIComponent(token)}`);
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Не удалось загрузить обсуждение");
+      }
+      const messages = (await response.json()) as FeedbackThreadMessageResponse[];
+      setThreadMessagesById((current) => ({ ...current, [threadId]: messages }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось загрузить обсуждение");
+    } finally {
+      setThreadLoadingById((current) => ({ ...current, [threadId]: false }));
+    }
+  };
+
+  const markThreadRead = async (threadId: string): Promise<void> => {
+    try {
+      const response = await fetch(`/api/public/feedback/${threadId}/thread/read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Не удалось отметить обсуждение прочитанным");
+      }
+      await mutate(
+        (current) =>
+          current
+            ? {
+                ...current,
+                feedback: current.feedback.map((item) => (item.id === threadId ? { ...item, threadUnreadCount: 0 } : item)),
+              }
+            : current,
+        { revalidate: false },
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось отметить обсуждение прочитанным");
+    }
+  };
+
+  const toggleThread = async (threadId: string): Promise<void> => {
+    const isOpen = openThreadIds.includes(threadId);
+    setOpenThreadIds((prev) => (prev.includes(threadId) ? prev.filter((id) => id !== threadId) : [...prev, threadId]));
+
+    if (isOpen) {
+      return;
+    }
+
+    if (!threadMessagesById[threadId]) {
+      await loadThreadMessages(threadId);
+    }
+
+    await markThreadRead(threadId);
+  };
+
+  const handleThreadReply = async (threadId: string): Promise<void> => {
+    const text = threadDrafts[threadId]?.trim() ?? "";
+    if (!text) {
+      return;
+    }
+
+    setThreadSubmittingById((current) => ({ ...current, [threadId]: true }));
+    try {
+      const response = await fetch(`/api/public/feedback/${threadId}/thread`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          authorName: authorName.trim() || "Client",
+          text,
+        }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Не удалось отправить сообщение");
+      }
+      const message = (await response.json()) as FeedbackThreadMessageResponse;
+      setThreadMessagesById((current) => ({
+        ...current,
+        [threadId]: [...(current[threadId] ?? []), message],
+      }));
+      setThreadDrafts((current) => ({ ...current, [threadId]: "" }));
+      await mutate(
+        (current) =>
+          current
+            ? {
+                ...current,
+                feedback: current.feedback.map((item) =>
+                  item.id === threadId
+                    ? {
+                        ...item,
+                        threadMessageCount: (item.threadMessageCount ?? 0) + 1,
+                        lastThreadMessageAt: message.createdAt instanceof Date ? message.createdAt.toISOString() : String(message.createdAt),
+                        lastThreadMessagePreview: message.text,
+                      }
+                    : item,
+                ),
+              }
+            : current,
+        { revalidate: false },
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось отправить сообщение");
+    } finally {
+      setThreadSubmittingById((current) => ({ ...current, [threadId]: false }));
+    }
   };
 
   const getOverlayPoint = (event: React.PointerEvent | React.MouseEvent<HTMLDivElement>): { x: number; y: number } | null => {
@@ -1067,12 +1198,19 @@ export default function ClientPortalPage(): JSX.Element {
                 return (
                   <article
                     key={item.id}
-                    onClick={() => toggleThread(item.id)}
+                    onClick={() => void toggleThread(item.id)}
                     className={cn(
                       "group cursor-pointer rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition",
                       isOpen ? "border-blue-400/30" : "hover:border-blue-400/25",
                     )}
                   >
+                    {!isOpen && (item.threadUnreadCount ?? 0) > 0 ? (
+                      <div className="mb-2 flex justify-end">
+                        <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-blue-400 px-1.5 text-[10px] font-bold text-[#091019]">
+                          {item.threadUnreadCount}
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex items-center justify-between gap-2">
@@ -1104,7 +1242,7 @@ export default function ClientPortalPage(): JSX.Element {
                         <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-white/40">
                           Новая
                         </span>
-                        <span className="text-white/25">0 ответов</span>
+                        <span className="text-white/25">{item.threadMessageCount ?? 0} ответов</span>
                       </div>
                     </div>
                     <ChevronDown
@@ -1121,19 +1259,39 @@ export default function ClientPortalPage(): JSX.Element {
                       isOpen ? "max-h-48 pt-3 opacity-100" : "max-h-0 pt-0 opacity-0",
                     )}
                   >
-                    <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">
-                      Ответы появятся здесь
+                    <div className="space-y-2">
+                      {threadLoadingById[item.id] ? <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Загрузка обсуждения...</div> : null}
+                      {!threadLoadingById[item.id] && (threadMessagesById[item.id]?.length ?? 0) === 0 ? (
+                        <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">
+                          Обсуждение ещё не начато
+                        </div>
+                      ) : null}
+                      {(threadMessagesById[item.id] ?? []).map((message) => (
+                        <div key={message.id} className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/55">
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className="font-semibold text-white/80">{message.author.name}</p>
+                              <p className="text-[10px] text-white/35">{message.author.role}</p>
+                            </div>
+                            <p className="text-[10px] text-white/25">{formatDateTime(message.createdAt)}</p>
+                          </div>
+                          <p className="mt-2 leading-relaxed text-white/60">{message.text}</p>
+                        </div>
+                      ))}
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <input
-                        disabled
+                        value={threadDrafts[item.id] ?? ""}
+                        onChange={(event) => setThreadDrafts((current) => ({ ...current, [item.id]: event.target.value }))}
+                        disabled={isVersionLocked || threadSubmittingById[item.id]}
                         placeholder="Ответить..."
-                        className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/40 placeholder:text-white/20"
+                        className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/80 placeholder:text-white/20 disabled:text-white/40"
                       />
                       <button
                         type="button"
-                        disabled
-                        className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.06] text-white/30"
+                        onClick={() => void handleThreadReply(item.id)}
+                        disabled={isVersionLocked || threadSubmittingById[item.id] || !(threadDrafts[item.id]?.trim())}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.06] text-white/60 disabled:text-white/30"
                       >
                         <Send className="h-3.5 w-3.5" />
                       </button>

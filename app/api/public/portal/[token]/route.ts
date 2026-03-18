@@ -92,6 +92,23 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
                 lastName: true,
               },
             },
+            threadMessages: {
+              orderBy: { createdAt: "desc" },
+              select: {
+                id: true,
+                text: true,
+                createdAt: true,
+              },
+            },
+            threadReads: {
+              where: {
+                clientIdentity: `portal:${portalToken}`,
+              },
+              select: {
+                lastReadAt: true,
+              },
+              take: 1,
+            },
           },
         })
       : [];
@@ -129,6 +146,13 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
             (item.author ? `${item.author.firstName} ${item.author.lastName}`.trim() : null) ??
             "Anonymous",
           authorEmail: item.authorEmail ?? null,
+          threadMessageCount: item.threadMessages.length,
+          threadUnreadCount: item.threadMessages.filter((message) => {
+            const lastReadAt = item.threadReads[0]?.lastReadAt;
+            return !lastReadAt || message.createdAt > lastReadAt;
+          }).length,
+          lastThreadMessageAt: item.threadMessages[0]?.createdAt ?? null,
+          lastThreadMessagePreview: item.threadMessages[0]?.text ?? null,
         })),
       },
       { status: 200 },
