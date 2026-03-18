@@ -656,14 +656,14 @@ export default function VersionDetailPage(): JSX.Element {
                 </div>
               </div>
 
-              <div className="mx-auto mt-3 flex w-full max-w-[1040px] flex-wrap items-center justify-between gap-2 rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.78)_0%,rgba(10,12,20,0.84)_100%)] px-4 py-3 text-[11px] text-white/55 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
-                <div className="flex flex-wrap gap-3">
+              <div className="mx-auto mt-2 flex w-full max-w-[1040px] flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.76)_0%,rgba(10,12,20,0.82)_100%)] px-3 py-2 text-[10px] text-white/50 shadow-[0_10px_24px_rgba(0,0,0,0.2)]">
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
                   <span>{activeVersion.fileName}</span>
                   <span>Загрузил: {activeVersion.uploadedBy.name}</span>
                   <span>{formatDate(activeVersion.createdAt)}</span>
                 </div>
                 {activeVersion.processingStatus !== "READY" ? (
-                  <p className="text-xs text-white/60">
+                  <p className="text-[10px] leading-tight text-white/55">
                     {activeVersion.processingStatus === "FAILED"
                       ? "Обработка видео в Kinescope завершилась с ошибкой."
                       : "Kinescope ещё обрабатывает видео. Воспроизведение может быть временно недоступно."}
@@ -672,35 +672,35 @@ export default function VersionDetailPage(): JSX.Element {
               </div>
             </div>
 
-            <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
-              <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">Новые</div>
-                <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
+            <div className="grid shrink-0 grid-cols-2 gap-2.5 xl:grid-cols-4">
+              <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Новые</div>
+                <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
               </div>
-              <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">Просмотрено</div>
-                <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
+              <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Просмотрено</div>
+                <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
               </div>
-              <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">В работе</div>
-                <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
+              <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">В работе</div>
+                <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
               </div>
-              <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">Готово</div>
-                <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
+              <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Готово</div>
+                <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
               </div>
             </div>
 
-            <div className="shrink-0 rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="shrink-0 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <button
                 type="button"
                 onClick={() => toast.info("В разработке")}
-                className="inline-flex items-center gap-2 rounded-[12px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-4 py-2.5 text-sm font-semibold text-indigo-100"
+                className="inline-flex items-center gap-2 rounded-[11px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-3.5 py-2 text-[13px] font-semibold text-indigo-100"
               >
                 <Download className="h-3.5 w-3.5" />
                 Выгрузить XML для монтажёра
               </button>
-              <p className="mt-2 text-[11px] text-white/40">Все «Новые» и «Просмотренные» можно быстро перевести в производственный контур.</p>
+              <p className="mt-1.5 text-[10px] leading-tight text-white/36">Все «Новые» и «Просмотренные» можно быстро перевести в производственный контур.</p>
             </div>
           </div>
 
