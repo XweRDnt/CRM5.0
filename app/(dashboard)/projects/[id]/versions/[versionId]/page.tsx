@@ -519,20 +519,8 @@ export default function VersionDetailPage(): JSX.Element {
 
         <section className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
           <div className="left-col flex min-w-0 min-h-0 flex-col gap-3 overflow-hidden">
-            <div className="flex min-h-0 flex-1 flex-col rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-              <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div>
-                  <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Current cut</span>
-                  <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">Review stage</h2>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs text-white/55">
-                  <span className="rounded-full bg-white/5 px-3 py-1.5">{activeVersion.fileName}</span>
-                  <span className="rounded-full bg-white/5 px-3 py-1.5">{formatDate(activeVersion.createdAt)}</span>
-                </div>
-              </div>
-
-              <div className="flex min-h-0 flex-1 rounded-[22px] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01)),linear-gradient(135deg,rgba(67,87,255,0.08),transparent_44%)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
-                <div className="relative aspect-video min-h-[280px] w-full overflow-hidden rounded-[20px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)] xl:min-h-[320px] 2xl:min-h-[360px]">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="relative aspect-video min-h-[320px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)] xl:min-h-[380px] 2xl:min-h-[430px]">
                 <KinescopePlayer
                   ref={kinescopeRef}
                   className="h-full w-full"
@@ -578,10 +566,9 @@ export default function VersionDetailPage(): JSX.Element {
                     </button>
                   </div>
                 ) : null}
-                </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-white/55">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.78)_0%,rgba(10,12,20,0.84)_100%)] px-4 py-3 text-[11px] text-white/55 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
                 <div className="flex flex-wrap gap-3">
                   <span>{activeVersion.fileName}</span>
                   <span>Загрузил: {activeVersion.uploadedBy.name}</span>
