@@ -34,25 +34,25 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
       />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-neutral-200 bg-white/90 p-4 backdrop-blur transition-transform lg:static lg:w-64 lg:translate-x-0",
+          "glass-sidebar fixed inset-y-0 left-0 z-40 flex w-72 flex-col p-4 backdrop-blur transition-transform lg:static lg:w-64 lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{m.appName}</p>
-            <h2 className="text-xl font-semibold text-neutral-900">{user.tenant.name}</h2>
+            <p className="text-xs font-semibold uppercase tracking-wide glass-muted">{m.appName}</p>
+            <h2 className="text-xl font-semibold">{user.tenant.name}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-2 text-neutral-500 hover:bg-neutral-100 lg:hidden"
+            className="rounded-md p-2 glass-muted hover:bg-white/10 lg:hidden"
             aria-label={m.nav.closeMenu}
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <nav className="sidebar-nav-group overflow-hidden border border-neutral-200 divide-y divide-neutral-200">
+        <nav className="sidebar-nav-group glass-item overflow-hidden divide-y divide-white/10">
           {navItems
             .filter((item) => (!item.onlyOwnerOrPm || isOwnerOrPm) && (!item.onlyAdmin || user.isAdmin))
             .map((item) => {
@@ -65,7 +65,7 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
                 onClick={onClose}
                 className={cn(
                   "sidebar-nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition",
-                  active ? "sidebar-nav-item-active bg-blue-100 text-blue-700" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900",
+                  active ? "sidebar-nav-item-active" : "",
                 )}
                 >
                 <Icon className="h-4 w-4" />
@@ -74,11 +74,11 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
             );
           })}
         </nav>
-        <div className="mt-auto rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-sm">
-          <p className="font-medium text-neutral-900">
+        <div className="glass-item mt-auto p-3 text-sm">
+          <p className="font-medium">
             {user.firstName} {user.lastName}
           </p>
-          <p className="text-neutral-500">{user.role}</p>
+          <p className="glass-muted">{user.role}</p>
         </div>
       </aside>
     </>

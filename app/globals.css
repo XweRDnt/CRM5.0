@@ -290,4 +290,132 @@ html[data-app-theme="dark"] .app-ios-shell aside nav a.sidebar-nav-item-active {
   color: #bfdbfe !important;
 }
 
+/* Dashboard glass theme */
+.dashboard-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 10% 15%, rgba(80, 70, 210, 0.28) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 85%, rgba(180, 60, 120, 0.18) 0%, transparent 48%),
+    #09090f;
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+}
+
+.dashboard-shell .glass-surface,
+.dashboard-shell .glass-card,
+.dashboard-shell .glass-panel,
+.dashboard-shell .glass-topbar {
+  background: rgba(255, 255, 255, 0.048);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 0.5px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+}
+
+.dashboard-shell .glass-topbar {
+  margin: 12px 16px;
+  border-radius: 16px;
+}
+
+.dashboard-shell .glass-sidebar {
+  background: rgba(255, 255, 255, 0.03);
+  border-right: 0.5px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(24px) saturate(160%);
+}
+
+.dashboard-shell .glass-item {
+  background: rgba(255, 255, 255, 0.035);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+}
+
+.dashboard-shell .glass-muted {
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.dashboard-shell .glass-accent {
+  color: #a5b4fc;
+}
+
+.dashboard-shell .text-neutral-900,
+.dashboard-shell .text-neutral-800 {
+  color: #e2e8f0 !important;
+}
+
+.dashboard-shell .text-neutral-700,
+.dashboard-shell .text-neutral-600,
+.dashboard-shell .text-neutral-500,
+.dashboard-shell .text-neutral-400 {
+  color: rgba(226, 232, 240, 0.72) !important;
+}
+
+.dashboard-shell .glass-table {
+  background: rgba(255, 255, 255, 0.048);
+  border: 0.5px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+}
+
+.dashboard-shell .glass-table-row {
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+}
+
+.dashboard-shell .glass-table-head {
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+}
+
+.dashboard-shell .ui-card {
+  background: rgba(255, 255, 255, 0.048) !important;
+  border: 0.5px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+}
+
+.dashboard-shell .ui-card-description {
+  color: rgba(226, 232, 240, 0.72) !important;
+}
+
+.dashboard-shell .ui-btn[data-variant="default"] {
+  background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+  border: 0.5px solid rgba(99, 102, 241, 0.35) !important;
+  color: #eef2ff !important;
+}
+
+.dashboard-shell .ui-btn[data-variant="outline"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
+  color: #e2e8f0 !important;
+}
+
+.dashboard-shell .ui-btn[data-variant="ghost"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
+  color: #e2e8f0 !important;
+}
+
+.dashboard-shell .ui-btn[data-variant="destructive"] {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border: 0.5px solid rgba(239, 68, 68, 0.25) !important;
+  color: #fecaca !important;
+}
+
+.dashboard-shell .sidebar-nav-group {
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-shell .sidebar-nav-item {
+  color: rgba(226, 232, 240, 0.78) !important;
+}
+
+.dashboard-shell .sidebar-nav-item:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #e2e8f0 !important;
+}
+
+.dashboard-shell .sidebar-nav-item-active {
+  background: rgba(99, 102, 241, 0.15) !important;
+  color: #a5b4fc !important;
+}
+
 

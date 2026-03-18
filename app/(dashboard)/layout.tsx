@@ -12,7 +12,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }): 
   return (
     <AuthGuard>
       {({ user }) => (
-        <section className="flex min-h-screen overflow-x-hidden bg-neutral-100">
+        <section className="dashboard-shell flex min-h-screen overflow-x-hidden">
           <Sidebar user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden">
             <Header user={user} onOpenSidebar={() => setSidebarOpen(true)} />

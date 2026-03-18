@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -34,7 +34,7 @@ export default function ClientsPage(): JSX.Element {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Clients</h1>
-          <p className="text-sm text-neutral-500">Manage client contacts for new projects.</p>
+          <p className="text-sm glass-muted">Manage client contacts for new projects.</p>
         </div>
         <Button asChild>
           <Link href="/clients/new">+ New Client</Link>
@@ -44,7 +44,7 @@ export default function ClientsPage(): JSX.Element {
       {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, index) => (
-            <Card key={`client-skeleton-${index}`} className="animate-pulse">
+            <Card key={`client-skeleton-${index}`} className="animate-pulse glass-card">
               <CardContent className="h-16 p-4" />
             </Card>
           ))}
@@ -52,8 +52,8 @@ export default function ClientsPage(): JSX.Element {
       )}
 
       {error && !isLoading && (
-        <Card>
-          <CardContent className="py-6 text-sm text-red-600">Failed to load clients.</CardContent>
+        <Card className="glass-card">
+          <CardContent className="py-6 text-sm text-red-200">Failed to load clients.</CardContent>
         </Card>
       )}
 
@@ -61,3 +61,4 @@ export default function ClientsPage(): JSX.Element {
     </section>
   );
 }
+

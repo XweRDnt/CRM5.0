@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import useSWR from "swr";
@@ -79,11 +79,11 @@ export function ProjectCard({ project, canDelete = false, onDelete }: ProjectCar
       : mapProjectToVersionUiStatus(project.status);
 
   return (
-    <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
+    <Card className="glass-card">
       <CardHeader className="flex-row items-start justify-between space-y-0">
         <div>
-          <CardTitle className="text-neutral-900 dark:text-neutral-100">{project.name}</CardTitle>
-          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{project.client.name}</p>
+          <CardTitle>{project.name}</CardTitle>
+          <p className="mt-1 text-sm glass-muted">{project.client.name}</p>
         </div>
         <span
           className={cn(
@@ -96,15 +96,17 @@ export function ProjectCard({ project, canDelete = false, onDelete }: ProjectCar
         </span>
       </CardHeader>
       <CardContent className="flex items-center justify-between">
-        <span className="text-sm text-neutral-600 dark:text-neutral-500">Создан: {new Date(project.createdAt).toLocaleDateString("ru-RU")}</span>
+        <span className="text-sm glass-muted">РЎРѕР·РґР°РЅ: {new Date(project.createdAt).toLocaleDateString("ru-RU")}</span>
         {canDelete && (
           <Button variant="destructive" size="sm" onClick={() => onDelete?.(project.id, project.name)}>
-            Удалить
+            РЈРґР°Р»РёС‚СЊ
           </Button>
-        )}<Button asChild size="sm">
-          <Link href={`/projects/${project.id}`}>Открыть</Link>
+        )}
+        <Button asChild size="sm">
+          <Link href={`/projects/${project.id}`}>РћС‚РєСЂС‹С‚СЊ</Link>
         </Button>
       </CardContent>
     </Card>
   );
 }
+

@@ -72,27 +72,27 @@ export default function TeamPage(): JSX.Element {
     <section className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Team</h1>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">Manage editors and invite links.</p>
+          <h1 className="text-2xl font-semibold">Team</h1>
+          <p className="text-sm glass-muted">Manage editors and invite links.</p>
         </div>
         <Button onClick={() => void handleCreateInvite()}>Invite</Button>
       </header>
 
-      <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
+      <Card className="glass-card">
         <CardContent className="space-y-3 p-4 sm:p-5">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Editors</h2>
+          <h2 className="text-lg font-semibold">Editors</h2>
           {membersLoading ? (
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">Loading...</p>
+            <p className="text-sm glass-muted">Loading...</p>
           ) : members.length === 0 ? (
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">No editors yet.</p>
+            <p className="text-sm glass-muted">No editors yet.</p>
           ) : (
             <div className="space-y-2">
               {members.map((member) => (
-                <div key={member.userId} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700">
-                  <p className="font-medium text-neutral-900 dark:text-neutral-100">
+                <div key={member.userId} className="glass-item px-3 py-2 text-sm">
+                  <p className="font-medium">
                     {member.firstName} {member.lastName}
                   </p>
-                  <p className="text-neutral-600 dark:text-neutral-400">{member.email}</p>
+                  <p className="glass-muted">{member.email}</p>
                 </div>
               ))}
             </div>
@@ -100,22 +100,22 @@ export default function TeamPage(): JSX.Element {
         </CardContent>
       </Card>
 
-      <Card className="border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/50">
+      <Card className="glass-card">
         <CardContent className="space-y-3 p-4 sm:p-5">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Active invite links</h2>
+          <h2 className="text-lg font-semibold">Active invite links</h2>
           {invitesLoading ? (
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">Loading...</p>
+            <p className="text-sm glass-muted">Loading...</p>
           ) : sortedInvites.length === 0 ? (
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">No active invites.</p>
+            <p className="text-sm glass-muted">No active invites.</p>
           ) : (
             <div className="space-y-2">
               {sortedInvites.map((invite) => (
-                <div key={invite.id} className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700 sm:flex-row sm:items-center sm:justify-between">
+                <div key={invite.id} className="glass-item flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                    <p className="text-xs glass-muted">
                       Expires at {new Date(invite.expiresAt).toLocaleString("ru-RU")}
                     </p>
-                    <p className="text-sm text-neutral-700 dark:text-neutral-200">{absoluteInviteUrl(invite.url)}</p>
+                    <p className="text-sm glass-muted">{absoluteInviteUrl(invite.url)}</p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => void handleCopyInvite(invite.url)}>
                     Copy
@@ -129,3 +129,4 @@ export default function TeamPage(): JSX.Element {
     </section>
   );
 }
+
