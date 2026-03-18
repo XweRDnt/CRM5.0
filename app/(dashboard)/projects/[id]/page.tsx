@@ -224,7 +224,7 @@ export default function ProjectDetailPage(): JSX.Element {
   };
 
   const handleDeleteProject = async (): Promise<void> => {
-    const confirmed = window.confirm("РЈРґР°Р»РёС‚СЊ РїСЂРѕРµРєС‚? Р’СЃРµ РІРµСЂСЃРёРё Рё РєРѕРјРјРµРЅС‚Р°СЂРёРё Р±СѓРґСѓС‚ СѓРґР°Р»РµРЅС‹.");
+    const confirmed = window.confirm("Удалить проект? Все версии и комментарии будут удалены.");
     if (!confirmed) {
       return;
     }
@@ -232,16 +232,16 @@ export default function ProjectDetailPage(): JSX.Element {
     setDeletingProject(true);
     try {
       await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
-      toast.success("РџСЂРѕРµРєС‚ СѓРґР°Р»С‘РЅ");
+      toast.success("Проект удалён");
       router.replace("/projects");
     } catch {
-      toast.error("РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РїСЂРѕРµРєС‚");
+      toast.error("Не удалось удалить проект");
     } finally {
       setDeletingProject(false);
     }
   };
   const handleDeleteVersion = async (versionId: string, versionNumber: number): Promise<void> => {
-    const confirmed = window.confirm(`РЈРґР°Р»РёС‚СЊ РІРµСЂСЃРёСЋ ${versionNumber}? Р’СЃРµ РїСЂР°РІРєРё Р±СѓРґСѓС‚ СѓРґР°Р»РµРЅС‹.`);
+    const confirmed = window.confirm(`Удалить версию ${versionNumber}? Все правки будут удалены.`);
     if (!confirmed) {
       return;
     }
@@ -258,9 +258,9 @@ export default function ProjectDetailPage(): JSX.Element {
         return wrapped ? ({ data: remaining } as ApiWrapped<AssetVersionResponse[]>) : (remaining as ApiWrapped<AssetVersionResponse[]>);
       }, { revalidate: true });
       await mutateFeedback(undefined, { revalidate: true });
-      toast.success("Р’РµСЂСЃРёСЏ СѓРґР°Р»РµРЅР°");
+      toast.success("Версия удалена");
     } catch {
-      toast.error("РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РІРµСЂСЃРёСЋ");
+      toast.error("Не удалось удалить версию");
     }
   };
 
@@ -328,12 +328,12 @@ export default function ProjectDetailPage(): JSX.Element {
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button variant="outline" onClick={handleCopyPublicLink} disabled={!portalToken} className="w-full sm:w-auto">РџСѓР±Р»РёС‡РЅР°СЏ СЃСЃС‹Р»РєР°</Button>
-            <Button variant="outline" onClick={handleOpenPublicLink} disabled={!portalToken} className="w-full sm:w-auto">РћС‚РєСЂС‹С‚СЊ РїРѕСЂС‚Р°Р»</Button>
+            <Button variant="outline" onClick={handleCopyPublicLink} disabled={!portalToken} className="w-full sm:w-auto">Публичная ссылка</Button>
+            <Button variant="outline" onClick={handleOpenPublicLink} disabled={!portalToken} className="w-full sm:w-auto">Открыть портал</Button>
             <Button variant="outline" onClick={handleResetPublicLink} disabled={resettingPortalLink} className="w-full sm:w-auto">
               {resettingPortalLink ? "Reset..." : "Reset link"}
             </Button>
-            <VersionUploadDialog projectId={projectId} triggerText="+ Р”РѕР±Р°РІРёС‚СЊ РІРµСЂСЃРёСЋ" triggerClassName="w-full sm:w-auto" />
+            <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" triggerClassName="w-full sm:w-auto" />
             {isOwnerOrPm && (
               <Button
                 variant="destructive"
@@ -341,7 +341,7 @@ export default function ProjectDetailPage(): JSX.Element {
                 disabled={deletingProject}
                 className="w-full sm:w-auto"
               >
-                {deletingProject ? "РЈРґР°Р»РµРЅРёРµ..." : "РЈРґР°Р»РёС‚СЊ РїСЂРѕРµРєС‚"}
+                {deletingProject ? "Удаление..." : "Удалить проект"}
               </Button>
             )}
           </div>
@@ -352,19 +352,19 @@ export default function ProjectDetailPage(): JSX.Element {
         <section>
           <Card className="glass-card">
             <CardContent className="space-y-4 p-4 sm:p-5">
-              <h2 className="text-lg font-semibold ">РЈС‡Р°СЃС‚РЅРёРєРё РїСЂРѕРµРєС‚Р°</h2>
+              <h2 className="text-lg font-semibold">Участники проекта</h2>
               <div className="space-y-2">
                 {(projectMembers ?? []).length === 0 ? (
-                  <p className="text-sm glass-muted">РџРѕРєР° РЅРµС‚ РЅР°Р·РЅР°С‡РµРЅРЅС‹С… СЂРµРґР°РєС‚РѕСЂРѕРІ.</p>
+                  <p className="text-sm glass-muted">Пока нет назначенных редакторов.</p>
                 ) : (
                   projectMembers.map((member) => (
-                    <div key={member.userId} className="glass-item flex items-center justify-between p-2.5">
+                    <div key={member.userId} className="flex items-center justify-between rounded-lg glass-item p-2.5">
                       <div>
-                        <p className="text-sm font-medium">Р”РѕР±Р°РІРёС‚СЊ СЂРµРґР°РєС‚РѕСЂРѕРІ</p>
+                        <p className="text-sm font-medium">Добавить редакторов</p>
                         <p className="text-xs glass-muted">{member.email}</p>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => void handleRemoveEditor(member.userId)}>
-                        РЈРґР°Р»РёС‚СЊ
+                        Удалить
                       </Button>
                     </div>
                   ))
@@ -372,12 +372,12 @@ export default function ProjectDetailPage(): JSX.Element {
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-medium">Р”РѕР±Р°РІРёС‚СЊ СЂРµРґР°РєС‚РѕСЂРѕРІ</p>
+                <p className="text-sm font-medium">Добавить редакторов</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {teamEditors.map((editor) => (
                     <label
                       key={editor.userId}
-                      className="glass-item flex items-center gap-2 px-2.5 py-2 text-sm"
+                      className="flex items-center gap-2 rounded-lg glass-item px-2.5 py-2 text-sm"
                     >
                       <input
                         type="checkbox"
@@ -390,7 +390,7 @@ export default function ProjectDetailPage(): JSX.Element {
                     </label>
                   ))}
                 </div>
-                <Button onClick={() => void handleAddEditors()} className="w-full sm:w-auto">Р”РѕР±Р°РІРёС‚СЊ РІ РїСЂРѕРµРєС‚</Button>
+                <Button onClick={() => void handleAddEditors()} className="w-full sm:w-auto">Добавить в проект</Button>
               </div>
             </CardContent>
           </Card>
@@ -408,7 +408,7 @@ export default function ProjectDetailPage(): JSX.Element {
           </Card>
         ) : versions.length === 0 ? (
           <Card className="glass-card">
-            <CardContent className="py-8 text-sm glass-muted">РџРѕРєР° РЅРµС‚ Р·Р°РіСЂСѓР¶РµРЅРЅС‹С… РІРµСЂСЃРёР№.</CardContent>
+            <CardContent className="py-8 text-sm glass-muted">Пока нет загруженных версий.</CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -435,7 +435,7 @@ export default function ProjectDetailPage(): JSX.Element {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex min-w-0 flex-col gap-2">
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                            <p className="text-xl font-semibold">Р’РµСЂСЃРёСЏ {version.versionNumber}</p>
+                            <p className="text-xl font-semibold">Версия {version.versionNumber}</p>
                             <span
                               className={cn(
                                 "inline-flex rounded-full border px-2.5 py-1 text-xs font-medium",
@@ -447,9 +447,9 @@ export default function ProjectDetailPage(): JSX.Element {
                             </span>
                           </div>
                           <p className={cn("text-sm", hasNewFeedback ? "text-red-300" : "glass-muted")}>
-                            {hasNewFeedback ? `${stats.newClient} РЅРѕРІС‹С… РїСЂР°РІРѕРє РѕС‚ РєР»РёРµРЅС‚Р°` : `${stats.totalClient} РїСЂР°РІРѕРє`}
+                            {hasNewFeedback ? `${stats.newClient} новых правок от клиента` : `${stats.totalClient} правок`}
                           </p>
-                          <p className="text-xs glass-muted">Р—Р°РіСЂСѓР·РёР»: {version.uploadedBy.name}</p>
+                          <p className="text-xs glass-muted">Загрузил: {version.uploadedBy.name}</p>
                         </div>
 
                         <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:flex-col sm:items-end">
@@ -463,7 +463,7 @@ export default function ProjectDetailPage(): JSX.Element {
                                 void handleDeleteVersion(version.id, version.versionNumber);
                               }}
                             >
-                              РЈРґР°Р»РёС‚СЊ
+                              Удалить
                             </Button>
                           )}
                           <span className="text-xs glass-muted">{formatVersionDate(version.createdAt)}</span>
@@ -480,6 +480,5 @@ export default function ProjectDetailPage(): JSX.Element {
     </div>
   );
 }
-
 
 

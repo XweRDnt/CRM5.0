@@ -36,7 +36,7 @@ export default function ProjectsPage(): JSX.Element {
   const canDelete = user?.role === "OWNER" || user?.role === "PM";
 
   const handleDeleteProject = async (projectId: string, projectName: string): Promise<void> => {
-    const confirmed = window.confirm(`РЈРґР°Р»РёС‚СЊ РїСЂРѕРµРєС‚ "${projectName}"? Р’СЃРµ РІРµСЂСЃРёРё Рё РєРѕРјРјРµРЅС‚Р°СЂРёРё Р±СѓРґСѓС‚ СѓРґР°Р»РµРЅС‹.`);
+    const confirmed = window.confirm(`Удалить проект "${projectName}"? Все версии и комментарии будут удалены.`);
     if (!confirmed) {
       return;
     }
@@ -44,9 +44,9 @@ export default function ProjectsPage(): JSX.Element {
     try {
       await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
       await mutate((prev) => (prev ?? []).filter((project) => project.id !== projectId), { revalidate: true });
-      toast.success("РџСЂРѕРµРєС‚ СѓРґР°Р»С‘РЅ");
+      toast.success("Проект удалён");
     } catch {
-      toast.error("РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РїСЂРѕРµРєС‚");
+      toast.error("Не удалось удалить проект");
     }
   };
 
@@ -54,11 +54,11 @@ export default function ProjectsPage(): JSX.Element {
     <section className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">РџСЂРѕРµРєС‚С‹</h1>
-          <p className="text-sm glass-muted">РЈРїСЂР°РІР»СЏР№С‚Рµ РІРµСЂСЃРёСЏРјРё РІРёРґРµРѕ Рё РєРѕРјРјРµРЅС‚Р°СЂРёСЏРјРё РєР»РёРµРЅС‚РѕРІ.</p>
+          <h1 className="text-2xl font-semibold">Проекты</h1>
+          <p className="text-sm glass-muted">Управляйте версиями видео и комментариями клиентов.</p>
         </div>
         <Button asChild>
-          <Link href="/projects/new">+ РќРѕРІС‹Р№ РїСЂРѕРµРєС‚</Link>
+          <Link href="/projects/new">+ Новый проект</Link>
         </Button>
       </header>
 
@@ -68,7 +68,7 @@ export default function ProjectsPage(): JSX.Element {
         <Card className="glass-card border-red-500/40 bg-red-500/10">
           <CardContent className="flex items-center gap-2 py-6 text-red-200">
             <AlertCircle className="h-4 w-4" />
-            РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РїСЂРѕРµРєС‚С‹.
+            Не удалось загрузить проекты.
           </CardContent>
         </Card>
       )}
@@ -76,7 +76,7 @@ export default function ProjectsPage(): JSX.Element {
       {!isLoading && !error && (projects?.length ?? 0) === 0 && (
         <Card className="glass-card">
           <CardContent className="py-10 text-center text-sm glass-muted">
-            {isEditor ? "Р’Р»Р°РґРµР»РµС† РµС‰С‘ РЅРµ РґРѕР±Р°РІРёР» РІР°СЃ РЅРё РІ РѕРґРёРЅ РїСЂРѕРµРєС‚" : "РџРѕРєР° РЅРµС‚ РїСЂРѕРµРєС‚РѕРІ. РЎРѕР·РґР°Р№С‚Рµ РїРµСЂРІС‹Р№ РїСЂРѕРµРєС‚ РґР»СЏ СЃР±РѕСЂР° РїСЂР°РІРѕРє."}
+            {isEditor ? "Владелец ещё не добавил вас ни в один проект" : "Пока нет проектов. Создайте первый проект для сбора правок."}
           </CardContent>
         </Card>
       )}
@@ -96,4 +96,3 @@ export default function ProjectsPage(): JSX.Element {
     </section>
   );
 }
-
