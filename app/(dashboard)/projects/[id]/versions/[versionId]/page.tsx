@@ -606,55 +606,57 @@ export default function VersionDetailPage(): JSX.Element {
         <section className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
           <div className="left-col flex min-w-0 min-h-0 flex-col gap-3 overflow-hidden">
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="relative aspect-video min-h-[380px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)] xl:min-h-[470px] 2xl:min-h-[530px]">
-                <KinescopePlayer
-                  ref={kinescopeRef}
-                  className="h-full w-full"
-                  videoId={activeVersion.kinescopeVideoId}
-                  videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
-                  onPlay={() => {
-                    if (playbackPolicy.hideOnPlay) {
-                      setActiveAnnotation(null);
-                    }
-                  }}
-                />
-                {overlayStrokes.length > 0 ? (
-                  <div className="pointer-events-none absolute inset-0">
-                    <svg {...getOverlaySvgProps()} className="h-full w-full">
-                      <defs>
-                        <marker
-                          id="arrowhead"
-                          markerWidth="6"
-                          markerHeight="6"
-                          refX="5"
-                          refY="3"
-                          orient="auto"
-                          markerUnits="strokeWidth"
-                        >
-                          <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
-                        </marker>
-                      </defs>
-                      {overlayStrokes.map((stroke, index) =>
-                        renderStroke(
-                          stroke.type === "arrow"
-                            ? { ...stroke, points: stroke.points }
-                            : stroke,
-                          index,
-                        ),
-                      )}
-                    </svg>
-                    <button
-                      type="button"
-                      onClick={() => setActiveAnnotation(null)}
-                      className="pointer-events-auto absolute right-4 top-4 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_20px_rgba(0,0,0,0.25)] backdrop-blur"
-                    >
-                      Скрыть аннотацию
-                    </button>
-                  </div>
-                ) : null}
+              <div className="mx-auto w-full max-w-[1040px]">
+                <div className="relative aspect-video min-h-[340px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)] xl:min-h-[420px] 2xl:min-h-[470px]">
+                  <KinescopePlayer
+                    ref={kinescopeRef}
+                    className="h-full w-full"
+                    videoId={activeVersion.kinescopeVideoId}
+                    videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
+                    onPlay={() => {
+                      if (playbackPolicy.hideOnPlay) {
+                        setActiveAnnotation(null);
+                      }
+                    }}
+                  />
+                  {overlayStrokes.length > 0 ? (
+                    <div className="pointer-events-none absolute inset-0">
+                      <svg {...getOverlaySvgProps()} className="h-full w-full">
+                        <defs>
+                          <marker
+                            id="arrowhead"
+                            markerWidth="6"
+                            markerHeight="6"
+                            refX="5"
+                            refY="3"
+                            orient="auto"
+                            markerUnits="strokeWidth"
+                          >
+                            <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
+                          </marker>
+                        </defs>
+                        {overlayStrokes.map((stroke, index) =>
+                          renderStroke(
+                            stroke.type === "arrow"
+                              ? { ...stroke, points: stroke.points }
+                              : stroke,
+                            index,
+                          ),
+                        )}
+                      </svg>
+                      <button
+                        type="button"
+                        onClick={() => setActiveAnnotation(null)}
+                        className="pointer-events-auto absolute right-4 top-4 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_20px_rgba(0,0,0,0.25)] backdrop-blur"
+                      >
+                        Скрыть аннотацию
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.78)_0%,rgba(10,12,20,0.84)_100%)] px-4 py-3 text-[11px] text-white/55 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
+              <div className="mx-auto mt-3 flex w-full max-w-[1040px] flex-wrap items-center justify-between gap-2 rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.78)_0%,rgba(10,12,20,0.84)_100%)] px-4 py-3 text-[11px] text-white/55 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
                 <div className="flex flex-wrap gap-3">
                   <span>{activeVersion.fileName}</span>
                   <span>Загрузил: {activeVersion.uploadedBy.name}</span>
