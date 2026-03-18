@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import useSWR from "swr";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChevronDown, Download, Loader2, Send } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
@@ -205,7 +205,13 @@ export default function VersionDetailPage(): JSX.Element {
   const [resettingPortalLink, setResettingPortalLink] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState(false);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [deleteMenuPosition, setDeleteMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const autoViewedVersionsRef = useRef<Set<string>>(new Set());
+  const longPressTimerRef = useRef<number | null>(null);
+  const shareMenuRef = useRef<HTMLDivElement | null>(null);
+  const shareButtonRef = useRef<HTMLButtonElement | null>(null);
+  const deleteMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (versionId) {
@@ -220,6 +226,8 @@ export default function VersionDetailPage(): JSX.Element {
   useEffect(() => {
     setActiveFilter("all");
     setOpenThreadIds(new Set());
+    setDeleteMenuPosition(null);
+    setShareMenuOpen(false);
   }, [activeVersionId]);
 
   useEffect(() => {
@@ -441,6 +449,81 @@ export default function VersionDetailPage(): JSX.Element {
     }
   };
 
+  const openDeleteMenu = (x: number, y: number): void => {
+    setShareMenuOpen(false);
+    if (typeof window === "undefined") {
+      setDeleteMenuPosition({ x, y });
+      return;
+    }
+
+    setDeleteMenuPosition({
+      x: Math.max(16, Math.min(x, window.innerWidth - 220)),
+      y: Math.max(16, Math.min(y, window.innerHeight - 80)),
+    });
+  };
+
+  const handleVersionContextMenu = (event: MouseEvent<HTMLButtonElement>, targetVersionId: string): void => {
+    if (!isOwnerOrPm || targetVersionId !== activeVersion.id) {
+      return;
+    }
+
+    event.preventDefault();
+    openDeleteMenu(event.clientX, event.clientY);
+  };
+
+  const clearLongPressTimer = (): void => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleVersionPointerDown = (event: ReactPointerEvent<HTMLButtonElement>, targetVersionId: string): void => {
+    if (!isOwnerOrPm || targetVersionId !== activeVersion.id || event.pointerType === "mouse") {
+      return;
+    }
+
+    clearLongPressTimer();
+    const currentTarget = event.currentTarget;
+    longPressTimerRef.current = window.setTimeout(() => {
+      const rect = currentTarget.getBoundingClientRect();
+      openDeleteMenu(rect.left + rect.width / 2, rect.bottom + 12);
+      longPressTimerRef.current = null;
+    }, 550);
+  };
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent): void => {
+      const target = event.target as Node | null;
+      if (
+        shareMenuRef.current?.contains(target) ||
+        shareButtonRef.current?.contains(target) ||
+        deleteMenuRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setShareMenuOpen(false);
+      setDeleteMenuPosition(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setShareMenuOpen(false);
+        setDeleteMenuPosition(null);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+      clearLongPressTimer();
+    };
+  }, []);
+
   const canReply = isOwnerOrPm;
 
   if (projectLoading || versionsLoading || !project) {
@@ -477,12 +560,23 @@ export default function VersionDetailPage(): JSX.Element {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 xl:justify-end">
-              <button type="button" className="pm-btn pm-btn-muted" onClick={() => void handleCopyPublicLink()}>Публичная ссылка</button>
-              <button type="button" className="pm-btn pm-btn-muted" onClick={handleOpenPublicLink} disabled={!project.portalToken}>Открыть портал</button>
-              <button type="button" className="pm-btn pm-btn-muted" onClick={() => void handleResetPublicLink()} disabled={resettingPortalLink}>{resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}</button>
+            <div className="relative flex flex-wrap gap-2 xl:justify-end">
+              <button ref={shareButtonRef} type="button" className="pm-btn pm-btn-muted" onClick={() => setShareMenuOpen((current) => !current)}>Поделиться</button>
               <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
-              {isOwnerOrPm ? <button type="button" className="pm-btn pm-btn-danger" onClick={() => void handleDeleteVersion()} disabled={deletingVersion}>{deletingVersion ? "Удаление..." : "Удалить версию"}</button> : null}
+
+              {shareMenuOpen ? (
+                <div ref={shareMenuRef} className="pm-share-menu">
+                  <button type="button" className="pm-share-item" onClick={() => void handleCopyPublicLink()}>
+                    Создать ссылку
+                  </button>
+                  <button type="button" className="pm-share-item" onClick={() => void handleResetPublicLink()} disabled={resettingPortalLink}>
+                    {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
+                  </button>
+                  <button type="button" className="pm-share-item" onClick={handleOpenPublicLink} disabled={!project.portalToken}>
+                    Перейти по ссылке
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -502,6 +596,11 @@ export default function VersionDetailPage(): JSX.Element {
                   : "border-white/10 bg-white/[0.03] text-white/40 hover:border-white/15 hover:text-white/75",
               )}
               onClick={() => setActiveVersionId(version.id)}
+              onContextMenu={(event) => handleVersionContextMenu(event, version.id)}
+              onPointerDown={(event) => handleVersionPointerDown(event, version.id)}
+              onPointerUp={clearLongPressTimer}
+              onPointerCancel={clearLongPressTimer}
+              onPointerLeave={clearLongPressTimer}
             >
               Версия {version.versionNumber}
             </button>
@@ -755,6 +854,26 @@ export default function VersionDetailPage(): JSX.Element {
         </section>
       </div>
 
+      {deleteMenuPosition ? (
+        <div
+          ref={deleteMenuRef}
+          className="pm-delete-menu"
+          style={{ left: deleteMenuPosition.x, top: deleteMenuPosition.y }}
+        >
+          <button
+            type="button"
+            className="pm-delete-item"
+            onClick={() => {
+              setDeleteMenuPosition(null);
+              void handleDeleteVersion();
+            }}
+            disabled={deletingVersion}
+          >
+            {deletingVersion ? "Удаление..." : "Удалить версию"}
+          </button>
+        </div>
+      ) : null}
+
       <style jsx global>{`
         .pm-etalon {
           background:
@@ -794,6 +913,67 @@ export default function VersionDetailPage(): JSX.Element {
           border: 1px solid rgba(248, 113, 113, 0.24);
           background: rgba(127, 29, 29, 0.18);
           color: rgba(254, 202, 202, 0.88);
+        }
+        .pm-share-menu {
+          position: absolute;
+          right: 0;
+          top: calc(100% + 10px);
+          z-index: 30;
+          display: flex;
+          min-width: 220px;
+          flex-direction: column;
+          gap: 6px;
+          border-radius: 18px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: linear-gradient(180deg, rgba(18, 20, 31, 0.98), rgba(10, 12, 20, 0.98));
+          padding: 8px;
+          box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+          backdrop-filter: blur(20px);
+        }
+        .pm-share-item {
+          border-radius: 12px;
+          padding: 11px 12px;
+          text-align: left;
+          font-size: 13px;
+          font-weight: 600;
+          color: rgba(240, 244, 255, 0.88);
+          transition: 160ms ease;
+        }
+        .pm-share-item:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.06);
+        }
+        .pm-share-item:disabled {
+          cursor: not-allowed;
+          opacity: 0.45;
+        }
+        .pm-delete-menu {
+          position: fixed;
+          z-index: 40;
+          min-width: 180px;
+          border-radius: 16px;
+          border: 1px solid rgba(248, 113, 113, 0.16);
+          background: linear-gradient(180deg, rgba(18, 20, 31, 0.98), rgba(10, 12, 20, 0.98));
+          padding: 8px;
+          box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+          backdrop-filter: blur(20px);
+          transform: translate(-50%, 0);
+        }
+        .pm-delete-item {
+          width: 100%;
+          border-radius: 12px;
+          padding: 11px 12px;
+          text-align: left;
+          font-size: 13px;
+          font-weight: 600;
+          color: rgba(254, 202, 202, 0.92);
+          transition: 160ms ease;
+        }
+        .pm-delete-item:hover:not(:disabled) {
+          background: rgba(127, 29, 29, 0.24);
+        }
+        .pm-delete-item:disabled {
+          cursor: not-allowed;
+          opacity: 0.45;
         }
         .left-col::-webkit-scrollbar {
           width: 4px;
