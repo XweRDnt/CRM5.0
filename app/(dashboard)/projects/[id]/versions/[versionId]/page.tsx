@@ -458,17 +458,17 @@ export default function VersionDetailPage(): JSX.Element {
   }
 
   return (
-    <main className="pm-etalon min-h-screen text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1760px] flex-col gap-5 px-5 py-5 xl:px-7 xl:py-6">
-        <section className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+    <main className="pm-etalon h-[100dvh] overflow-hidden text-white">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1760px] flex-col gap-3 px-4 py-4 xl:px-6 xl:py-5">
+        <section className="shrink-0 rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-6 py-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0">
               <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Project review workspace</span>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <h1 className="text-[clamp(28px,3.1vw,44px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
-                <span className="h-6 w-px bg-white/10" />
-                <span className="text-sm text-white/55">Версия {activeVersion.versionNumber}</span>
-                <span className="text-sm text-white/55">{VERSION_STATUS_LABELS[versionUiStatus]}</span>
+              <div className="mt-2 flex flex-wrap items-center gap-2.5">
+                <h1 className="text-[clamp(24px,2.4vw,32px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
+                <span className="h-5 w-px bg-white/10" />
+                <span className="text-[13px] text-white/55">Версия {activeVersion.versionNumber}</span>
+                <span className="text-[13px] text-white/55">{VERSION_STATUS_LABELS[versionUiStatus]}</span>
                 {feedbackCounts.NEW > 0 ? (
                   <span className="rounded-full border border-red-400/25 bg-red-950/40 px-3 py-1 text-[11px] font-semibold text-red-200">
                     Есть правки
@@ -487,7 +487,7 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <section className="shrink-0 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="flex shrink-0 items-center gap-2 overflow-x-auto scrollbar-none">
         {versions.map((version) => {
           const isActive = version.id === activeVersion.id;
@@ -517,22 +517,22 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
-          <div className="left-col flex min-w-0 flex-col gap-4 overflow-y-auto">
-            <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-              <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <section className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
+          <div className="left-col flex min-w-0 min-h-0 flex-col gap-3 overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Current cut</span>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Review stage</h2>
+                  <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">Review stage</h2>
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs text-white/55">
-                  <span className="rounded-full bg-white/5 px-3 py-2">{activeVersion.fileName}</span>
-                  <span className="rounded-full bg-white/5 px-3 py-2">{formatDate(activeVersion.createdAt)}</span>
+                  <span className="rounded-full bg-white/5 px-3 py-1.5">{activeVersion.fileName}</span>
+                  <span className="rounded-full bg-white/5 px-3 py-1.5">{formatDate(activeVersion.createdAt)}</span>
                 </div>
               </div>
 
-              <div className="rounded-[24px] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01)),linear-gradient(135deg,rgba(67,87,255,0.08),transparent_44%)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
-                <div className="relative aspect-video min-h-[440px] overflow-hidden rounded-[22px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)]">
+              <div className="flex min-h-0 flex-1 rounded-[22px] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01)),linear-gradient(135deg,rgba(67,87,255,0.08),transparent_44%)] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
+                <div className="relative aspect-video min-h-[280px] w-full overflow-hidden rounded-[20px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)] xl:min-h-[320px] 2xl:min-h-[360px]">
                 <KinescopePlayer
                   ref={kinescopeRef}
                   className="h-full w-full"
@@ -581,7 +581,7 @@ export default function VersionDetailPage(): JSX.Element {
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-white/55">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-white/55">
                 <div className="flex flex-wrap gap-3">
                   <span>{activeVersion.fileName}</span>
                   <span>Загрузил: {activeVersion.uploadedBy.name}</span>
@@ -597,51 +597,51 @@ export default function VersionDetailPage(): JSX.Element {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+            <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
+              <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
                 <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">Новые</div>
-                <div className="mt-3 text-[34px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
+                <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
               </div>
-              <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+              <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
                 <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">Просмотрено</div>
-                <div className="mt-3 text-[34px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
+                <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
               </div>
-              <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+              <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
                 <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">В работе</div>
-                <div className="mt-3 text-[34px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
+                <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
               </div>
-              <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+              <div className="rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
                 <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">Готово</div>
-                <div className="mt-3 text-[34px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
+                <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="shrink-0 rounded-[18px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
               <button
                 type="button"
                 onClick={() => toast.info("В разработке")}
-                className="inline-flex items-center gap-2 rounded-[14px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-4 py-3 text-sm font-semibold text-indigo-100"
+                className="inline-flex items-center gap-2 rounded-[12px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-4 py-2.5 text-sm font-semibold text-indigo-100"
               >
                 <Download className="h-3.5 w-3.5" />
                 Выгрузить XML для монтажёра
               </button>
-              <p className="mt-3 text-xs text-white/40">Все «Новые» и «Просмотренные» можно быстро перевести в производственный контур.</p>
+              <p className="mt-2 text-[11px] text-white/40">Все «Новые» и «Просмотренные» можно быстро перевести в производственный контур.</p>
             </div>
           </div>
 
-          <aside className="min-h-0">
-            <div className="flex h-full min-h-[640px] flex-col rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-              <div className="flex items-start justify-between gap-3 pb-4">
+          <aside className="min-h-0 overflow-hidden">
+            <div className="flex h-full min-h-0 flex-col rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <div className="flex shrink-0 items-start justify-between gap-3 pb-3">
                 <div>
                   <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                  <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
                     Правки <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
                   </h2>
                 </div>
                 {feedbackLoading ? <Loader2 className="h-4 w-4 animate-spin text-sky-300" /> : null}
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-none">
+              <div className="flex shrink-0 gap-2 overflow-x-auto pb-3 scrollbar-none">
                 {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
                   <button
                     key={filter}
@@ -680,7 +680,7 @@ export default function VersionDetailPage(): JSX.Element {
                             isOpen ? "border-indigo-300/25 shadow-[0_18px_36px_rgba(0,0,0,0.24)]" : "border-white/10 hover:border-white/20",
                           )}
                         >
-                          <div className="relative flex gap-3 p-4">
+                          <div className="relative flex gap-3 p-3.5">
                             {!isOpen && status === "NEW" ? <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-indigo-400 shadow-[0_0_14px_rgba(124,140,255,0.72)]" /> : null}
                             <div className="min-w-0 flex-1">
                               <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -702,9 +702,9 @@ export default function VersionDetailPage(): JSX.Element {
                                 </button>
                               </div>
 
-                              <p className="text-sm leading-7 text-white/72">{item.text}</p>
+                              <p className="text-sm leading-6 text-white/72">{item.text}</p>
 
-                              <div className="mt-4 flex flex-wrap items-center gap-2">
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
                                 {item.annotationData ? (
                                   <span className="inline-flex items-center gap-2 text-[11px] text-sky-200/75">
                                     <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
@@ -729,13 +729,13 @@ export default function VersionDetailPage(): JSX.Element {
                             )}
                           >
                             <div className="min-h-0">
-                              <div className="mx-4 border-t border-white/10 pt-4">
+                              <div className="mx-4 border-t border-white/10 pt-3">
                                 <span className="text-[10px] uppercase tracking-[0.16em] text-white/30">Thread</span>
                                 <p className="mt-2 text-xs leading-6 text-white/55">
                                   Ответы появятся здесь. Зона уже собрана как более плотный PM-review thread.
                                 </p>
                               </div>
-                              <div className="flex items-center gap-2 p-4">
+                              <div className="flex items-center gap-2 p-3.5">
                                 <input
                                   disabled={!canReply}
                                   placeholder="Ответить клиенту..."
