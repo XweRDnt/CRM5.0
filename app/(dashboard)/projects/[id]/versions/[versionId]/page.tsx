@@ -474,13 +474,13 @@ export default function VersionDetailPage(): JSX.Element {
 
   return (
     <main
-      className="min-h-screen text-white"
+      className="h-[calc(100vh-88px)] min-h-0 overflow-hidden text-white"
       style={{
         background:
           "radial-gradient(ellipse at 8% 12%, rgba(80,70,210,0.28) 0%, transparent 48%), radial-gradient(ellipse at 92% 88%, rgba(180,60,120,0.18) 0%, transparent 45%), #09090f",
       }}
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4">
+      <div className="mx-auto flex h-full max-w-6xl flex-col gap-4 px-4 py-4">
         <header className={cn("space-y-3 p-4", glassPanelClass)}>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0 space-y-2">
@@ -562,8 +562,8 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
         </div>
 
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0 space-y-3">
+        <section className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-3 overflow-y-auto pr-1">
             <div className={cn("p-2 sm:p-3", glassPanelClass)}>
               <div className="relative overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f]">
                 <KinescopePlayer
@@ -626,7 +626,7 @@ export default function VersionDetailPage(): JSX.Element {
             </p>
           </div>
 
-          <aside className={cn("min-w-0 space-y-3 p-3 sm:p-4", glassPanelClass)}>
+          <aside className={cn("min-w-0 space-y-3 overflow-y-auto p-3 sm:p-4", glassPanelClass)}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
                 Правки ({visibleBaseFeedback.length})
@@ -686,7 +686,7 @@ export default function VersionDetailPage(): JSX.Element {
                 Правок пока нет
               </div>
             ) : (
-              <div className="max-h-[calc(100vh-380px)] space-y-2 overflow-y-auto pr-1">
+              <div className="space-y-2">
                 {filteredFeedback.map((item) => {
                   const isOpen = openThreadIds.has(item.id);
                   const status = (item.status ?? "NEW") as FeedbackStatus;
