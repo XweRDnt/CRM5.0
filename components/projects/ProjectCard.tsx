@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import useSWR from "swr";
@@ -96,14 +96,14 @@ export function ProjectCard({ project, canDelete = false, onDelete }: ProjectCar
         </span>
       </CardHeader>
       <CardContent className="flex items-center justify-between">
-        <span className="text-sm glass-muted">РЎРѕР·РґР°РЅ: {new Date(project.createdAt).toLocaleDateString("ru-RU")}</span>
+        <span className="text-sm glass-muted">Создан: {new Date(project.createdAt).toLocaleDateString("ru-RU")}</span>
         {canDelete && (
           <Button variant="destructive" size="sm" onClick={() => onDelete?.(project.id, project.name)}>
-            РЈРґР°Р»РёС‚СЊ
+            Удалить
           </Button>
         )}
         <Button asChild size="sm">
-          <Link href={`/projects/${project.id}`}>РћС‚РєСЂС‹С‚СЊ</Link>
+          <Link href={`/projects/${project.id}`}>Открыть</Link>
         </Button>
       </CardContent>
     </Card>
