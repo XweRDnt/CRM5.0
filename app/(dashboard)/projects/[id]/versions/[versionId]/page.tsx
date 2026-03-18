@@ -4,7 +4,8 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Check, ChevronDown, Copy, Download, Loader2, Menu, Search, Send, Share2, Users } from "lucide-react";
+import { Check, ChevronDown, Copy, Download, Loader2, Search, Send, Share2, Users } from "lucide-react";
+import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
 import type { FeedbackStatus } from "@prisma/client";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
@@ -756,14 +757,7 @@ export default function VersionDetailPage(): JSX.Element {
       <div className="mx-auto flex min-h-full w-full max-w-[1760px] flex-col gap-3 px-4 py-4 lg:h-full lg:min-h-0 xl:px-6 xl:py-5">
         <section className="shrink-0 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:px-6">
           <div className="flex items-start gap-3 lg:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-              aria-label="Открыть меню"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+            <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 pt-1">
