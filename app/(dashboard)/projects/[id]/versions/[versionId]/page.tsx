@@ -453,7 +453,7 @@ export default function VersionDetailPage(): JSX.Element {
 
   const glassPanelClass = "rounded-[18px] border border-white/10 bg-white/[0.048] backdrop-blur-2xl";
   const glassCardClass = "rounded-[13px] border border-white/10 bg-white/[0.04]";
-  const pillBase = "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors";
+  const pillBase = "rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors whitespace-nowrap";
   const filterActive = "border-indigo-400/40 bg-indigo-500/20 text-indigo-200";
   const filterInactive = "border-white/10 bg-white/5 text-white/45 hover:border-white/20 hover:text-white/70";
   const canReply = isOwnerOrPm;
@@ -473,7 +473,7 @@ export default function VersionDetailPage(): JSX.Element {
   }
 
   return (
-    <main className="h-[calc(100vh-88px)] min-h-0 overflow-hidden text-white">
+    <main className="h-screen min-h-0 overflow-hidden text-white">
       <div className="flex h-full w-full flex-col gap-6 px-6">
         <header className={cn("space-y-4 p-5 sm:p-6", glassPanelClass)}>
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -559,10 +559,10 @@ export default function VersionDetailPage(): JSX.Element {
         <section className="grid min-h-0 flex-1 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
           <div className="min-w-0 space-y-4 overflow-y-auto pr-2">
             <div className={cn("p-3 sm:p-4", glassPanelClass)}>
-              <div className="relative overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f]">
+              <div className="relative max-h-[45vh] overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f]">
                 <KinescopePlayer
                   ref={kinescopeRef}
-                  className="w-full"
+                  className="h-[45vh] max-h-[45vh] w-full"
                   videoId={activeVersion.kinescopeVideoId}
                   videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
                   onPlay={() => {
@@ -651,7 +651,7 @@ export default function VersionDetailPage(): JSX.Element {
           <aside className="min-w-0">
             <div className="flex h-full flex-col gap-4">
               <div className={cn("sticky top-0 z-10 p-3 sm:p-4", glassPanelClass)}>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-nowrap gap-2 overflow-hidden">
                   {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
                     <button
                       key={filter}
