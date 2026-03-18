@@ -48,14 +48,6 @@ function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
 }
 
-function formatDate(value: Date): string {
-  return new Date(value).toLocaleDateString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
 function formatTimecode(seconds: number | null): string {
   const safe = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds as number)) : 0;
   const min = Math.floor(safe / 60);
@@ -656,20 +648,6 @@ export default function VersionDetailPage(): JSX.Element {
                 </div>
               </div>
 
-              <div className="mx-auto mt-2 flex w-full max-w-[1040px] flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.76)_0%,rgba(10,12,20,0.82)_100%)] px-3 py-2 text-[10px] text-white/50 shadow-[0_10px_24px_rgba(0,0,0,0.2)]">
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <span>{activeVersion.fileName}</span>
-                  <span>Загрузил: {activeVersion.uploadedBy.name}</span>
-                  <span>{formatDate(activeVersion.createdAt)}</span>
-                </div>
-                {activeVersion.processingStatus !== "READY" ? (
-                  <p className="text-[10px] leading-tight text-white/55">
-                    {activeVersion.processingStatus === "FAILED"
-                      ? "Обработка видео в Kinescope завершилась с ошибкой."
-                      : "Kinescope ещё обрабатывает видео. Воспроизведение может быть временно недоступно."}
-                  </p>
-                ) : null}
-              </div>
             </div>
 
             <div className="grid shrink-0 grid-cols-2 gap-2.5 xl:grid-cols-4">
