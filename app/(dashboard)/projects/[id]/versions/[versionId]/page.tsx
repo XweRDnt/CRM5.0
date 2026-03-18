@@ -474,91 +474,89 @@ export default function VersionDetailPage(): JSX.Element {
 
   return (
     <main className="flex h-[100dvh] min-h-0 flex-col overflow-hidden text-white">
-      <div className="flex w-full flex-col gap-6 px-6">
-        <div className="flex shrink-0 flex-col gap-6">
-          <header className={cn("space-y-4 p-5 sm:p-6", glassPanelClass)}>
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div className="min-w-0 space-y-2">
-                <h1 className="break-words text-xl font-semibold text-white sm:text-2xl">{project.name}</h1>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-white/70">Версия {activeVersion.versionNumber}</span>
-                  <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-xs font-medium", VERSION_BADGE_CLASSES[versionUiStatus])}>
-                    {VERSION_STATUS_LABELS[versionUiStatus]}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-                <Button
-                  variant="outline"
-                  onClick={handleCopyPublicLink}
-                  className="w-full rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1] sm:w-auto"
-                >
-                  Публичная ссылка
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleOpenPublicLink}
-                  disabled={!project?.portalToken}
-                  className="w-full rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1] sm:w-auto"
-                >
-                  Открыть портал
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleResetPublicLink}
-                  disabled={resettingPortalLink}
-                  className="w-full rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1] sm:w-auto"
-                >
-                  {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
-                </Button>
-                {isOwnerOrPm && (
-                  <Button
-                    variant="destructive"
-                    onClick={() => void handleDeleteVersion()}
-                    disabled={deletingVersion}
-                    className="w-full rounded-full bg-red-500/15 px-4 py-2 text-red-200 hover:bg-red-500/25 sm:w-auto"
-                  >
-                    {deletingVersion ? "Удаление..." : "Удалить версию"}
-                  </Button>
-                )}
-              </div>
+      <div className="flex w-full shrink-0 flex-col gap-4 px-6 pt-6">
+        <div className={cn("flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6", glassPanelClass)}>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold text-white sm:text-2xl">{project.name}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white/60">
+              <span>Версия {activeVersion.versionNumber}</span>
+              <span className="text-white/40">·</span>
+              <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold", VERSION_BADGE_CLASSES[versionUiStatus])}>
+                {VERSION_STATUS_LABELS[versionUiStatus]}
+              </span>
             </div>
-          </header>
+          </div>
 
-          <div className={cn("px-4 py-3 sm:px-5", glassPanelClass)}>
-            <div className="flex flex-wrap gap-3">
-              {versions.map((version) => {
-                const isActive = version.id === activeVersion.id;
-                return (
-                  <button
-                    key={version.id}
-                    type="button"
-                    className={cn(
-                      "rounded-full border px-4 py-2 text-xs font-semibold transition",
-                      isActive
-                        ? "border-indigo-400/40 bg-indigo-500/20 text-indigo-200"
-                        : "border-white/10 bg-white/[0.03] text-white/45 hover:border-white/20 hover:text-white/70",
-                    )}
-                    onClick={() => setActiveVersionId(version.id)}
-                  >
-                    Версия {version.versionNumber}
-                  </button>
-                );
-              })}
-
-              <VersionUploadDialog
-                projectId={projectId}
-                triggerText="+ Создать новую версию"
-                triggerVariant="outline"
-                triggerSize="sm"
-                triggerClassName="w-full basis-full rounded-full border-white/15 bg-white/[0.03] px-4 py-2 text-white/55 hover:border-white/25 hover:text-white sm:w-auto sm:basis-auto sm:whitespace-nowrap"
-              />
-            </div>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
+            <Button
+              variant="outline"
+              onClick={handleCopyPublicLink}
+              className="rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1]"
+            >
+              Публичная ссылка
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleOpenPublicLink}
+              disabled={!project?.portalToken}
+              className="rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1]"
+            >
+              Открыть портал
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleResetPublicLink}
+              disabled={resettingPortalLink}
+              className="rounded-full border-white/10 bg-white/[0.05] px-4 py-2 text-white/70 hover:bg-white/[0.1]"
+            >
+              {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
+            </Button>
+            {isOwnerOrPm && (
+              <Button
+                variant="destructive"
+                onClick={() => void handleDeleteVersion()}
+                disabled={deletingVersion}
+                className="rounded-full bg-red-500/15 px-4 py-2 text-red-200 hover:bg-red-500/25"
+              >
+                {deletingVersion ? "Удаление..." : "Удалить версию"}
+              </Button>
+            )}
           </div>
         </div>
 
-        <section className="flex flex-1 gap-6 overflow-hidden">
+        <div className={cn("px-4 py-3 sm:px-5", glassPanelClass)}>
+          <div className="flex flex-wrap gap-3">
+            {versions.map((version) => {
+              const isActive = version.id === activeVersion.id;
+              return (
+                <button
+                  key={version.id}
+                  type="button"
+                  className={cn(
+                    "rounded-full border px-4 py-2 text-xs font-semibold transition",
+                    isActive
+                      ? "border-indigo-400/40 bg-indigo-500/20 text-indigo-200"
+                      : "border-white/10 bg-white/[0.03] text-white/45 hover:border-white/20 hover:text-white/70",
+                  )}
+                  onClick={() => setActiveVersionId(version.id)}
+                >
+                  Версия {version.versionNumber}
+                </button>
+              );
+            })}
+
+            <VersionUploadDialog
+              projectId={projectId}
+              triggerText="+ Создать новую версию"
+              triggerVariant="outline"
+              triggerSize="sm"
+              triggerClassName="w-full basis-full rounded-full border-white/15 bg-white/[0.03] px-4 py-2 text-white/55 hover:border-white/25 hover:text-white sm:w-auto sm:basis-auto sm:whitespace-nowrap"
+            />
+          </div>
+        </div>
+      </div>
+
+      <section className="flex flex-1 gap-6 overflow-hidden px-6 pb-6">
           <div className="min-w-0 flex-1 space-y-4 overflow-y-auto pr-2">
             <div className={cn("p-3 sm:p-4", glassPanelClass)}>
               <div className="relative max-h-[45vh] overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f]">
