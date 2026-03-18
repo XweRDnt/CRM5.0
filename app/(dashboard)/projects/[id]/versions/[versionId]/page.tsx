@@ -1,9 +1,10 @@
 ﻿"use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Check, ChevronDown, Copy, Download, Loader2, Search, Send } from "lucide-react";
+import { useParams, usePathname, useRouter } from "next/navigation";
+import { Check, ChevronDown, Copy, Download, FolderOpen, Loader2, Search, Send, UserPlus, Users } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
@@ -20,7 +21,7 @@ import type { AnnotationData, AnnotationStroke, AssetVersionResponse, FeedbackRe
 
 type ApiWrapped<T> = T | { data: T };
 type FeedbackFilter = "all" | "NEW" | "VIEWED" | "IN_PROGRESS" | "RESOLVED";
-type MobileSection = "feedback" | "versions" | "team";
+type MobileSection = "feedback" | "team";
 type ProjectMemberRole = "pm" | "editor";
 type WorkspaceMember = {
   userId: string;
@@ -98,6 +99,12 @@ const PROJECT_ROLE_LABELS: Record<ProjectMemberRole, string> = {
   pm: "PM",
   editor: "EDITOR",
 };
+
+const MOBILE_APP_NAV = [
+  { href: "/projects", label: "Проекты", icon: FolderOpen, ownerOrPmOnly: false },
+  { href: "/clients", label: "Клиенты", icon: Users, ownerOrPmOnly: true },
+  { href: "/team", label: "Команда", icon: UserPlus, ownerOrPmOnly: true },
+] as const;
 function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
 }
@@ -224,6 +231,7 @@ function copyToClipboard(text: string): Promise<void> {
 export default function VersionDetailPage(): JSX.Element {
   const params = useParams<{ id: string; versionId: string }>();
   const { id: projectId, versionId } = params;
+  const pathname = usePathname();
   const router = useRouter();
   const kinescopeRef = useRef<KinescopePlayerRef>(null);
   const { user } = useAuthGuard();
@@ -261,6 +269,7 @@ export default function VersionDetailPage(): JSX.Element {
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [employeesModalOpen, setEmployeesModalOpen] = useState(false);
+  const [mobileVersionsSheetOpen, setMobileVersionsSheetOpen] = useState(false);
   const [deleteMenuPosition, setDeleteMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [mobileSection, setMobileSection] = useState<MobileSection>("feedback");
   const [memberSearch, setMemberSearch] = useState("");
@@ -288,6 +297,7 @@ export default function VersionDetailPage(): JSX.Element {
     setDeleteMenuPosition(null);
     setShareMenuOpen(false);
     setEmployeesModalOpen(false);
+    setMobileVersionsSheetOpen(false);
     setMobileSection("feedback");
   }, [activeVersionId]);
 
@@ -917,11 +927,6 @@ export default function VersionDetailPage(): JSX.Element {
                   Сотрудники
                 </button>
               ) : null}
-              {isOwnerOrPm ? (
-                <button type="button" className="pm-btn pm-btn-muted lg:hidden" onClick={() => setMobileSection("team")}>
-                  Сотрудники
-                </button>
-              ) : null}
               <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
             </div>
           </div>
@@ -962,7 +967,22 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="space-y-3 lg:hidden">
+        <section className="space-y-3 pb-24 lg:hidden">
+          <div className="flex items-center justify-between gap-2 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-2 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <button
+              type="button"
+              onClick={() => setMobileVersionsSheetOpen(true)}
+              className="inline-flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[14px] border border-white/10 bg-white/[0.04] px-3 py-2.5 text-left"
+            >
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-white/32">Активная версия</p>
+                <p className="mt-1 truncate text-sm font-semibold text-white/92">Версия {activeVersion.versionNumber}</p>
+              </div>
+              <ChevronDown className="h-4 w-4 shrink-0 text-white/45" />
+            </button>
+            <VersionUploadDialog projectId={projectId} triggerText="+ Версия" triggerSize="sm" triggerClassName="pm-btn pm-btn-primary !h-11 !px-4 !text-xs !whitespace-nowrap" />
+          </div>
+
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
             <div className="relative aspect-video overflow-hidden rounded-[20px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)]">
               <KinescopePlayer
@@ -1036,9 +1056,8 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
 
           <div className="sticky top-2 z-10 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.94)_0%,rgba(10,12,20,0.96)_100%)] p-2 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-            <div className={cn("grid gap-2", isOwnerOrPm ? "grid-cols-3" : "grid-cols-2")}>
+            <div className={cn("grid gap-2", isOwnerOrPm ? "grid-cols-2" : "grid-cols-1")}>
               <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "feedback" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("feedback")}>Правки</button>
-              <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "versions" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("versions")}>Версии</button>
               {isOwnerOrPm ? <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "team" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("team")}>Сотрудники</button> : null}
             </div>
           </div>
@@ -1069,19 +1088,6 @@ export default function VersionDetailPage(): JSX.Element {
                 ))}
               </div>
               {feedbackListContent}
-            </div>
-          ) : null}
-
-          {mobileSection === "versions" ? (
-            <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Versions</span>
-                  <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">Версии</h2>
-                </div>
-                <VersionUploadDialog projectId={projectId} triggerText="+ Новая" triggerSize="sm" triggerClassName="pm-btn pm-btn-primary !h-10 !px-4 !text-xs" />
-              </div>
-              {versionsListContent}
             </div>
           ) : null}
 
@@ -1340,6 +1346,22 @@ export default function VersionDetailPage(): JSX.Element {
         </div>
       ) : null}
 
+      {mobileVersionsSheetOpen ? (
+        <div className="pm-mobile-sheet-backdrop lg:hidden" onClick={() => setMobileVersionsSheetOpen(false)}>
+          <div className="pm-mobile-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="pm-mobile-sheet-handle" />
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Versions</span>
+                <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em] text-white">Версии</h2>
+              </div>
+              <VersionUploadDialog projectId={projectId} triggerText="+ Новая" triggerSize="sm" triggerClassName="pm-btn pm-btn-primary !h-10 !px-4 !text-xs" />
+            </div>
+            <div className="max-h-[56vh] overflow-y-auto pr-1">{versionsListContent}</div>
+          </div>
+        </div>
+      ) : null}
+
       {deleteMenuPosition ? (
         <div
           ref={deleteMenuRef}
@@ -1359,6 +1381,19 @@ export default function VersionDetailPage(): JSX.Element {
           </button>
         </div>
       ) : null}
+
+      <nav className="pm-mobile-bottom-nav lg:hidden">
+        {MOBILE_APP_NAV.filter((item) => !item.ownerOrPmOnly || isOwnerOrPm).map((item) => {
+          const Icon = item.icon;
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <Link key={item.href} href={item.href} className={cn("pm-mobile-bottom-link", active && "pm-mobile-bottom-link-active")}>
+              <Icon className="h-4 w-4" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
 
       <style jsx global>{`
         .pm-etalon {
@@ -1642,6 +1677,64 @@ export default function VersionDetailPage(): JSX.Element {
         }
         .pm-person-save {
           min-width: 108px;
+        }
+        .pm-mobile-sheet-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 36;
+          display: flex;
+          align-items: flex-end;
+          background: rgba(4, 6, 12, 0.42);
+          backdrop-filter: blur(12px);
+        }
+        .pm-mobile-sheet {
+          width: 100%;
+          border-radius: 24px 24px 0 0;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: linear-gradient(180deg, rgba(18, 22, 34, 0.96), rgba(10, 12, 20, 0.98));
+          padding: 12px 16px 20px;
+          box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
+        }
+        .pm-mobile-sheet-handle {
+          margin: 0 auto 14px;
+          height: 5px;
+          width: 52px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.16);
+        }
+        .pm-mobile-bottom-nav {
+          position: fixed;
+          right: 12px;
+          bottom: max(12px, env(safe-area-inset-bottom));
+          left: 12px;
+          z-index: 34;
+          display: grid;
+          grid-auto-flow: column;
+          grid-auto-columns: 1fr;
+          gap: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          background: linear-gradient(180deg, rgba(18, 22, 34, 0.94), rgba(10, 12, 20, 0.98));
+          padding: 8px;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+          backdrop-filter: blur(20px);
+        }
+        .pm-mobile-bottom-link {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          min-height: 54px;
+          border-radius: 14px;
+          color: rgba(214, 221, 235, 0.48);
+          font-size: 11px;
+          font-weight: 600;
+          transition: 160ms ease;
+        }
+        .pm-mobile-bottom-link-active {
+          background: rgba(255, 255, 255, 0.07);
+          color: rgba(248, 250, 255, 0.96);
         }
         .pm-delete-menu {
           position: fixed;
