@@ -621,25 +621,6 @@ export default function VersionDetailPage(): JSX.Element {
               ) : null}
             </div>
 
-            <p className="break-words text-xs leading-relaxed text-white/45">
-              {activeVersion.fileName} • Загружил: {activeVersion.uploadedBy.name} • {formatDate(activeVersion.createdAt)}
-            </p>
-          </div>
-
-          <aside className={cn("min-w-0 space-y-4 overflow-y-auto p-4 sm:p-5", glassPanelClass)}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
-                Правки ({visibleBaseFeedback.length})
-              </h2>
-              {feedbackLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-300" />}
-            </div>
-
-            {isActiveVersionApproved && (
-              <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-3 py-2 text-xs text-emerald-200">
-                Версия утверждена клиентом
-              </div>
-            )}
-
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className={cn("min-w-[110px] px-3 py-3 text-center", glassCardClass)}>
                 <div className="text-lg font-semibold text-amber-300">{feedbackCounts.NEW}</div>
@@ -667,6 +648,25 @@ export default function VersionDetailPage(): JSX.Element {
               <Download className="h-4 w-4" />
               Выгрузить XML
             </button>
+
+            <p className="break-words text-xs leading-relaxed text-white/45">
+              {activeVersion.fileName} • Загружил: {activeVersion.uploadedBy.name} • {formatDate(activeVersion.createdAt)}
+            </p>
+          </div>
+
+          <aside className={cn("min-w-0 space-y-4 overflow-y-auto p-4 sm:p-5", glassPanelClass)}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
+                Правки ({visibleBaseFeedback.length})
+              </h2>
+              {feedbackLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-300" />}
+            </div>
+
+            {isActiveVersionApproved && (
+              <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-3 py-2 text-xs text-emerald-200">
+                Версия утверждена клиентом
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-3">
               {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
