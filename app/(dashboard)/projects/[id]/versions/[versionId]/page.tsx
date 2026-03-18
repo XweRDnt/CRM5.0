@@ -458,32 +458,49 @@ export default function VersionDetailPage(): JSX.Element {
   }
 
   return (
-    <main className="pm-etalon flex h-[calc(100dvh-130px)] min-h-[620px] flex-col overflow-hidden rounded-2xl border border-white/10 text-white">
-      <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-white/10 px-5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="truncate text-[15px] font-semibold text-white/90">{project.name}</span>
-          <span className="text-white/20">·</span>
-          <span className="text-xs text-white/40">Версия {activeVersion.versionNumber}</span>
-          {feedbackCounts.NEW > 0 && <span className="rounded-full border border-red-500/30 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-300">Есть правки</span>}
-          <span className="text-[10px] uppercase tracking-[0.06em] text-white/35">{VERSION_STATUS_LABELS[versionUiStatus]}</span>
-        </div>
-        <div className="etalon-actions flex items-center gap-1.5">
-          <button type="button" className="btn et-btn-ghost" onClick={() => void handleCopyPublicLink()}>Публичная ссылка</button>
-          <button type="button" className="btn et-btn-ghost" onClick={handleOpenPublicLink} disabled={!project.portalToken}>Открыть портал</button>
-          <button type="button" className="btn et-btn-ghost" onClick={() => void handleResetPublicLink()} disabled={resettingPortalLink}>{resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}</button>
-          <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="btn et-btn-primary" />
-          {isOwnerOrPm ? <button type="button" className="btn et-btn-danger" onClick={() => void handleDeleteVersion()} disabled={deletingVersion}>{deletingVersion ? "Удаление..." : "Удалить версию"}</button> : null}
-        </div>
-      </header>
+    <main className="pm-etalon min-h-screen text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1760px] flex-col gap-5 px-5 py-5 xl:px-7 xl:py-6">
+        <section className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
+              <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Project review workspace</span>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <h1 className="text-[clamp(28px,3.1vw,44px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
+                <span className="h-6 w-px bg-white/10" />
+                <span className="text-sm text-white/55">Версия {activeVersion.versionNumber}</span>
+                <span className="text-sm text-white/55">{VERSION_STATUS_LABELS[versionUiStatus]}</span>
+                {feedbackCounts.NEW > 0 ? (
+                  <span className="rounded-full border border-red-400/25 bg-red-950/40 px-3 py-1 text-[11px] font-semibold text-red-200">
+                    Есть правки
+                  </span>
+                ) : null}
+              </div>
+            </div>
 
-      <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-white/10 px-5 py-2 scrollbar-none">
+            <div className="flex flex-wrap gap-2 xl:justify-end">
+              <button type="button" className="pm-btn pm-btn-muted" onClick={() => void handleCopyPublicLink()}>Публичная ссылка</button>
+              <button type="button" className="pm-btn pm-btn-muted" onClick={handleOpenPublicLink} disabled={!project.portalToken}>Открыть портал</button>
+              <button type="button" className="pm-btn pm-btn-muted" onClick={() => void handleResetPublicLink()} disabled={resettingPortalLink}>{resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}</button>
+              <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
+              {isOwnerOrPm ? <button type="button" className="pm-btn pm-btn-danger" onClick={() => void handleDeleteVersion()} disabled={deletingVersion}>{deletingVersion ? "Удаление..." : "Удалить версию"}</button> : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex shrink-0 items-center gap-2 overflow-x-auto scrollbar-none">
         {versions.map((version) => {
           const isActive = version.id === activeVersion.id;
           return (
             <button
               key={version.id}
               type="button"
-              className={cn("rounded-full border px-3.5 py-1 text-[11.5px] transition", isActive ? "border-indigo-400/35 bg-indigo-500/15 text-indigo-200" : "border-white/10 text-white/35 hover:text-white/60")}
+              className={cn(
+                "rounded-full border px-4 py-2 text-xs font-semibold transition",
+                isActive
+                  ? "border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.2),rgba(56,189,248,0.12))] text-indigo-100"
+                  : "border-white/10 bg-white/[0.03] text-white/40 hover:border-white/15 hover:text-white/75",
+              )}
               onClick={() => setActiveVersionId(version.id)}
             >
               Версия {version.versionNumber}
@@ -495,13 +512,27 @@ export default function VersionDetailPage(): JSX.Element {
           triggerText="+ Создать новую"
           triggerVariant="outline"
           triggerSize="sm"
-          triggerClassName="rounded-full border border-dashed border-white/15 bg-transparent px-3.5 py-1 text-[11.5px] text-white/30 hover:text-white/55"
+          triggerClassName="rounded-full border border-dashed border-white/15 bg-transparent px-4 py-2 text-xs font-semibold text-white/35 hover:border-white/20 hover:text-white/60"
         />
-      </div>
+          </div>
+        </section>
 
-      <section className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="left-col flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
-          <div className="relative aspect-video overflow-hidden rounded-[14px] border border-white/10 bg-[#07070f] shadow-[0_6px_32px_rgba(0,0,0,0.5)]">
+        <section className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
+          <div className="left-col flex min-w-0 flex-col gap-4 overflow-y-auto">
+            <div className="rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Current cut</span>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Review stage</h2>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-white/55">
+                  <span className="rounded-full bg-white/5 px-3 py-2">{activeVersion.fileName}</span>
+                  <span className="rounded-full bg-white/5 px-3 py-2">{formatDate(activeVersion.createdAt)}</span>
+                </div>
+              </div>
+
+              <div className="rounded-[24px] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01)),linear-gradient(135deg,rgba(67,87,255,0.08),transparent_44%)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
+                <div className="relative aspect-video min-h-[440px] overflow-hidden rounded-[22px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)]">
                 <KinescopePlayer
                   ref={kinescopeRef}
                   className="h-full w-full"
@@ -541,192 +572,253 @@ export default function VersionDetailPage(): JSX.Element {
                     <button
                       type="button"
                       onClick={() => setActiveAnnotation(null)}
-                      className="pointer-events-auto absolute right-3 top-3 rounded-lg border border-white/20 bg-black/60 px-2.5 py-1 text-[11px] text-white"
+                      className="pointer-events-auto absolute right-4 top-4 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_20px_rgba(0,0,0,0.25)] backdrop-blur"
                     >
-                      Скрыть
+                      Скрыть аннотацию
                     </button>
                   </div>
                 ) : null}
-            </div>
-
-          <p className="text-[11px] text-white/25">
-            {activeVersion.fileName} · Загрузил: {activeVersion.uploadedBy.name} · {formatDate(activeVersion.createdAt)}
-          </p>
-
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-[10px] border border-white/10 bg-white/5 px-2 py-2.5 text-center">
-              <div className="text-xl font-semibold text-amber-300">{feedbackCounts.NEW}</div>
-              <div className="text-[9.5px] uppercase tracking-[0.04em] text-white/35">Новые</div>
-            </div>
-            <div className="rounded-[10px] border border-white/10 bg-white/5 px-2 py-2.5 text-center">
-              <div className="text-xl font-semibold text-white/60">{feedbackCounts.VIEWED}</div>
-              <div className="text-[9.5px] uppercase tracking-[0.04em] text-white/35">Просмотрено</div>
-            </div>
-            <div className="rounded-[10px] border border-white/10 bg-white/5 px-2 py-2.5 text-center">
-              <div className="text-xl font-semibold text-blue-300">{feedbackCounts.IN_PROGRESS}</div>
-              <div className="text-[9.5px] uppercase tracking-[0.04em] text-white/35">В работе</div>
-            </div>
-            <div className="rounded-[10px] border border-white/10 bg-white/5 px-2 py-2.5 text-center">
-              <div className="text-xl font-semibold text-emerald-300">{feedbackCounts.RESOLVED}</div>
-              <div className="text-[9.5px] uppercase tracking-[0.04em] text-white/35">Готово</div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => toast.info("В разработке")}
-            className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-indigo-400/25 bg-indigo-500/10 px-3 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Выгрузить XML для монтажёра
-          </button>
-          <p className="text-center text-[10px] text-white/20">Все «Новые» и «Просмотренные» → «В работе»</p>
-
-          {activeVersion.processingStatus !== "READY" ? (
-            <p className="text-xs text-white/55">
-              {activeVersion.processingStatus === "FAILED"
-                ? "Обработка видео в Kinescope завершилась с ошибкой."
-                : "Kinescope ещё обрабатывает видео. Воспроизведение может быть временно недоступно."}
-            </p>
-          ) : null}
-          </div>
-
-        <aside className="right-col flex w-[340px] shrink-0 flex-col overflow-hidden border-l border-white/10">
-          <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-white/10 px-3 py-2 scrollbar-none">
-                  {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setActiveFilter(filter)}
-                      className={cn("rounded-lg border px-2.5 py-1 text-[11px] whitespace-nowrap transition", activeFilter === filter ? "border-white/15 bg-white/10 text-white/75" : "border-white/10 text-white/35 hover:text-white/65")}
-                    >
-                      {FILTER_LABELS[filter]}
-                    </button>
-                  ))}
-          </div>
-          <div className="px-3.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-white/30">
-            Правки <span className="font-normal text-white/20">({visibleBaseFeedback.length})</span>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-3">
-            {feedbackLoading ? <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center text-xs text-white/40">Загрузка правок...</div> : null}
-
-            {!feedbackLoading && filteredFeedback.length === 0 ? (
-              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-white/45">
-                  Правок пока нет
                 </div>
-              ) : (
-              <div className="space-y-1.5">
-                  {filteredFeedback.map((item) => {
-                    const isOpen = openThreadIds.has(item.id);
-                    const status = (item.status ?? "NEW") as FeedbackStatus;
-                    return (
-                      <article
-                        key={item.id}
-                        onClick={() => toggleThread(item.id)}
-                        className={cn(
-                        "group cursor-pointer overflow-hidden rounded-xl border border-white/10 transition",
-                        isOpen ? "border-indigo-400/30" : "hover:border-white/20",
-                        )}
-                      >
-                        <div className={cn("relative flex items-start gap-2 px-3 py-2.5", isOpen ? "bg-indigo-500/10" : "bg-white/5 group-hover:bg-white/10")}>
-                          {!isOpen && status === "NEW" && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.8)]" />}
-                          <div className="min-w-0 flex-1">
-                            <div className="mb-1 flex items-center gap-1.5">
-                              <span className="text-xs font-medium text-white/75">{item.author.name}</span>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  seekToTimecode(item.timecodeSec, item.annotationData);
-                                }}
-                                className={cn(
-                                  "rounded px-1.5 py-0.5 text-[10px] font-semibold",
-                                  item.timecodeSec !== null
-                                  ? "bg-blue-500/15 text-blue-300"
-                                  : "text-white/20",
-                                )}
-                              >
-                                {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "—"}
-                              </button>
-                            </div>
-                            <p className="text-xs leading-relaxed text-white/55">{item.text}</p>
-                            {item.annotationData ? (
-                              <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-blue-300/60">
-                                <span className="h-1 w-1 rounded-full bg-blue-300" />
-                                с аннотацией
-                              </div>
-                            ) : null}
-                            <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-white/30">
-                              <span className={cn("inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold", STATUS_BADGE_CLASSES[status])}>
-                                {STATUS_BADGE_LABELS[status]}
-                              </span>
-                              <span className="text-white/30">0 ответов</span>
-                            </div>
-                          </div>
-                          <div className={cn("mt-1 h-4 w-4 text-white/30 transition", isOpen && "rotate-180 text-blue-300")}>
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          </div>
-                        </div>
-                        <div
-                          onClick={(event) => event.stopPropagation()}
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-white/55">
+                <div className="flex flex-wrap gap-3">
+                  <span>{activeVersion.fileName}</span>
+                  <span>Загрузил: {activeVersion.uploadedBy.name}</span>
+                  <span>{formatDate(activeVersion.createdAt)}</span>
+                </div>
+                {activeVersion.processingStatus !== "READY" ? (
+                  <p className="text-xs text-white/60">
+                    {activeVersion.processingStatus === "FAILED"
+                      ? "Обработка видео в Kinescope завершилась с ошибкой."
+                      : "Kinescope ещё обрабатывает видео. Воспроизведение может быть временно недоступно."}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">Новые</div>
+                <div className="mt-3 text-[34px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">Просмотрено</div>
+                <div className="mt-3 text-[34px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">В работе</div>
+                <div className="mt-3 text-[34px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-white/35">Готово</div>
+                <div className="mt-3 text-[34px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
+              </div>
+            </div>
+
+            <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <button
+                type="button"
+                onClick={() => toast.info("В разработке")}
+                className="inline-flex items-center gap-2 rounded-[14px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-4 py-3 text-sm font-semibold text-indigo-100"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Выгрузить XML для монтажёра
+              </button>
+              <p className="mt-3 text-xs text-white/40">Все «Новые» и «Просмотренные» можно быстро перевести в производственный контур.</p>
+            </div>
+          </div>
+
+          <aside className="min-h-0">
+            <div className="flex h-full min-h-[640px] flex-col rounded-[30px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <div className="flex items-start justify-between gap-3 pb-4">
+                <div>
+                  <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                    Правки <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
+                  </h2>
+                </div>
+                {feedbackLoading ? <Loader2 className="h-4 w-4 animate-spin text-sky-300" /> : null}
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-none">
+                {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setActiveFilter(filter)}
+                    className={cn(
+                      "rounded-full border px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition",
+                      activeFilter === filter
+                        ? "border-indigo-300/30 bg-[linear-gradient(135deg,rgba(67,87,255,0.22),rgba(56,189,248,0.12))] text-white"
+                        : "border-white/10 bg-white/[0.03] text-white/45 hover:border-white/15 hover:text-white/75",
+                    )}
+                  >
+                    {FILTER_LABELS[filter]}
+                  </button>
+                ))}
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                {feedbackLoading ? <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/45">Загрузка правок...</div> : null}
+
+                {!feedbackLoading && filteredFeedback.length === 0 ? (
+                  <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/45">
+                    Правок пока нет
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredFeedback.map((item) => {
+                      const isOpen = openThreadIds.has(item.id);
+                      const status = (item.status ?? "NEW") as FeedbackStatus;
+                      return (
+                        <article
+                          key={item.id}
+                          onClick={() => toggleThread(item.id)}
                           className={cn(
-                          "overflow-hidden border-t border-white/10 transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
-                          isOpen ? "max-h-48 opacity-100" : "max-h-0 opacity-0",
+                            "overflow-hidden rounded-[24px] border bg-[linear-gradient(180deg,rgba(20,22,33,0.94),rgba(14,16,25,0.96))] transition cursor-pointer",
+                            isOpen ? "border-indigo-300/25 shadow-[0_18px_36px_rgba(0,0,0,0.24)]" : "border-white/10 hover:border-white/20",
                           )}
                         >
-                          <div className="flex items-center gap-2 p-2.5">
-                            <input
-                              disabled={!canReply}
-                              placeholder="Ответить клиенту..."
-                              className={cn(
-                                "flex-1 rounded-lg border px-2.5 py-1.5 text-xs outline-none transition",
-                                canReply
-                                ? "border-white/10 bg-white/5 text-white/70 placeholder:text-white/30"
-                                : "border-white/10 bg-white/5 text-white/25 placeholder:text-white/15",
-                              )}
-                            />
-                            <button
-                              type="button"
-                              disabled={!canReply}
-                              className={cn(
-                                "flex h-7 w-7 items-center justify-center rounded-lg transition",
-                                canReply ? "bg-indigo-500 text-white" : "bg-white/10 text-white/30",
-                              )}
-                            >
-                              <Send className="h-3 w-3" />
-                            </button>
+                          <div className="relative flex gap-3 p-4">
+                            {!isOpen && status === "NEW" ? <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-indigo-400 shadow-[0_0_14px_rgba(124,140,255,0.72)]" /> : null}
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-2 flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-semibold text-white/95">{item.author.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    seekToTimecode(item.timecodeSec, item.annotationData);
+                                  }}
+                                  className={cn(
+                                    "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                                    item.timecodeSec !== null
+                                      ? "border-sky-300/15 bg-sky-400/10 text-sky-100"
+                                      : "border-white/10 bg-white/[0.04] text-white/35",
+                                  )}
+                                >
+                                  {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                                </button>
+                              </div>
+
+                              <p className="text-sm leading-7 text-white/72">{item.text}</p>
+
+                              <div className="mt-4 flex flex-wrap items-center gap-2">
+                                {item.annotationData ? (
+                                  <span className="inline-flex items-center gap-2 text-[11px] text-sky-200/75">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                                    С аннотацией
+                                  </span>
+                                ) : null}
+                                <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[status])}>
+                                  {STATUS_BADGE_LABELS[status]}
+                                </span>
+                                <span className="text-[11px] text-white/30">0 ответов</span>
+                              </div>
+                            </div>
+
+                            <ChevronDown className={cn("mt-1 h-4 w-4 shrink-0 text-white/30 transition", isOpen && "rotate-180 text-white/80")} />
                           </div>
-                        </div>
-                      </article>
-                    );
-                  })}
+
+                          <div
+                            onClick={(event) => event.stopPropagation()}
+                            className={cn(
+                              "grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out",
+                              isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                            )}
+                          >
+                            <div className="min-h-0">
+                              <div className="mx-4 border-t border-white/10 pt-4">
+                                <span className="text-[10px] uppercase tracking-[0.16em] text-white/30">Thread</span>
+                                <p className="mt-2 text-xs leading-6 text-white/55">
+                                  Ответы появятся здесь. Зона уже собрана как более плотный PM-review thread.
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 p-4">
+                                <input
+                                  disabled={!canReply}
+                                  placeholder="Ответить клиенту..."
+                                  className={cn(
+                                    "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-white outline-none placeholder:text-white/30",
+                                    !canReply && "text-white/30 placeholder:text-white/15",
+                                  )}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={!canReply}
+                                  className={cn(
+                                    "flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(99,102,241,0.96),rgba(56,189,248,0.72))] text-white shadow-[0_10px_24px_rgba(67,87,255,0.22)]",
+                                    !canReply && "bg-white/10 text-white/30 shadow-none",
+                                  )}
+                                >
+                                  <Send className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </aside>
-      </section>
+            </div>
+          </aside>
+        </section>
+      </div>
+
       <style jsx global>{`
         .pm-etalon {
           background:
-            radial-gradient(ellipse at 8% 12%, rgba(80, 70, 210, 0.3) 0%, transparent 48%),
-            radial-gradient(ellipse at 92% 88%, rgba(180, 60, 120, 0.2) 0%, transparent 45%),
-            #09090f;
+            radial-gradient(circle at top left, rgba(67, 87, 255, 0.18), transparent 26%),
+            radial-gradient(circle at 80% 20%, rgba(22, 163, 74, 0.08), transparent 24%),
+            linear-gradient(180deg, #070811 0%, #0b0d14 48%, #090b12 100%);
         }
-        .pm-etalon .btn { padding: 6px 13px; border-radius: 8px; font-size: 12px; white-space: nowrap; }
-        .pm-etalon .btn:disabled { opacity: .55; cursor: not-allowed; }
-        .pm-etalon .et-btn-ghost { background: rgba(255,255,255,.05); border: .5px solid rgba(255,255,255,.1); color: rgba(255,255,255,.55); }
-        .pm-etalon .et-btn-ghost:hover { background: rgba(255,255,255,.09); color: rgba(255,255,255,.8); }
-        .pm-etalon .et-btn-primary { background: linear-gradient(135deg,#4f46e5,#6366f1); color: #fff; box-shadow: 0 2px 10px rgba(79,70,229,.3); }
-        .pm-etalon .et-btn-danger { background: rgba(239,68,68,.1); border: .5px solid rgba(239,68,68,.22); color: rgba(239,68,68,.75); }
-        .pm-etalon .left-col::-webkit-scrollbar, .pm-etalon .right-col::-webkit-scrollbar { width: 3px; }
-        .pm-etalon .left-col::-webkit-scrollbar-thumb, .pm-etalon .right-col::-webkit-scrollbar-thumb { background: rgba(255,255,255,.07); border-radius: 2px; }
-        @media (max-width: 1280px) {
-          .pm-etalon .etalon-actions { flex-wrap: wrap; }
+        .pm-btn {
+          height: 42px;
+          border-radius: 14px;
+          padding: 0 16px;
+          font-size: 13px;
+          font-weight: 600;
+          transition: 180ms ease;
         }
-        @media (max-width: 1024px) {
-          .pm-etalon { height: auto; min-height: 0; }
-          .pm-etalon > section { flex-direction: column; }
-          .pm-etalon .right-col { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.08); max-height: 55vh; }
+        .pm-btn:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
+        .pm-btn-muted {
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.04);
+          color: rgba(230, 236, 247, 0.72);
+        }
+        .pm-btn-muted:hover:not(:disabled) {
+          border-color: rgba(255, 255, 255, 0.16);
+          background: rgba(255, 255, 255, 0.08);
+          color: rgba(248, 250, 255, 0.96);
+        }
+        .pm-btn-primary {
+          border: 1px solid rgba(129, 140, 248, 0.4);
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.92), rgba(56, 189, 248, 0.78));
+          color: white;
+          box-shadow: 0 12px 28px rgba(63, 90, 255, 0.28);
+        }
+        .pm-btn-danger {
+          border: 1px solid rgba(248, 113, 113, 0.24);
+          background: rgba(127, 29, 29, 0.18);
+          color: rgba(254, 202, 202, 0.88);
+        }
+        .left-col::-webkit-scrollbar {
+          width: 4px;
+        }
+        .left-col::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.12);
+          border-radius: 999px;
+        }
+        @media (max-width: 1100px) {
+          .pm-btn {
+            width: 100%;
+          }
         }
       `}</style>
     </main>
