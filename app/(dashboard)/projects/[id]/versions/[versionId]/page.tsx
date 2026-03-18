@@ -777,7 +777,6 @@ export default function VersionDetailPage(): JSX.Element {
             </div>
           </aside>
         </section>
-      </div>
     </main>
   );
 }
