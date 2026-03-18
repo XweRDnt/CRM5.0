@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronDown, Download, Loader2, Send } from "lucide-react";
+import { ChevronDown, Copy, Download, Loader2, Send } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
@@ -525,6 +525,7 @@ export default function VersionDetailPage(): JSX.Element {
   }, []);
 
   const canReply = isOwnerOrPm;
+  const publicPortalLink = project?.portalToken ? createPublicPortalLink(project.portalToken) : "";
 
   if (projectLoading || versionsLoading || !project) {
     return (
@@ -564,19 +565,6 @@ export default function VersionDetailPage(): JSX.Element {
               <button ref={shareButtonRef} type="button" className="pm-btn pm-btn-muted" onClick={() => setShareMenuOpen((current) => !current)}>Поделиться</button>
               <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
 
-              {shareMenuOpen ? (
-                <div ref={shareMenuRef} className="pm-share-menu">
-                  <button type="button" className="pm-share-item" onClick={() => void handleCopyPublicLink()}>
-                    Создать ссылку
-                  </button>
-                  <button type="button" className="pm-share-item" onClick={() => void handleResetPublicLink()} disabled={resettingPortalLink}>
-                    {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
-                  </button>
-                  <button type="button" className="pm-share-item" onClick={handleOpenPublicLink} disabled={!project.portalToken}>
-                    Перейти по ссылке
-                  </button>
-                </div>
-              ) : null}
             </div>
           </div>
         </section>
@@ -854,6 +842,37 @@ export default function VersionDetailPage(): JSX.Element {
         </section>
       </div>
 
+      {shareMenuOpen ? (
+        <div className="pm-share-modal-backdrop">
+          <div ref={shareMenuRef} className="pm-share-modal">
+            <div className="pm-share-modal-head">
+              <div>
+                <span className="pm-share-modal-kicker">Поделиться</span>
+                <h2>Публичная ссылка на версию</h2>
+              </div>
+            </div>
+
+            <div className="pm-share-link-card">
+              <button type="button" className="pm-share-link-copy" onClick={() => void handleCopyPublicLink()} aria-label="Скопировать ссылку">
+                <Copy className="h-4 w-4" />
+              </button>
+              <button type="button" className="pm-share-link-value" onClick={handleOpenPublicLink} disabled={!project.portalToken}>
+                <span>{publicPortalLink || "Ссылка ещё не создана"}</span>
+              </button>
+            </div>
+
+            <div className="pm-share-modal-actions">
+              <button type="button" className="pm-btn pm-btn-muted" onClick={() => setShareMenuOpen(false)}>
+                Закрыть
+              </button>
+              <button type="button" className="pm-btn pm-btn-muted" onClick={() => void handleResetPublicLink()} disabled={resettingPortalLink}>
+                {resettingPortalLink ? "Сброс..." : "Сбросить ссылку"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {deleteMenuPosition ? (
         <div
           ref={deleteMenuRef}
@@ -914,37 +933,95 @@ export default function VersionDetailPage(): JSX.Element {
           background: rgba(127, 29, 29, 0.18);
           color: rgba(254, 202, 202, 0.88);
         }
-        .pm-share-menu {
-          position: absolute;
-          right: 0;
-          top: calc(100% + 10px);
-          z-index: 30;
+        .pm-share-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 35;
           display: flex;
-          min-width: 220px;
-          flex-direction: column;
-          gap: 6px;
-          border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: linear-gradient(180deg, rgba(18, 20, 31, 0.98), rgba(10, 12, 20, 0.98));
-          padding: 8px;
-          box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
-          backdrop-filter: blur(20px);
+          align-items: center;
+          justify-content: center;
+          background: rgba(4, 6, 12, 0.45);
+          backdrop-filter: blur(14px);
         }
-        .pm-share-item {
-          border-radius: 12px;
-          padding: 11px 12px;
-          text-align: left;
-          font-size: 13px;
-          font-weight: 600;
-          color: rgba(240, 244, 255, 0.88);
+        .pm-share-modal {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+          width: min(560px, calc(100vw - 32px));
+          border-radius: 28px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: linear-gradient(180deg, rgba(24, 28, 42, 0.72), rgba(10, 12, 20, 0.82));
+          padding: 26px;
+          box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
+          backdrop-filter: blur(26px) saturate(150%);
+        }
+        .pm-share-modal-head h2 {
+          margin: 6px 0 0;
+          font-size: 24px;
+          font-weight: 650;
+          letter-spacing: -0.03em;
+          color: rgba(245, 247, 255, 0.96);
+        }
+        .pm-share-modal-kicker {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.16em;
+          color: rgba(160, 182, 228, 0.58);
+        }
+        .pm-share-link-card {
+          display: grid;
+          grid-template-columns: 52px minmax(0, 1fr);
+          align-items: stretch;
+          gap: 10px;
+          border-radius: 22px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.05);
+          padding: 10px;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+        .pm-share-link-copy {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 16px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.05);
+          color: rgba(242, 246, 255, 0.92);
           transition: 160ms ease;
         }
-        .pm-share-item:hover:not(:disabled) {
+        .pm-share-link-copy:hover {
+          background: rgba(255, 255, 255, 0.09);
+        }
+        .pm-share-link-value {
+          min-width: 0;
+          overflow: hidden;
+          border-radius: 16px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(10, 12, 20, 0.36);
+          padding: 14px 16px;
+          text-align: left;
+          font-size: 13px;
+          color: rgba(229, 235, 248, 0.92);
+          transition: 160ms ease;
+        }
+        .pm-share-link-value:hover:not(:disabled) {
           background: rgba(255, 255, 255, 0.06);
         }
-        .pm-share-item:disabled {
+        .pm-share-link-value span {
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .pm-share-link-value:disabled,
+        .pm-share-link-copy:disabled {
           cursor: not-allowed;
           opacity: 0.45;
+        }
+        .pm-share-modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
         }
         .pm-delete-menu {
           position: fixed;
