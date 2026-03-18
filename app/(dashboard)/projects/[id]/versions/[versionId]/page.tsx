@@ -544,11 +544,10 @@ export default function VersionDetailPage(): JSX.Element {
   return (
     <main className="pm-etalon h-[100dvh] overflow-hidden text-white">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-[1760px] flex-col gap-3 px-4 py-4 xl:px-6 xl:py-5">
-        <section className="shrink-0 rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-6 py-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <section className="shrink-0 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-6 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0">
-              <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Project review workspace</span>
-              <div className="mt-2 flex flex-wrap items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-[clamp(24px,2.4vw,32px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
                 <span className="h-5 w-px bg-white/10" />
                 <span className="text-[13px] text-white/55">Версия {activeVersion.versionNumber}</span>
@@ -607,7 +606,7 @@ export default function VersionDetailPage(): JSX.Element {
         <section className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
           <div className="left-col flex min-w-0 min-h-0 flex-col gap-3 overflow-hidden">
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="relative aspect-video min-h-[320px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)] xl:min-h-[380px] 2xl:min-h-[430px]">
+              <div className="relative aspect-video min-h-[380px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)] xl:min-h-[470px] 2xl:min-h-[530px]">
                 <KinescopePlayer
                   ref={kinescopeRef}
                   className="h-full w-full"
