@@ -886,6 +886,12 @@ export default function VersionDetailPage(): JSX.Element {
           <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
             <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-white/32">Версии</div>
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <VersionUploadDialog
+                projectId={projectId}
+                triggerText="+ Версия"
+                triggerSize="sm"
+                triggerClassName="rounded-full border border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.2),rgba(56,189,248,0.12))] px-4 py-2 text-[12px] font-semibold whitespace-nowrap text-indigo-100 transition hover:border-indigo-200/45 hover:text-white"
+              />
               {versions.map((version) => {
                 const isActive = version.id === activeVersion.id;
                 return (
@@ -909,12 +915,6 @@ export default function VersionDetailPage(): JSX.Element {
                   </button>
                 );
               })}
-              <VersionUploadDialog
-                projectId={projectId}
-                triggerText="+ Версия"
-                triggerSize="sm"
-                triggerClassName="pm-btn pm-btn-primary !h-9 !shrink-0 !px-4 !text-[12px] !whitespace-nowrap"
-              />
             </div>
           </div>
 
