@@ -5,7 +5,10 @@ import { prisma } from "@/lib/utils/db";
 import { handleAPIError } from "@/lib/utils/api-error";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
-const addMembersSchema = z.object({ userIds: z.array(z.string().min(1)).min(1) });
+const addMembersSchema = z.object({
+  userIds: z.array(z.string().min(1)).min(1),
+  roleOnProject: z.enum(["editor", "pm"]).default("editor"),
+});
 
 export const GET = withAuth(async (request: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {
@@ -43,6 +46,7 @@ export const GET = withAuth(async (request: AuthenticatedRequest, context: { par
         lastName: member.user.lastName,
         email: member.user.email,
         addedAt: member.addedAt,
+        roleOnProject: member.roleOnProject,
       })),
     );
   } catch (error) {
@@ -54,7 +58,7 @@ export const POST = withAuth(async (request: AuthenticatedRequest, context: { pa
   try {
     assertOwnerOrPm(request.user);
     const { id: projectId } = paramsSchema.parse(await context.params);
-    const { userIds } = addMembersSchema.parse(await request.json());
+    const { userIds, roleOnProject } = addMembersSchema.parse(await request.json());
 
     const workspace = await getWorkspaceForTenant(request.user.tenantId);
     if (!workspace) {
@@ -86,15 +90,28 @@ export const POST = withAuth(async (request: AuthenticatedRequest, context: { pa
       throw new Error("Only workspace editors can be added to project");
     }
 
-    await prisma.projectMember.createMany({
-      data: userIds.map((userId) => ({
-        projectId,
-        userId,
-        roleOnProject: "editor",
-        addedBy: request.user.userId,
-      })),
-      skipDuplicates: true,
-    });
+    await prisma.$transaction(
+      userIds.map((userId) =>
+        prisma.projectMember.upsert({
+          where: {
+            projectId_userId: {
+              projectId,
+              userId,
+            },
+          },
+          update: {
+            roleOnProject,
+            addedBy: request.user.userId,
+          },
+          create: {
+            projectId,
+            userId,
+            roleOnProject,
+            addedBy: request.user.userId,
+          },
+        }),
+      ),
+    );
 
     return Response.json({ success: true }, { status: 201 });
   } catch (error) {

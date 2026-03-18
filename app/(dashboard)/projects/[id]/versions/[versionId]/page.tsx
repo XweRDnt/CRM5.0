@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronDown, Copy, Download, Loader2, Send } from "lucide-react";
+import { Check, ChevronDown, Copy, Download, Loader2, Search, Send } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
@@ -20,6 +20,22 @@ import type { AnnotationData, AnnotationStroke, AssetVersionResponse, FeedbackRe
 
 type ApiWrapped<T> = T | { data: T };
 type FeedbackFilter = "all" | "NEW" | "VIEWED" | "IN_PROGRESS" | "RESOLVED";
+type ProjectMemberRole = "pm" | "editor";
+type WorkspaceMember = {
+  userId: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+};
+type ProjectMember = {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  addedAt: string;
+  roleOnProject: ProjectMemberRole;
+};
 
 const STATUS_BADGE_LABELS: Record<FeedbackStatus, string> = {
   NEW: "Новая",
@@ -75,6 +91,11 @@ const FEEDBACK_CARD_OPEN_CLASSES: Record<FeedbackStatus, string> = {
   IN_PROGRESS: "border-sky-300/28 shadow-[0_18px_36px_rgba(14,165,233,0.14)]",
   RESOLVED: "border-emerald-300/28 shadow-[0_18px_36px_rgba(16,185,129,0.12)]",
   REJECTED: "border-rose-300/28 shadow-[0_18px_36px_rgba(244,63,94,0.12)]",
+};
+
+const PROJECT_ROLE_LABELS: Record<ProjectMemberRole, string> = {
+  pm: "PM",
+  editor: "EDITOR",
 };
 function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
@@ -217,6 +238,14 @@ export default function VersionDetailPage(): JSX.Element {
     isLoading: feedbackLoading,
     mutate: mutateFeedback,
   } = useSWR(`/api/projects/${projectId}/feedback`, apiFetch<FeedbackResponse[]>);
+  const { data: workspaceMembers = [], isLoading: workspaceMembersLoading } = useSWR(
+    isOwnerOrPm ? "/api/team/members" : null,
+    apiFetch<WorkspaceMember[]>,
+  );
+  const { data: projectMembers = [], mutate: mutateProjectMembers } = useSWR(
+    isOwnerOrPm ? `/api/projects/${projectId}/members` : null,
+    apiFetch<ProjectMember[]>,
+  );
 
   const versions = useMemo(
     () => (versionsResponse ? [...unwrap(versionsResponse)].sort((a, b) => a.versionNumber - b.versionNumber) : []),
@@ -230,7 +259,11 @@ export default function VersionDetailPage(): JSX.Element {
   const [deletingVersion, setDeletingVersion] = useState(false);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [employeesModalOpen, setEmployeesModalOpen] = useState(false);
   const [deleteMenuPosition, setDeleteMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberRoleDrafts, setMemberRoleDrafts] = useState<Record<string, ProjectMemberRole>>({});
+  const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
   const autoViewedVersionsRef = useRef<Set<string>>(new Set());
   const longPressTimerRef = useRef<number | null>(null);
   const shareMenuRef = useRef<HTMLDivElement | null>(null);
@@ -252,7 +285,17 @@ export default function VersionDetailPage(): JSX.Element {
     setOpenThreadIds(new Set());
     setDeleteMenuPosition(null);
     setShareMenuOpen(false);
+    setEmployeesModalOpen(false);
   }, [activeVersionId]);
+
+  useEffect(() => {
+    setMemberRoleDrafts(
+      projectMembers.reduce<Record<string, ProjectMemberRole>>((acc, member) => {
+        acc[member.userId] = member.roleOnProject;
+        return acc;
+      }, {}),
+    );
+  }, [projectMembers]);
 
   useEffect(() => {
     if (!activeVersionId && versions.length > 0) {
@@ -309,6 +352,22 @@ export default function VersionDetailPage(): JSX.Element {
     }
     return visibleBaseFeedback.filter((item) => (item.status ?? "NEW") === activeFilter);
   }, [activeFilter, visibleBaseFeedback]);
+
+  const projectMembersByUserId = useMemo(() => {
+    return new Map(projectMembers.map((member) => [member.userId, member]));
+  }, [projectMembers]);
+
+  const filteredWorkspaceMembers = useMemo(() => {
+    const query = memberSearch.trim().toLowerCase();
+    if (!query) {
+      return workspaceMembers;
+    }
+
+    return workspaceMembers.filter((member) => {
+      const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
+      return fullName.includes(query) || member.email.toLowerCase().includes(query);
+    });
+  }, [memberSearch, workspaceMembers]);
 
   const hasClientFeedback = visibleBaseFeedback.length > 0;
   const versionUiStatus = activeVersion ? toVersionUiStatus(activeVersion.status, hasClientFeedback) : "DRAFT";
@@ -473,6 +532,23 @@ export default function VersionDetailPage(): JSX.Element {
     }
   };
 
+  const handleProjectMemberSave = async (userId: string): Promise<void> => {
+    const roleOnProject = memberRoleDrafts[userId] ?? projectMembersByUserId.get(userId)?.roleOnProject ?? "editor";
+    setSavingMemberId(userId);
+    try {
+      await apiFetch(`/api/projects/${projectId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ userIds: [userId], roleOnProject }),
+      });
+      await mutateProjectMembers();
+      toast.success(projectMembersByUserId.has(userId) ? "Роль сотрудника обновлена" : "Сотрудник добавлен в проект");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось сохранить сотрудника");
+    } finally {
+      setSavingMemberId(null);
+    }
+  };
+
   const openDeleteMenu = (x: number, y: number): void => {
     setShareMenuOpen(false);
     if (typeof window === "undefined") {
@@ -534,6 +610,7 @@ export default function VersionDetailPage(): JSX.Element {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         setShareMenuOpen(false);
+        setEmployeesModalOpen(false);
         setDeleteMenuPosition(null);
       }
     };
@@ -585,7 +662,29 @@ export default function VersionDetailPage(): JSX.Element {
             </div>
 
             <div className="relative flex flex-wrap gap-2 xl:justify-end">
-              <button ref={shareButtonRef} type="button" className="pm-btn pm-btn-muted" onClick={() => setShareMenuOpen((current) => !current)}>Поделиться</button>
+              <button
+                ref={shareButtonRef}
+                type="button"
+                className="pm-btn pm-btn-muted"
+                onClick={() => {
+                  setEmployeesModalOpen(false);
+                  setShareMenuOpen((current) => !current);
+                }}
+              >
+                Поделиться
+              </button>
+              {isOwnerOrPm ? (
+                <button
+                  type="button"
+                  className="pm-btn pm-btn-muted"
+                  onClick={() => {
+                    setShareMenuOpen(false);
+                    setEmployeesModalOpen(true);
+                  }}
+                >
+                  Сотрудники
+                </button>
+              ) : null}
               <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
 
             </div>
@@ -885,6 +984,108 @@ export default function VersionDetailPage(): JSX.Element {
         </div>
       ) : null}
 
+      {employeesModalOpen ? (
+        <div
+          className="pm-share-modal-backdrop"
+          onClick={() => setEmployeesModalOpen(false)}
+        >
+          <div
+            className="pm-people-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="pm-share-modal-head">
+              <div>
+                <span className="pm-share-modal-kicker">Сотрудники</span>
+                <h2>Добавить сотрудников в проект</h2>
+                <p className="pm-people-modal-copy">Выбери участника команды, задай роль на проекте и сохрани доступ.</p>
+              </div>
+            </div>
+
+            <div className="pm-people-search">
+              <Search className="h-4 w-4" />
+              <input
+                value={memberSearch}
+                onChange={(event) => setMemberSearch(event.target.value)}
+                placeholder="Поиск по имени или email"
+              />
+            </div>
+
+            <div className="pm-people-list">
+              {workspaceMembersLoading ? (
+                <div className="pm-people-empty">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Загружаю сотрудников...</span>
+                </div>
+              ) : filteredWorkspaceMembers.length === 0 ? (
+                <div className="pm-people-empty">Ничего не найдено.</div>
+              ) : (
+                filteredWorkspaceMembers.map((member) => {
+                  const projectMember = projectMembersByUserId.get(member.userId);
+                  const draftRole = memberRoleDrafts[member.userId] ?? projectMember?.roleOnProject ?? "editor";
+                  const isSaving = savingMemberId === member.userId;
+                  const fullName = `${member.firstName} ${member.lastName}`.trim();
+
+                  return (
+                    <div key={member.userId} className="pm-person-row">
+                      <div className="pm-person-meta">
+                        <div className="pm-person-avatar">{(member.firstName[0] ?? member.email[0] ?? "?").toUpperCase()}</div>
+                        <div className="min-w-0">
+                          <div className="pm-person-name-row">
+                            <p className="pm-person-name">{fullName || member.email}</p>
+                            {projectMember ? (
+                              <span className="pm-person-state">
+                                <Check className="h-3.5 w-3.5" />
+                                В проекте
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="pm-person-email">{member.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="pm-person-actions">
+                        <div className="pm-role-switcher">
+                          {(["pm", "editor"] as ProjectMemberRole[]).map((role) => (
+                            <button
+                              key={role}
+                              type="button"
+                              className={cn("pm-role-pill", draftRole === role && "pm-role-pill-active")}
+                              onClick={() =>
+                                setMemberRoleDrafts((current) => ({
+                                  ...current,
+                                  [member.userId]: role,
+                                }))
+                              }
+                            >
+                              {PROJECT_ROLE_LABELS[role]}
+                            </button>
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          className="pm-btn pm-btn-muted pm-person-save"
+                          onClick={() => void handleProjectMemberSave(member.userId)}
+                          disabled={isSaving}
+                        >
+                          {isSaving ? "Сохранение..." : projectMember ? "Обновить" : "Добавить"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="pm-share-modal-actions">
+              <button type="button" className="pm-btn pm-btn-muted" onClick={() => setEmployeesModalOpen(false)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {deleteMenuPosition ? (
         <div
           ref={deleteMenuRef}
@@ -1035,6 +1236,159 @@ export default function VersionDetailPage(): JSX.Element {
           justify-content: flex-end;
           gap: 10px;
         }
+        .pm-people-modal {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+          width: min(760px, calc(100vw - 32px));
+          max-height: min(82vh, 860px);
+          border-radius: 28px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: linear-gradient(180deg, rgba(24, 28, 42, 0.74), rgba(10, 12, 20, 0.84));
+          padding: 26px;
+          box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
+          backdrop-filter: blur(26px) saturate(150%);
+        }
+        .pm-people-modal-copy {
+          margin: 8px 0 0;
+          font-size: 13px;
+          line-height: 1.6;
+          color: rgba(214, 221, 235, 0.58);
+        }
+        .pm-people-search {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          border-radius: 18px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.04);
+          padding: 0 14px;
+          color: rgba(190, 200, 224, 0.55);
+        }
+        .pm-people-search input {
+          width: 100%;
+          height: 48px;
+          border: 0;
+          background: transparent;
+          color: rgba(244, 247, 255, 0.96);
+          outline: none;
+          font-size: 14px;
+        }
+        .pm-people-search input::placeholder {
+          color: rgba(190, 200, 224, 0.34);
+        }
+        .pm-people-list {
+          display: flex;
+          min-height: 0;
+          flex: 1;
+          flex-direction: column;
+          gap: 10px;
+          overflow-y: auto;
+          padding-right: 4px;
+        }
+        .pm-people-empty {
+          display: flex;
+          min-height: 120px;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.03);
+          color: rgba(214, 221, 235, 0.54);
+          font-size: 13px;
+        }
+        .pm-person-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
+          padding: 14px;
+        }
+        .pm-person-meta {
+          display: flex;
+          min-width: 0;
+          align-items: center;
+          gap: 12px;
+        }
+        .pm-person-avatar {
+          display: inline-flex;
+          height: 42px;
+          width: 42px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 14px;
+          border: 1px solid rgba(129, 140, 248, 0.2);
+          background: linear-gradient(135deg, rgba(67, 87, 255, 0.18), rgba(56, 189, 248, 0.14));
+          color: rgba(244, 247, 255, 0.96);
+          font-size: 14px;
+          font-weight: 700;
+        }
+        .pm-person-name-row {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 10px;
+        }
+        .pm-person-name {
+          margin: 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: rgba(244, 247, 255, 0.96);
+        }
+        .pm-person-email {
+          margin: 3px 0 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 12px;
+          color: rgba(214, 221, 235, 0.5);
+        }
+        .pm-person-state {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          border-radius: 999px;
+          border: 1px solid rgba(52, 211, 153, 0.18);
+          background: rgba(16, 185, 129, 0.1);
+          padding: 4px 9px;
+          font-size: 11px;
+          font-weight: 600;
+          color: rgba(167, 243, 208, 0.94);
+        }
+        .pm-person-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .pm-role-switcher {
+          display: inline-flex;
+          gap: 6px;
+          border-radius: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.04);
+          padding: 4px;
+        }
+        .pm-role-pill {
+          min-width: 78px;
+          border-radius: 10px;
+          padding: 8px 12px;
+          font-size: 11px;
+          font-weight: 700;
+          color: rgba(214, 221, 235, 0.52);
+          transition: 160ms ease;
+        }
+        .pm-role-pill-active {
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(56, 189, 248, 0.16));
+          color: rgba(245, 247, 255, 0.96);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+        .pm-person-save {
+          min-width: 108px;
+        }
         .pm-delete-menu {
           position: fixed;
           z-index: 40;
@@ -1073,6 +1427,28 @@ export default function VersionDetailPage(): JSX.Element {
         }
         @media (max-width: 1100px) {
           .pm-btn {
+            width: 100%;
+          }
+        }
+        @media (max-width: 900px) {
+          .pm-people-modal {
+            padding: 20px;
+          }
+          .pm-person-row {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .pm-person-actions {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .pm-role-switcher {
+            width: 100%;
+          }
+          .pm-role-pill {
+            flex: 1;
+          }
+          .pm-person-save {
             width: 100%;
           }
         }
