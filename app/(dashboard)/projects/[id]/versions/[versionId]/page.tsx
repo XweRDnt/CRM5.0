@@ -4,7 +4,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Check, ChevronDown, Copy, Download, Loader2, Menu, MoreHorizontal, Search, Send } from "lucide-react";
+import { Check, ChevronDown, Copy, Download, Loader2, Menu, Search, Send, Share2, Users } from "lucide-react";
 import type { FeedbackStatus } from "@prisma/client";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
@@ -263,8 +263,6 @@ export default function VersionDetailPage(): JSX.Element {
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [employeesModalOpen, setEmployeesModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileMoreMenuOpen, setMobileMoreMenuOpen] = useState(false);
-  const [mobileVersionsSheetOpen, setMobileVersionsSheetOpen] = useState(false);
   const [deleteMenuPosition, setDeleteMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [memberSearch, setMemberSearch] = useState("");
   const [memberRoleDrafts, setMemberRoleDrafts] = useState<Record<string, ProjectMemberRole>>({});
@@ -292,8 +290,6 @@ export default function VersionDetailPage(): JSX.Element {
     setShareMenuOpen(false);
     setEmployeesModalOpen(false);
     setMobileMenuOpen(false);
-    setMobileMoreMenuOpen(false);
-    setMobileVersionsSheetOpen(false);
   }, [activeVersionId]);
 
   useEffect(() => {
@@ -376,16 +372,6 @@ export default function VersionDetailPage(): JSX.Element {
       return fullName.includes(query) || member.email.toLowerCase().includes(query);
     });
   }, [memberSearch, workspaceMembers]);
-
-  const versionClientFeedbackCounts = useMemo(() => {
-    return feedbackResponse.reduce<Record<string, number>>((acc, item) => {
-      if (item.authorType !== "CLIENT" || item.status === "REJECTED") {
-        return acc;
-      }
-      acc[item.assetVersionId] = (acc[item.assetVersionId] ?? 0) + 1;
-      return acc;
-    }, {});
-  }, [feedbackResponse]);
 
   const hasClientFeedback = visibleBaseFeedback.length > 0;
   const versionUiStatus = activeVersion ? toVersionUiStatus(activeVersion.status, hasClientFeedback) : "DRAFT";
@@ -751,47 +737,6 @@ export default function VersionDetailPage(): JSX.Element {
     </>
   );
 
-  const versionsListContent = (
-    <div className="space-y-3">
-      {versions.map((version) => {
-        const isActive = version.id === activeVersion.id;
-        const totalFeedback = versionClientFeedbackCounts[version.id] ?? 0;
-        const uiStatus = toVersionUiStatus(version.status, totalFeedback > 0);
-        return (
-          <button
-            key={version.id}
-            type="button"
-            onClick={() => setActiveVersionId(version.id)}
-            onContextMenu={(event) => handleVersionContextMenu(event, version.id)}
-            onPointerDown={(event) => handleVersionPointerDown(event, version.id)}
-            onPointerUp={clearLongPressTimer}
-            onPointerCancel={clearLongPressTimer}
-            onPointerLeave={clearLongPressTimer}
-            className={cn(
-              "w-full rounded-[20px] border p-4 text-left transition",
-              isActive
-                ? "border-indigo-300/28 bg-[linear-gradient(180deg,rgba(22,25,40,0.98),rgba(15,18,30,0.98))] shadow-[0_18px_36px_rgba(63,90,255,0.12)]"
-                : "border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.9),rgba(10,12,20,0.94))]",
-            )}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white/95">Версия {version.versionNumber}</p>
-                <p className="mt-1 text-xs text-white/45">{totalFeedback > 0 ? `${totalFeedback} правок` : "Без правок"}</p>
-              </div>
-              {isActive ? <span className="rounded-full border border-indigo-300/24 bg-indigo-400/12 px-2.5 py-1 text-[10px] font-semibold text-indigo-100">Активна</span> : null}
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold text-white/60">
-                {VERSION_STATUS_LABELS[uiStatus]}
-              </span>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-
   if (projectLoading || versionsLoading || !project) {
     return (
       <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-white/10 bg-[#09090f] py-10 text-white">
@@ -810,45 +755,52 @@ export default function VersionDetailPage(): JSX.Element {
     <main className="pm-etalon min-h-[100dvh] overflow-x-hidden text-white lg:h-[100dvh] lg:overflow-hidden">
       <div className="mx-auto flex min-h-full w-full max-w-[1760px] flex-col gap-3 px-4 py-4 lg:h-full lg:min-h-0 xl:px-6 xl:py-5">
         <section className="shrink-0 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:px-6">
-          <div className="flex items-start justify-between gap-3 lg:hidden">
+          <div className="flex items-start gap-3 lg:hidden">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/78"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
               aria-label="Открыть меню"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="min-w-0 flex-1 pt-1">
-              <h1 className="truncate text-[clamp(22px,6vw,30px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
-              <p className="mt-1 text-[12px] text-white/52">
-                Версия {activeVersion.versionNumber} · {feedbackCounts.NEW > 0 ? "Есть правки" : VERSION_STATUS_LABELS[versionUiStatus]}
-              </p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 pt-1">
+                  <h1 className="truncate text-[clamp(22px,6vw,30px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
+                  <p className="mt-1 text-[12px] text-white/52">
+                    Версия {activeVersion.versionNumber} · {feedbackCounts.NEW > 0 ? "Есть правки" : VERSION_STATUS_LABELS[versionUiStatus]}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    ref={shareButtonRef}
+                    type="button"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                    onClick={() => {
+                      setEmployeesModalOpen(false);
+                      setShareMenuOpen((current) => !current);
+                    }}
+                    aria-label="Поделиться"
+                  >
+                    <Share2 className="h-[18px] w-[18px]" />
+                  </button>
+                  {isOwnerOrPm ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                      onClick={() => {
+                        setShareMenuOpen(false);
+                        setEmployeesModalOpen(true);
+                      }}
+                      aria-label="Сотрудники"
+                    >
+                      <Users className="h-[18px] w-[18px]" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 lg:hidden">
-            <button
-              ref={shareButtonRef}
-              type="button"
-              className="pm-btn pm-btn-muted !h-11 !px-4 !text-xs"
-              onClick={() => {
-                setEmployeesModalOpen(false);
-                setMobileMoreMenuOpen(false);
-                setShareMenuOpen((current) => !current);
-              }}
-            >
-              Поделиться
-            </button>
-            <VersionUploadDialog projectId={projectId} triggerText="+ Версия" triggerSize="sm" triggerClassName="pm-btn pm-btn-primary !h-11 !px-4 !text-xs !whitespace-nowrap" />
-            <button
-              type="button"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/72"
-              onClick={() => setMobileMoreMenuOpen(true)}
-              aria-label="Ещё действия"
-            >
-              <MoreHorizontal className="h-5 w-5" />
-            </button>
           </div>
 
           <div className="hidden flex-col gap-3 xl:flex-row xl:items-center xl:justify-between lg:flex">
@@ -931,6 +883,46 @@ export default function VersionDetailPage(): JSX.Element {
         </section>
 
         <section className="space-y-3 pb-8 lg:hidden">
+          <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/32">Версии</div>
+                <div className="mt-1 text-[13px] font-medium text-white/62">Переключение и загрузка новых сборок</div>
+              </div>
+              <VersionUploadDialog
+                projectId={projectId}
+                triggerText="+ Версия"
+                triggerSize="sm"
+                triggerClassName="pm-btn pm-btn-primary !h-10 !shrink-0 !px-4 !text-[12px] !whitespace-nowrap"
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {versions.map((version) => {
+                const isActive = version.id === activeVersion.id;
+                return (
+                  <button
+                    key={version.id}
+                    type="button"
+                    className={cn(
+                      "shrink-0 rounded-full border px-4 py-2 text-[12px] font-semibold whitespace-nowrap transition",
+                      isActive
+                        ? "border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.2),rgba(56,189,248,0.12))] text-indigo-100"
+                        : "border-white/10 bg-white/[0.03] text-white/52 hover:border-white/15 hover:text-white/80",
+                    )}
+                    onClick={() => setActiveVersionId(version.id)}
+                    onContextMenu={(event) => handleVersionContextMenu(event, version.id)}
+                    onPointerDown={(event) => handleVersionPointerDown(event, version.id)}
+                    onPointerUp={clearLongPressTimer}
+                    onPointerCancel={clearLongPressTimer}
+                    onPointerLeave={clearLongPressTimer}
+                  >
+                    Версия {version.versionNumber}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
             <div className="relative aspect-video overflow-hidden rounded-[20px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)]">
               <KinescopePlayer
@@ -973,22 +965,22 @@ export default function VersionDetailPage(): JSX.Element {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Новые</div>
-              <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <div className="min-w-[88px] flex-1 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-white/35">Новые</div>
+              <div className="mt-1 text-[18px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
             </div>
-            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Просмотрено</div>
-              <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
+            <div className="min-w-[88px] flex-1 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-white/35">Просмотрено</div>
+              <div className="mt-1 text-[18px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
             </div>
-            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">В работе</div>
-              <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
+            <div className="min-w-[88px] flex-1 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-white/35">В работе</div>
+              <div className="mt-1 text-[18px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
             </div>
-            <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Готово</div>
-              <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
+            <div className="min-w-[88px] flex-1 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-white/35">Готово</div>
+              <div className="mt-1 text-[18px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
             </div>
           </div>
 
@@ -1289,64 +1281,6 @@ export default function VersionDetailPage(): JSX.Element {
               {isOwnerOrPm ? <Link href="/clients" className="pm-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>Клиенты</Link> : null}
               {isOwnerOrPm ? <Link href="/team" className="pm-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>Команда</Link> : null}
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {mobileMoreMenuOpen ? (
-        <div className="pm-mobile-sheet-backdrop lg:hidden" onClick={() => setMobileMoreMenuOpen(false)}>
-          <div className="pm-mobile-sheet" onClick={(event) => event.stopPropagation()}>
-            <div className="pm-mobile-sheet-handle" />
-            <div className="space-y-2">
-              <button
-                type="button"
-                className="pm-mobile-action"
-                onClick={() => {
-                  setMobileMoreMenuOpen(false);
-                  setShareMenuOpen(true);
-                }}
-              >
-                Поделиться
-              </button>
-              <button
-                type="button"
-                className="pm-mobile-action"
-                onClick={() => {
-                  setMobileMoreMenuOpen(false);
-                  setMobileVersionsSheetOpen(true);
-                }}
-              >
-                Версии
-              </button>
-              {isOwnerOrPm ? (
-                <button
-                  type="button"
-                  className="pm-mobile-action"
-                  onClick={() => {
-                    setMobileMoreMenuOpen(false);
-                    setEmployeesModalOpen(true);
-                  }}
-                >
-                  Сотрудники
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {mobileVersionsSheetOpen ? (
-        <div className="pm-mobile-sheet-backdrop lg:hidden" onClick={() => setMobileVersionsSheetOpen(false)}>
-          <div className="pm-mobile-sheet" onClick={(event) => event.stopPropagation()}>
-            <div className="pm-mobile-sheet-handle" />
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Versions</span>
-                <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em] text-white">Версии</h2>
-              </div>
-              <VersionUploadDialog projectId={projectId} triggerText="+ Новая" triggerSize="sm" triggerClassName="pm-btn pm-btn-primary !h-10 !px-4 !text-xs" />
-            </div>
-            <div className="max-h-[56vh] overflow-y-auto pr-1">{versionsListContent}</div>
           </div>
         </div>
       ) : null}
@@ -1680,42 +1614,6 @@ export default function VersionDetailPage(): JSX.Element {
           color: rgba(244, 247, 255, 0.92);
           font-size: 14px;
           font-weight: 600;
-        }
-        .pm-mobile-sheet-backdrop {
-          position: fixed;
-          inset: 0;
-          z-index: 36;
-          display: flex;
-          align-items: flex-end;
-          background: rgba(4, 6, 12, 0.42);
-          backdrop-filter: blur(12px);
-        }
-        .pm-mobile-sheet {
-          width: 100%;
-          border-radius: 24px 24px 0 0;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: linear-gradient(180deg, rgba(18, 22, 34, 0.96), rgba(10, 12, 20, 0.98));
-          padding: 12px 16px 20px;
-          box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
-        }
-        .pm-mobile-sheet-handle {
-          margin: 0 auto 14px;
-          height: 5px;
-          width: 52px;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.16);
-        }
-        .pm-mobile-action {
-          width: 100%;
-          min-height: 52px;
-          border-radius: 16px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.04);
-          padding: 0 14px;
-          text-align: left;
-          font-size: 14px;
-          font-weight: 600;
-          color: rgba(244, 247, 255, 0.92);
         }
         .pm-delete-menu {
           position: fixed;
