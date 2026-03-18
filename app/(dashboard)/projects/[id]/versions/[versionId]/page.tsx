@@ -1,11 +1,11 @@
 ﻿"use client";
 
-import Link from "next/link";
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Check, ChevronDown, Copy, Download, Loader2, Search, Send, Share2, Users } from "lucide-react";
 import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
+import { VersionDetailMobileSidebar } from "@/components/layout/VersionDetailMobileSidebar";
 import type { FeedbackStatus } from "@prisma/client";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { toast } from "@/components/ui/toast";
@@ -1256,23 +1256,7 @@ export default function VersionDetailPage(): JSX.Element {
         </div>
       ) : null}
 
-      {mobileMenuOpen ? (
-        <div className="pm-mobile-menu-backdrop lg:hidden" onClick={() => setMobileMenuOpen(false)}>
-          <div className="pm-mobile-menu" onClick={(event) => event.stopPropagation()}>
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <span className="pm-share-modal-kicker">Навигация</span>
-                <h2 className="mt-1.5 text-[22px] font-semibold tracking-[-0.03em] text-white">Разделы</h2>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Link href="/projects" className="pm-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>Проекты</Link>
-              {isOwnerOrPm ? <Link href="/clients" className="pm-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>Клиенты</Link> : null}
-              {isOwnerOrPm ? <Link href="/team" className="pm-mobile-menu-link" onClick={() => setMobileMenuOpen(false)}>Команда</Link> : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {user ? <VersionDetailMobileSidebar user={user} open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} /> : null}
 
       {deleteMenuPosition ? (
         <div
@@ -1576,33 +1560,6 @@ export default function VersionDetailPage(): JSX.Element {
         }
         .pm-person-save {
           min-width: 108px;
-        }
-        .pm-mobile-menu-backdrop {
-          position: fixed;
-          inset: 0;
-          z-index: 36;
-          background: rgba(4, 6, 12, 0.5);
-          backdrop-filter: blur(12px);
-        }
-        .pm-mobile-menu {
-          width: min(320px, calc(100vw - 48px));
-          height: 100%;
-          border-right: 1px solid rgba(255, 255, 255, 0.08);
-          background: linear-gradient(180deg, rgba(18, 22, 34, 0.98), rgba(10, 12, 20, 0.98));
-          padding: 20px 16px;
-          box-shadow: 18px 0 50px rgba(0, 0, 0, 0.35);
-        }
-        .pm-mobile-menu-link {
-          display: flex;
-          align-items: center;
-          min-height: 52px;
-          border-radius: 16px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.04);
-          padding: 0 14px;
-          color: rgba(244, 247, 255, 0.92);
-          font-size: 14px;
-          font-weight: 600;
         }
         .pm-delete-menu {
           position: fixed;
