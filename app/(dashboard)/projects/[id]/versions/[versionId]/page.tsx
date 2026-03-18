@@ -883,11 +883,11 @@ export default function VersionDetailPage(): JSX.Element {
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-[clamp(24px,2.4vw,32px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
                 <span className="h-5 w-px bg-white/10" />
-                <span className="text-[13px] text-white/55">?????? {activeVersion.versionNumber}</span>
+                <span className="text-[13px] text-white/55">Версия {activeVersion.versionNumber}</span>
                 <span className="text-[13px] text-white/55">{VERSION_STATUS_LABELS[versionUiStatus]}</span>
                 {feedbackCounts.NEW > 0 ? (
                   <span className="rounded-full border border-red-400/25 bg-red-950/40 px-3 py-1 text-[11px] font-semibold text-red-200">
-                    ???? ??????
+                    Есть правки
                   </span>
                 ) : null}
               </div>
@@ -903,7 +903,7 @@ export default function VersionDetailPage(): JSX.Element {
                   setShareMenuOpen((current) => !current);
                 }}
               >
-                ??????????
+                Поделиться
               </button>
               {isOwnerOrPm ? (
                 <button
@@ -914,15 +914,15 @@ export default function VersionDetailPage(): JSX.Element {
                     setEmployeesModalOpen(true);
                   }}
                 >
-                  ??????????
+                  Сотрудники
                 </button>
               ) : null}
               {isOwnerOrPm ? (
                 <button type="button" className="pm-btn pm-btn-muted lg:hidden" onClick={() => setMobileSection("team")}>
-                  ??????????
+                  Сотрудники
                 </button>
               ) : null}
-              <VersionUploadDialog projectId={projectId} triggerText="+ ????? ??????" triggerClassName="pm-btn pm-btn-primary" />
+              <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
             </div>
           </div>
         </section>
@@ -948,13 +948,13 @@ export default function VersionDetailPage(): JSX.Element {
                   onPointerCancel={clearLongPressTimer}
                   onPointerLeave={clearLongPressTimer}
                 >
-                  ?????? {version.versionNumber}
+                  Версия {version.versionNumber}
                 </button>
               );
             })}
             <VersionUploadDialog
               projectId={projectId}
-              triggerText="+ ??????? ?????"
+              triggerText="+ Создать новую"
               triggerVariant="outline"
               triggerSize="sm"
               triggerClassName="rounded-full border border-dashed border-white/15 bg-transparent px-4 py-2 text-xs font-semibold text-white/35 hover:border-white/20 hover:text-white/60"
@@ -998,7 +998,7 @@ export default function VersionDetailPage(): JSX.Element {
                     onClick={() => setActiveAnnotation(null)}
                     className="pointer-events-auto absolute right-3 top-3 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_20px_rgba(0,0,0,0.25)] backdrop-blur"
                   >
-                    ?????? ?????????
+                    Скрыть аннотацию
                   </button>
                 </div>
               ) : null}
@@ -1007,19 +1007,19 @@ export default function VersionDetailPage(): JSX.Element {
 
           <div className="grid grid-cols-2 gap-2.5">
             <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">?????</div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Новые</div>
               <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
             </div>
             <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">???????????</div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Просмотрено</div>
               <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
             </div>
             <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">? ??????</div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">В работе</div>
               <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
             </div>
             <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">??????</div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Готово</div>
               <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
             </div>
           </div>
@@ -1027,19 +1027,19 @@ export default function VersionDetailPage(): JSX.Element {
           <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
             <button
               type="button"
-              onClick={() => toast.info("? ??????????")}
+              onClick={() => toast.info("В разработке")}
               className="inline-flex items-center gap-2 rounded-[11px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-3.5 py-2 text-[13px] font-semibold text-indigo-100"
             >
               <Download className="h-3.5 w-3.5" />
-              ????????? XML ??? ?????????
+              Выгрузить XML для монтажёра
             </button>
           </div>
 
           <div className="sticky top-2 z-10 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.94)_0%,rgba(10,12,20,0.96)_100%)] p-2 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
             <div className={cn("grid gap-2", isOwnerOrPm ? "grid-cols-3" : "grid-cols-2")}>
-              <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "feedback" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("feedback")}>??????</button>
-              <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "versions" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("versions")}>??????</button>
-              {isOwnerOrPm ? <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "team" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("team")}>??????????</button> : null}
+              <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "feedback" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("feedback")}>Правки</button>
+              <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "versions" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("versions")}>Версии</button>
+              {isOwnerOrPm ? <button type="button" className={cn("rounded-[14px] px-3 py-2 text-xs font-semibold transition", mobileSection === "team" ? "bg-white/10 text-white" : "text-white/45")} onClick={() => setMobileSection("team")}>Сотрудники</button> : null}
             </div>
           </div>
 
@@ -1049,7 +1049,7 @@ export default function VersionDetailPage(): JSX.Element {
                 <div>
                   <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
                   <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
-                    ?????? <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
+                    Правки <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
                   </h2>
                 </div>
               </div>
@@ -1077,9 +1077,9 @@ export default function VersionDetailPage(): JSX.Element {
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Versions</span>
-                  <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">??????</h2>
+                  <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">Версии</h2>
                 </div>
-                <VersionUploadDialog projectId={projectId} triggerText="+ ?????" triggerSize="sm" triggerClassName="pm-btn pm-btn-primary !h-10 !px-4 !text-xs" />
+                <VersionUploadDialog projectId={projectId} triggerText="+ Новая" triggerSize="sm" triggerClassName="pm-btn pm-btn-primary !h-10 !px-4 !text-xs" />
               </div>
               {versionsListContent}
             </div>
@@ -1089,7 +1089,7 @@ export default function VersionDetailPage(): JSX.Element {
             <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
               <div className="mb-4">
                 <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Project access</span>
-                <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">??????????</h2>
+                <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">Сотрудники</h2>
               </div>
               {teamListContent}
             </div>
@@ -1134,7 +1134,7 @@ export default function VersionDetailPage(): JSX.Element {
                         onClick={() => setActiveAnnotation(null)}
                         className="pointer-events-auto absolute right-4 top-4 rounded-full border border-white/15 bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_20px_rgba(0,0,0,0.25)] backdrop-blur"
                       >
-                        ?????? ?????????
+                        Скрыть аннотацию
                       </button>
                     </div>
                   ) : null}
@@ -1144,19 +1144,19 @@ export default function VersionDetailPage(): JSX.Element {
 
             <div className="grid shrink-0 grid-cols-2 gap-2.5 xl:grid-cols-4">
               <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">?????</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Новые</div>
                 <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-amber-300">{feedbackCounts.NEW}</div>
               </div>
               <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">???????????</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Просмотрено</div>
                 <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-white/80">{feedbackCounts.VIEWED}</div>
               </div>
               <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">? ??????</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">В работе</div>
                 <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-sky-300">{feedbackCounts.IN_PROGRESS}</div>
               </div>
               <div className="rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.28)]">
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">??????</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-white/35">Готово</div>
                 <div className="mt-1.5 text-[22px] font-semibold leading-none tracking-[-0.05em] text-emerald-300">{feedbackCounts.RESOLVED}</div>
               </div>
             </div>
@@ -1164,13 +1164,13 @@ export default function VersionDetailPage(): JSX.Element {
             <div className="shrink-0 rounded-[16px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <button
                 type="button"
-                onClick={() => toast.info("? ??????????")}
+                onClick={() => toast.info("В разработке")}
                 className="inline-flex items-center gap-2 rounded-[11px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-3.5 py-2 text-[13px] font-semibold text-indigo-100"
               >
                 <Download className="h-3.5 w-3.5" />
-                ????????? XML ??? ?????????
+                Выгрузить XML для монтажёра
               </button>
-              <p className="mt-1.5 text-[10px] leading-tight text-white/36">??? ??????? ? ??????????????? ????? ?????? ????????? ? ???????????????? ??????.</p>
+              <p className="mt-1.5 text-[10px] leading-tight text-white/36">Все «Новые» и «Просмотренные» можно быстро перевести в производственный контур.</p>
             </div>
           </div>
 
@@ -1180,7 +1180,7 @@ export default function VersionDetailPage(): JSX.Element {
                 <div>
                   <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
                   <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
-                    ?????? <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
+                    Правки <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
                   </h2>
                 </div>
                 {feedbackLoading ? <Loader2 className="h-4 w-4 animate-spin text-sky-300" /> : null}
