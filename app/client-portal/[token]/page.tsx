@@ -38,6 +38,14 @@ const PORTAL_STATUS_CLASSES: Record<FeedbackStatus, string> = {
   REJECTED: "border-rose-400/24 bg-rose-500/12 text-rose-200",
 };
 
+const PORTAL_FEEDBACK_CARD_CLASSES: Record<FeedbackStatus, string> = {
+  NEW: "border-amber-300/28 bg-[linear-gradient(180deg,rgba(34,25,12,0.9),rgba(20,15,10,0.96))]",
+  VIEWED: "border-violet-300/18 bg-[linear-gradient(180deg,rgba(16,18,29,0.88),rgba(10,12,20,0.94))]",
+  IN_PROGRESS: "border-sky-300/24 bg-[linear-gradient(180deg,rgba(7,28,42,0.9),rgba(8,16,24,0.96))]",
+  RESOLVED: "border-emerald-300/22 bg-[linear-gradient(180deg,rgba(10,28,24,0.9),rgba(8,16,14,0.96))]",
+  REJECTED: "border-rose-300/22 bg-[linear-gradient(180deg,rgba(40,14,22,0.9),rgba(24,10,15,0.96))]",
+};
+
 type PortalVersion = {
   id: string;
   versionNumber: number;
@@ -904,19 +912,23 @@ export default function ClientPortalPage(): JSX.Element {
           "radial-gradient(ellipse at 10% 15%, rgba(80,70,210,0.28) 0%, transparent 50%), radial-gradient(ellipse at 90% 85%, rgba(180,60,120,0.18) 0%, transparent 48%), radial-gradient(ellipse at 60% 5%, rgba(50,60,190,0.15) 0%, transparent 40%), #09090f",
       }}
     >
-      <header className="fixed left-4 right-4 top-3 z-40 h-12 rounded-2xl border border-white/10 bg-white/[0.045] backdrop-blur-2xl">
-        <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm font-semibold text-white">{data.project.name}</span>
-            <span className="text-[10px] text-white/30">Версия {activeVersion?.versionNumber ?? "—"}</span>
+      <header className="fixed left-4 right-4 top-3 z-40 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="mx-auto flex min-h-[72px] max-w-6xl items-center justify-between gap-3 px-4 sm:px-5">
+          <div className="min-w-0">
+            <div className="truncate text-[clamp(20px,4vw,30px)] font-bold leading-none tracking-[-0.04em] text-white">{data.project.name}</div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-white/46">
+              <span>Клиент: {data.project.clientName}</span>
+              <span className="hidden h-4 w-px bg-white/10 sm:block" />
+              <span>Версия {activeVersion?.versionNumber ?? "—"}</span>
+            </div>
           </div>
           <Button
             onClick={() => setApproveDialogOpen(true)}
             disabled={isVersionLocked || !activeVersion}
             className={cn(
-              "h-7 rounded-full px-4 text-[11px] font-semibold",
+              "h-10 rounded-2xl px-4 text-[12px] font-semibold shadow-[0_10px_24px_rgba(79,142,247,0.22)]",
               isVersionLocked
-                ? "bg-white/10 text-white/40"
+                ? "border border-white/10 bg-white/10 text-white/40 shadow-none"
                 : "bg-[#4F8EF7] text-white hover:bg-[#5a97ff]",
             )}
           >
@@ -925,19 +937,19 @@ export default function ClientPortalPage(): JSX.Element {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 pb-32 pt-20 lg:min-h-[calc(100vh-3rem)] lg:flex-row lg:pb-8">
+      <div className="mx-auto flex max-w-[1760px] flex-col gap-3 px-4 pb-32 pt-24 lg:min-h-[calc(100vh-3rem)] lg:flex-row lg:pb-8 xl:px-6">
         <section className="flex w-full flex-col gap-3 lg:w-[70%]">
           {data.versions.length > 1 ? (
-            <div className="flex items-center gap-2 text-[11px] text-white/40">
-              <span>Версия</span>
+            <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+              <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-white/32">Версии</div>
               <select
                 value={activeVersion?.id ?? ""}
                 onChange={(event) => selectVersion(event.target.value)}
-                className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/70 backdrop-blur-xl"
+                className="rounded-full border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(67,87,255,0.18),rgba(56,189,248,0.08))] px-4 py-2 text-[12px] font-semibold text-white/86 backdrop-blur-xl outline-none"
               >
                 {data.versions.map((version) => (
                   <option key={version.id} value={version.id}>
-                    V{version.versionNumber}
+                    Версия {version.versionNumber}
                   </option>
                 ))}
               </select>
@@ -945,7 +957,7 @@ export default function ClientPortalPage(): JSX.Element {
           ) : null}
 
           <div
-            className="relative overflow-hidden rounded-2xl bg-black shadow-[0_8px_40px_rgba(0,0,0,0.5),_0_0_0_0.5px_rgba(255,255,255,0.07)]"
+            className="relative overflow-hidden rounded-[24px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)]"
             onPointerDownCapture={blurActiveElement}
             onTouchStartCapture={blurActiveElement}
           >
@@ -1204,11 +1216,16 @@ export default function ClientPortalPage(): JSX.Element {
           {isVersionLocked && <p className="text-xs text-white/40">{m.portal.approvalLocked}</p>}
         </section>
 
-        <aside className="flex w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl lg:h-[calc(100vh-4.5rem)] lg:w-[30%]">
-          <div className="border-b border-white/10 px-4 pb-3 pt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/30">
-            Правки
+        <aside className="min-h-0 flex w-full flex-col overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:h-[calc(100vh-5.5rem)] lg:w-[30%]">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 px-5 pb-3 pt-4">
+            <div>
+              <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
+              <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
+                Правки <span className="font-medium text-white/35">({visibleFeedback.length})</span>
+              </h2>
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-3 pb-4 pt-3">
+          <div className={cn("min-h-0 flex-1 px-3 pb-4 pt-3", activeThreadItem ? "overflow-hidden" : "overflow-y-auto")}>
             {activeThreadItem ? (
               <div className="hidden h-full min-h-0 flex-col lg:flex">
                 {(() => {
@@ -1222,7 +1239,7 @@ export default function ClientPortalPage(): JSX.Element {
                     type="button"
                     onClick={() => setOpenThreadIds([])}
                     aria-label="Назад к списку"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/70 transition hover:border-white/15 hover:text-white"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70 transition hover:border-white/15 hover:text-white"
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </button>
@@ -1230,18 +1247,21 @@ export default function ClientPortalPage(): JSX.Element {
 
                 <div
                   className={cn(
-                    "rounded-[24px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl",
+                    "overflow-hidden rounded-[24px] border p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+                    PORTAL_FEEDBACK_CARD_CLASSES[activeThreadItem.status],
                     !isExpanded && hasLongText && "h-[176px] overflow-hidden",
                   )}
                 >
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex min-w-[104px] items-center rounded-full bg-white/[0.04] px-3 py-1 text-[13px] font-semibold tracking-[0.01em] text-white/92">{activeThreadItem.authorName}</span>
+                    <span className="min-w-[104px] text-[15px] font-semibold tracking-[0.01em] text-white">{activeThreadItem.authorName}</span>
                     <button
                       type="button"
                       onClick={() => seekToTimecode(activeThreadItem.timecodeSec, activeThreadItem.annotationData)}
                       className={cn(
-                        "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                        activeThreadItem.timecodeSec !== null ? "bg-blue-500/12 text-blue-300" : "bg-white/5 text-white/35",
+                        "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                        activeThreadItem.timecodeSec !== null
+                          ? "border-sky-300/15 bg-sky-400/10 text-sky-100"
+                          : "border-white/10 bg-white/[0.04] text-white/35",
                       )}
                       >
                       {activeThreadItem.timecodeSec !== null ? formatTimecode(activeThreadItem.timecodeSec) : "Без таймкода"}
@@ -1249,13 +1269,13 @@ export default function ClientPortalPage(): JSX.Element {
                   </div>
                   {activeThreadItem.annotationData ? (
                     <div className="mb-2 flex">
-                      <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/12 bg-blue-500/8 px-2 py-0.5 text-[10px] text-blue-200/82">
-                        <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                      <span className="inline-flex items-center gap-2 text-[10px] text-sky-200/82">
+                        <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
                         С аннотацией
                       </span>
                     </div>
                   ) : null}
-                  <p className={cn("text-sm leading-relaxed text-white/82", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
+                  <p className={cn("text-sm leading-6 text-white", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", PORTAL_STATUS_CLASSES[activeThreadItem.status])}>
                       {PORTAL_STATUS_LABELS[activeThreadItem.status]}
@@ -1280,10 +1300,9 @@ export default function ClientPortalPage(): JSX.Element {
                   ) : null}
                 </div>
 
-                <div className="mt-3 min-h-0 flex-1 rounded-[24px] border border-white/10 bg-white/[0.05] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl">
+                <div className="mt-3 grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.05] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl">
                   <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28">Обсуждение</div>
-                  <div className="flex h-full min-h-0 flex-col">
-                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                    <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
                       {threadLoadingById[activeThreadItem.id] ? <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Загрузка обсуждения...</div> : null}
                       {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
                         <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Обсуждение ещё не начато</div>
@@ -1294,17 +1313,17 @@ export default function ClientPortalPage(): JSX.Element {
                           <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
                             <div
                               className={cn(
-                                "max-w-[88%] rounded-[18px] px-3 py-2.5",
+                                "max-w-[84%] rounded-[20px] px-3.5 py-3",
                                 isMine
                                   ? "border border-white/10 bg-[linear-gradient(135deg,rgba(79,142,247,0.38),rgba(79,142,247,0.24))] text-white backdrop-blur-2xl"
                                   : "border border-white/10 bg-white/[0.06] text-white/82 backdrop-blur-2xl",
                               )}
                             >
-                              <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/70" : "text-white/35")}>
+                              <div className={cn("mb-1.5 flex items-center gap-2 text-[10px]", isMine ? "text-white/70" : "text-white/35")}>
                                 <span>{isMine ? "Вы" : message.author.name}</span>
                                 <span>{formatDateTime(message.createdAt)}</span>
                               </div>
-                              <p className="text-xs leading-relaxed">{message.text}</p>
+                              <p className="text-[13px] leading-6">{message.text}</p>
                             </div>
                           </div>
                         );
@@ -1328,7 +1347,6 @@ export default function ClientPortalPage(): JSX.Element {
                         <Send className="h-4 w-4" />
                       </button>
                     </div>
-                  </div>
                 </div>
                     </>
                   );
@@ -1346,12 +1364,15 @@ export default function ClientPortalPage(): JSX.Element {
                   <article
                     key={item.id}
                     onClick={() => void toggleThread(item.id)}
-                    className="cursor-pointer rounded-[22px] border border-white/10 bg-white/[0.03] p-3.5 transition hover:border-blue-400/25"
+                    className={cn(
+                      "cursor-pointer overflow-hidden rounded-[24px] border p-3.5 transition hover:border-white/18",
+                      PORTAL_FEEDBACK_CARD_CLASSES[item.status],
+                    )}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <span className="inline-flex min-w-[104px] items-center rounded-full bg-white/[0.04] px-3 py-1 text-[13px] font-semibold tracking-[0.01em] text-white/92">{item.authorName}</span>
+                          <span className="text-[15px] font-semibold tracking-[0.01em] text-white">{item.authorName}</span>
                           <button
                             type="button"
                             onClick={(event) => {
@@ -1359,8 +1380,10 @@ export default function ClientPortalPage(): JSX.Element {
                               seekToTimecode(item.timecodeSec, item.annotationData);
                             }}
                             className={cn(
-                              "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                              item.timecodeSec !== null ? "bg-blue-500/12 text-blue-300" : "bg-white/5 text-white/35",
+                              "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                              item.timecodeSec !== null
+                                ? "border-sky-300/15 bg-sky-400/10 text-sky-100"
+                                : "border-white/10 bg-white/[0.04] text-white/35",
                             )}
                           >
                             {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
@@ -1368,13 +1391,13 @@ export default function ClientPortalPage(): JSX.Element {
                         </div>
                         {item.annotationData ? (
                           <div className="mb-2 flex">
-                            <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/12 bg-blue-500/8 px-2 py-0.5 text-[10px] text-blue-200/82">
-                              <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                            <span className="inline-flex items-center gap-2 text-[10px] text-sky-200/82">
+                              <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
                               С аннотацией
                             </span>
                           </div>
                         ) : null}
-                        <p className="text-sm leading-relaxed text-white/72">{item.text}</p>
+                        <p className="text-sm leading-6 text-white">{item.text}</p>
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", PORTAL_STATUS_CLASSES[item.status])}>
                             {PORTAL_STATUS_LABELS[item.status]}
@@ -1412,25 +1435,29 @@ export default function ClientPortalPage(): JSX.Element {
                 <button
                   type="button"
                   onClick={() => setOpenThreadIds([])}
-                  className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white/72"
+                  aria-label="Назад к списку"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/72"
                 >
-                  Закрыть
+                  <ArrowLeft className="h-4 w-4" />
                 </button>
               </div>
               <div
                 className={cn(
-                  "mt-3 rounded-[22px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl",
+                  "mt-3 overflow-hidden rounded-[24px] border p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+                  PORTAL_FEEDBACK_CARD_CLASSES[activeThreadItem.status],
                   !isExpanded && hasLongText && "h-[176px] overflow-hidden",
                 )}
               >
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="inline-flex min-w-[104px] items-center rounded-full bg-white/[0.04] px-3 py-1 text-[13px] font-semibold tracking-[0.01em] text-white/92">{activeThreadItem.authorName}</span>
+                  <span className="min-w-[104px] text-[15px] font-semibold tracking-[0.01em] text-white">{activeThreadItem.authorName}</span>
                   <button
                     type="button"
                     onClick={() => seekToTimecode(activeThreadItem.timecodeSec, activeThreadItem.annotationData)}
                     className={cn(
-                      "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                      activeThreadItem.timecodeSec !== null ? "bg-blue-500/12 text-blue-300" : "bg-white/5 text-white/35",
+                      "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                      activeThreadItem.timecodeSec !== null
+                        ? "border-sky-300/15 bg-sky-400/10 text-sky-100"
+                        : "border-white/10 bg-white/[0.04] text-white/35",
                     )}
                   >
                     {activeThreadItem.timecodeSec !== null ? formatTimecode(activeThreadItem.timecodeSec) : "Без таймкода"}
@@ -1438,13 +1465,13 @@ export default function ClientPortalPage(): JSX.Element {
                 </div>
                 {activeThreadItem.annotationData ? (
                   <div className="mb-2 flex">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/12 bg-blue-500/8 px-2 py-0.5 text-[10px] text-blue-200/82">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                    <span className="inline-flex items-center gap-2 text-[10px] text-sky-200/82">
+                      <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
                       С аннотацией
                     </span>
                   </div>
                 ) : null}
-                <p className={cn("text-sm leading-relaxed text-white/82", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
+                <p className={cn("text-sm leading-6 text-white", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", PORTAL_STATUS_CLASSES[activeThreadItem.status])}>
                     {PORTAL_STATUS_LABELS[activeThreadItem.status]}
@@ -1474,7 +1501,7 @@ export default function ClientPortalPage(): JSX.Element {
             })()}
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {threadLoadingById[activeThreadItem.id] ? <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Загрузка обсуждения...</div> : null}
                 {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
                   <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Обсуждение ещё не начато</div>
@@ -1485,17 +1512,17 @@ export default function ClientPortalPage(): JSX.Element {
                         <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
                           <div
                             className={cn(
-                              "max-w-[88%] rounded-[18px] px-3 py-2.5",
+                              "max-w-[84%] rounded-[20px] px-3.5 py-3",
                               isMine
                                 ? "border border-white/10 bg-[linear-gradient(135deg,rgba(79,142,247,0.38),rgba(79,142,247,0.24))] text-white backdrop-blur-2xl"
                                 : "border border-white/10 bg-white/[0.06] text-white/82 backdrop-blur-2xl",
                             )}
                           >
-                        <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/70" : "text-white/35")}>
+                        <div className={cn("mb-1.5 flex items-center gap-2 text-[10px]", isMine ? "text-white/70" : "text-white/35")}>
                           <span>{isMine ? "Вы" : message.author.name}</span>
                           <span>{formatDateTime(message.createdAt)}</span>
                         </div>
-                        <p className="text-xs leading-relaxed">{message.text}</p>
+                        <p className="text-[13px] leading-6">{message.text}</p>
                       </div>
                     </div>
                   );
