@@ -1085,7 +1085,6 @@ export default function VersionDetailPage(): JSX.Element {
 
         <section className={cn("space-y-3 pb-8 lg:hidden", activeThreadItem && "hidden")}>
           <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-            <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-white/32">Версии</div>
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
               {versions.map((version) => {
                 const isActive = version.id === activeVersion.id;
