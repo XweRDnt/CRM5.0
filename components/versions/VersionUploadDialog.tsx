@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { VersionUploadFlow } from "@/components/versions/VersionUploadFlow";
@@ -8,6 +8,7 @@ import { VersionUploadFlow } from "@/components/versions/VersionUploadFlow";
 type VersionUploadDialogProps = {
   projectId: string;
   triggerText: string;
+  triggerContent?: ReactNode;
   triggerClassName?: string;
   triggerVariant?: ButtonProps["variant"];
   triggerSize?: ButtonProps["size"];
@@ -16,6 +17,7 @@ type VersionUploadDialogProps = {
 export function VersionUploadDialog({
   projectId,
   triggerText,
+  triggerContent,
   triggerClassName,
   triggerVariant = "default",
   triggerSize = "default",
@@ -43,7 +45,7 @@ export function VersionUploadDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button type="button" className={triggerClassName} variant={triggerVariant} size={triggerSize}>
-          {triggerText}
+          {triggerContent ?? triggerText}
         </Button>
       </DialogTrigger>
       <DialogContent

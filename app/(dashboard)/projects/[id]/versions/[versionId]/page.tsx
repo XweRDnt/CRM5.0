@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown, Copy, Download, Loader2, Search, Send, Share2, Users } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Copy, Download, Loader2, Plus, Search, Send, Share2, Users } from "lucide-react";
 import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
 import { VersionDetailMobileSidebar } from "@/components/layout/VersionDetailMobileSidebar";
 import type { FeedbackStatus } from "@prisma/client";
@@ -1008,6 +1008,12 @@ export default function VersionDetailPage(): JSX.Element {
                       <Users className="h-[18px] w-[18px]" strokeWidth={2.2} />
                     </button>
                   ) : null}
+                  <VersionUploadDialog
+                    projectId={projectId}
+                    triggerText=""
+                    triggerClassName="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.18))] text-indigo-100 shadow-[0_10px_24px_rgba(67,87,255,0.18)]"
+                    triggerContent={<Plus className="h-[18px] w-[18px]" strokeWidth={2.4} />}
+                  />
                 </div>
               </div>
             </div>
@@ -1054,7 +1060,6 @@ export default function VersionDetailPage(): JSX.Element {
                   <Users className="h-[22px] w-[22px]" strokeWidth={2.35} />
                 </button>
               ) : null}
-              <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
             </div>
           </div>
         </section>
@@ -1084,13 +1089,6 @@ export default function VersionDetailPage(): JSX.Element {
                 </button>
               );
             })}
-            <VersionUploadDialog
-              projectId={projectId}
-              triggerText="+ Создать новую"
-              triggerVariant="outline"
-              triggerSize="sm"
-              triggerClassName="rounded-full border border-dashed border-white/15 bg-transparent px-4 py-2 text-xs font-semibold text-white/35 hover:border-white/20 hover:text-white/60"
-            />
           </div>
         </section>
 
@@ -1098,12 +1096,6 @@ export default function VersionDetailPage(): JSX.Element {
           <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
             <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-white/32">Версии</div>
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              <VersionUploadDialog
-                projectId={projectId}
-                triggerText="+ Версия"
-                triggerSize="sm"
-                triggerClassName="rounded-full border border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.2),rgba(56,189,248,0.12))] px-4 py-2 text-[12px] font-semibold whitespace-nowrap text-indigo-100 transition hover:border-indigo-200/45 hover:text-white"
-              />
               {versions.map((version) => {
                 const isActive = version.id === activeVersion.id;
                 return (
