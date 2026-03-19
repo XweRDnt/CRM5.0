@@ -1212,7 +1212,7 @@ export default function ClientPortalPage(): JSX.Element {
                   </button>
                 </div>
 
-                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+                <div className="rounded-[24px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28">Текст правки</div>
                   <p className="mt-2 text-sm leading-relaxed text-white/82">{activeThreadItem.text}</p>
                   <div className="mt-3 flex items-center gap-2 text-[11px] text-white/38">
@@ -1227,7 +1227,7 @@ export default function ClientPortalPage(): JSX.Element {
                   </div>
                 </div>
 
-                <div className="mt-3 min-h-0 flex-1 rounded-[22px] border border-white/10 bg-[#0b0d14]/88 p-3">
+                <div className="mt-3 min-h-0 flex-1 rounded-[24px] border border-white/10 bg-white/[0.05] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl">
                   <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28">Обсуждение</div>
                   <div className="flex h-full min-h-0 flex-col">
                     <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -1242,7 +1242,9 @@ export default function ClientPortalPage(): JSX.Element {
                             <div
                               className={cn(
                                 "max-w-[88%] rounded-[18px] px-3 py-2.5",
-                                isMine ? "bg-[#4F8EF7] text-white" : "border border-white/10 bg-white/[0.05] text-white/82",
+                                isMine
+                                  ? "border border-white/10 bg-[linear-gradient(135deg,rgba(79,142,247,0.38),rgba(79,142,247,0.24))] text-white backdrop-blur-2xl"
+                                  : "border border-white/10 bg-white/[0.06] text-white/82 backdrop-blur-2xl",
                               )}
                             >
                               <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/70" : "text-white/35")}>
@@ -1331,7 +1333,7 @@ export default function ClientPortalPage(): JSX.Element {
 
       <div className="lg:hidden">
         {activeThreadItem ? (
-          <div className="fixed inset-0 z-50 flex flex-col bg-[#09090f]">
+            <div className="fixed inset-0 z-50 flex flex-col bg-[radial-gradient(ellipse_at_top,rgba(80,70,210,0.18),transparent_42%),#09090f] backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 pb-3 pt-4">
               <div className="min-w-0">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28">Обсуждение правки</div>
@@ -1372,15 +1374,17 @@ export default function ClientPortalPage(): JSX.Element {
                   <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Обсуждение ещё не начато</div>
                 ) : null}
                 {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
-                  const isMine = message.authorType === "CLIENT";
-                  return (
-                    <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
-                      <div
-                        className={cn(
-                          "max-w-[88%] rounded-[18px] px-3 py-2.5",
-                          isMine ? "bg-[#4F8EF7] text-white" : "border border-white/10 bg-white/[0.05] text-white/82",
-                        )}
-                      >
+                      const isMine = message.authorType === "CLIENT";
+                      return (
+                        <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+                          <div
+                            className={cn(
+                              "max-w-[88%] rounded-[18px] px-3 py-2.5",
+                              isMine
+                                ? "border border-white/10 bg-[linear-gradient(135deg,rgba(79,142,247,0.38),rgba(79,142,247,0.24))] text-white backdrop-blur-2xl"
+                                : "border border-white/10 bg-white/[0.06] text-white/82 backdrop-blur-2xl",
+                            )}
+                          >
                         <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/70" : "text-white/35")}>
                           <span>{isMine ? "Вы" : message.author.name}</span>
                           <span>{formatDateTime(message.createdAt)}</span>

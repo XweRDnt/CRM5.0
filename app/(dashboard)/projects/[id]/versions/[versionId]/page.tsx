@@ -775,29 +775,24 @@ export default function VersionDetailPage(): JSX.Element {
             </button>
           </div>
 
-          <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[(activeThreadItem.status ?? "NEW") as FeedbackStatus])}>
-                {STATUS_BADGE_LABELS[(activeThreadItem.status ?? "NEW") as FeedbackStatus]}
-              </span>
-              {activeThreadItem.annotationData ? (
-                <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/15 bg-sky-400/10 px-2.5 py-1 text-[11px] text-sky-200">
-                  <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
-                  Есть аннотация
-                </span>
-              ) : null}
-            </div>
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl">
             <div className="mt-3 text-[10px] uppercase tracking-[0.16em] text-white/28">Текст правки</div>
-            <p className="mt-2 text-sm leading-relaxed text-white/84">{activeThreadItem.text}</p>
+            <p className="mt-2 text-sm leading-relaxed text-white/88">{activeThreadItem.text}</p>
+            {activeThreadItem.annotationData ? (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-white/62">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                Есть аннотация
+              </div>
+            ) : null}
           </div>
 
-          <div className="mt-3 min-h-0 flex-1 rounded-[22px] border border-white/10 bg-[#0b0d14]/88 p-3">
+          <div className="mt-3 min-h-0 flex-1 rounded-[24px] border border-white/10 bg-white/[0.05] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl">
             <div className="mb-3 text-[10px] uppercase tracking-[0.16em] text-white/28">Обсуждение</div>
             <div className="flex h-full min-h-0 flex-col">
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {threadLoadingById[activeThreadItem.id] ? <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs leading-6 text-white/55">Загрузка обсуждения...</p> : null}
+                {threadLoadingById[activeThreadItem.id] ? <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs leading-6 text-white/55 backdrop-blur-xl">Загрузка обсуждения...</p> : null}
                 {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
-                  <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs leading-6 text-white/55">Обсуждение ещё не начато.</p>
+                  <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs leading-6 text-white/55 backdrop-blur-xl">Обсуждение ещё не начато.</p>
                 ) : null}
                 {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
                   const isMine = message.authorType === "USER";
@@ -806,7 +801,9 @@ export default function VersionDetailPage(): JSX.Element {
                       <div
                         className={cn(
                           "max-w-[88%] rounded-[18px] px-3 py-2.5",
-                          isMine ? "bg-[linear-gradient(135deg,rgba(67,87,255,0.9),rgba(56,189,248,0.75))] text-white" : "border border-white/10 bg-white/[0.05] text-white/82",
+                          isMine
+                            ? "border border-white/10 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.2))] text-white backdrop-blur-2xl"
+                            : "border border-white/10 bg-white/[0.06] text-white/82 backdrop-blur-2xl",
                         )}
                       >
                         <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/72" : "text-white/35")}>
@@ -1156,29 +1153,33 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
 
           <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-            <div className="flex items-start justify-between gap-3 pb-3">
-              <div>
-                <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
-                <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
-                  Правки <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
-                </h2>
-              </div>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-none">
-              {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setActiveFilter(filter)}
-                  className={cn(
-                    "rounded-full border px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition",
-                    activeFilter === filter ? FILTER_ACTIVE_CLASSES[filter] : FILTER_IDLE_CLASSES[filter],
-                  )}
-                >
-                  {FILTER_LABELS[filter]}
-                </button>
-              ))}
-            </div>
+            {!activeThreadItem ? (
+              <>
+                <div className="flex items-start justify-between gap-3 pb-3">
+                  <div>
+                    <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
+                    <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
+                      Правки <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
+                    </h2>
+                  </div>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-none">
+                  {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setActiveFilter(filter)}
+                      className={cn(
+                        "rounded-full border px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition",
+                        activeFilter === filter ? FILTER_ACTIVE_CLASSES[filter] : FILTER_IDLE_CLASSES[filter],
+                      )}
+                    >
+                      {FILTER_LABELS[filter]}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
             {feedbackListContent}
           </div>
         </section>
@@ -1264,32 +1265,35 @@ export default function VersionDetailPage(): JSX.Element {
 
           <aside className="min-h-0 overflow-hidden">
             <div className="flex h-full min-h-0 flex-col rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-              <div className="flex shrink-0 items-start justify-between gap-3 pb-3">
-                <div>
-                  <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
-                  <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
-                    Правки <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
-                  </h2>
-                </div>
-                {feedbackLoading ? <Loader2 className="h-4 w-4 animate-spin text-sky-300" /> : null}
-              </div>
+              {!activeThreadItem ? (
+                <>
+                  <div className="flex shrink-0 items-start justify-between gap-3 pb-3">
+                    <div>
+                      <span className="text-[11px] uppercase tracking-[0.16em] text-[#8fa4d48f]">Review inbox</span>
+                      <h2 className="mt-1.5 text-[20px] font-semibold tracking-[-0.03em]">
+                        Правки <span className="font-medium text-white/35">({visibleBaseFeedback.length})</span>
+                      </h2>
+                    </div>
+                    {feedbackLoading ? <Loader2 className="h-4 w-4 animate-spin text-sky-300" /> : null}
+                  </div>
 
-              <div className="flex shrink-0 gap-2 overflow-x-auto pb-3 scrollbar-none">
-                {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    onClick={() => setActiveFilter(filter)}
-                    className={cn(
-                      "rounded-full border px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition",
-                      activeFilter === filter ? FILTER_ACTIVE_CLASSES[filter] : FILTER_IDLE_CLASSES[filter],
-                    )}
-                  >
-                    {FILTER_LABELS[filter]}
-                  </button>
-                ))}
-              </div>
-
+                  <div className="flex shrink-0 gap-2 overflow-x-auto pb-3 scrollbar-none">
+                    {(Object.keys(FILTER_LABELS) as FeedbackFilter[]).map((filter) => (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setActiveFilter(filter)}
+                        className={cn(
+                          "rounded-full border px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition",
+                          activeFilter === filter ? FILTER_ACTIVE_CLASSES[filter] : FILTER_IDLE_CLASSES[filter],
+                        )}
+                      >
+                        {FILTER_LABELS[filter]}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null}
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">{feedbackListContent}</div>
             </div>
           </aside>
