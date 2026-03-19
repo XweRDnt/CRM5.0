@@ -759,6 +759,7 @@ export default function VersionDetailPage(): JSX.Element {
           {(() => {
             const isExpanded = expandedThreadCardIds[activeThreadItem.id] ?? false;
             const hasLongText = activeThreadItem.text.trim().length > 180;
+            const status = (activeThreadItem.status ?? "NEW") as FeedbackStatus;
 
             return (
               <>
@@ -775,7 +776,8 @@ export default function VersionDetailPage(): JSX.Element {
 
                 <div
                   className={cn(
-                    "rounded-[24px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl",
+                    "overflow-hidden rounded-[24px] border p-3.5",
+                    FEEDBACK_CARD_CLASSES[status],
                     !isExpanded && hasLongText && "h-[176px] overflow-hidden",
                   )}
                 >
@@ -802,10 +804,10 @@ export default function VersionDetailPage(): JSX.Element {
                       </span>
                     </div>
                   ) : null}
-                  <p className={cn("text-sm leading-6 text-white/88", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
+                  <p className={cn("text-sm leading-6 text-white/72", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[(activeThreadItem.status ?? "NEW") as FeedbackStatus])}>
-                      {STATUS_BADGE_LABELS[(activeThreadItem.status ?? "NEW") as FeedbackStatus]}
+                    <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[status])}>
+                      {STATUS_BADGE_LABELS[status]}
                     </span>
                   </div>
                   {hasLongText ? (
@@ -1259,7 +1261,8 @@ export default function VersionDetailPage(): JSX.Element {
 
                     <div
                       className={cn(
-                        "mt-3 rounded-[22px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl",
+                        "mt-3 overflow-hidden rounded-[24px] border p-3.5",
+                        FEEDBACK_CARD_CLASSES[status],
                         !isExpanded && hasLongText && "h-[176px] overflow-hidden",
                       )}
                     >
@@ -1288,7 +1291,7 @@ export default function VersionDetailPage(): JSX.Element {
                           </span>
                         </div>
                       ) : null}
-                      <p className={cn("text-sm leading-6 text-white/88", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
+                      <p className={cn("text-sm leading-6 text-white/72", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[status])}>
                           {STATUS_BADGE_LABELS[status]}
