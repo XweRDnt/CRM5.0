@@ -244,6 +244,7 @@ export default function ClientPortalPage(): JSX.Element {
   const [threadDrafts, setThreadDrafts] = useState<Record<string, string>>({});
   const [threadLoadingById, setThreadLoadingById] = useState<Record<string, boolean>>({});
   const [threadSubmittingById, setThreadSubmittingById] = useState<Record<string, boolean>>({});
+  const [expandedThreadCardIds, setExpandedThreadCardIds] = useState<Record<string, boolean>>({});
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
   const blurActiveElement = (): void => {
     if (typeof document === "undefined") {
@@ -1210,6 +1211,12 @@ export default function ClientPortalPage(): JSX.Element {
           <div className="flex-1 overflow-y-auto px-3 pb-4 pt-3">
             {activeThreadItem ? (
               <div className="hidden h-full min-h-0 flex-col lg:flex">
+                {(() => {
+                  const isExpanded = expandedThreadCardIds[activeThreadItem.id] ?? false;
+                  const hasLongText = activeThreadItem.text.trim().length > 180;
+
+                  return (
+                    <>
                 <div className="mb-3 flex items-center gap-2">
                   <button
                     type="button"
@@ -1221,7 +1228,12 @@ export default function ClientPortalPage(): JSX.Element {
                   </button>
                 </div>
 
-                <div className="rounded-[24px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl">
+                <div
+                  className={cn(
+                    "rounded-[24px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl",
+                    !isExpanded && hasLongText && "h-[176px] overflow-hidden",
+                  )}
+                >
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     {activeThreadItem.annotationData ? (
                       <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/20 bg-blue-500/10 px-2.5 py-1 text-[11px] text-blue-300">
@@ -1243,12 +1255,29 @@ export default function ClientPortalPage(): JSX.Element {
                       {activeThreadItem.timecodeSec !== null ? formatTimecode(activeThreadItem.timecodeSec) : "Без таймкода"}
                     </button>
                   </div>
-                  <p className="text-sm leading-relaxed text-white/82">{activeThreadItem.text}</p>
+                  <p className={cn("text-sm leading-relaxed text-white/82", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", PORTAL_STATUS_CLASSES[activeThreadItem.status])}>
                       {PORTAL_STATUS_LABELS[activeThreadItem.status]}
                     </span>
                   </div>
+                  {hasLongText ? (
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        type="button"
+                        aria-label={isExpanded ? "Свернуть текст правки" : "Раскрыть текст правки"}
+                        onClick={() =>
+                          setExpandedThreadCardIds((current) => ({
+                            ...current,
+                            [activeThreadItem.id]: !isExpanded,
+                          }))
+                        }
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/72 transition hover:border-white/15 hover:text-white"
+                      >
+                        <ChevronDown className={cn("h-4 w-4 transition", isExpanded && "rotate-180")} />
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="mt-3 min-h-0 flex-1 rounded-[24px] border border-white/10 bg-white/[0.05] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl">
@@ -1301,6 +1330,9 @@ export default function ClientPortalPage(): JSX.Element {
                     </div>
                   </div>
                 </div>
+                    </>
+                  );
+                })()}
               </div>
             ) : null}
 
@@ -1366,6 +1398,12 @@ export default function ClientPortalPage(): JSX.Element {
       <div className="lg:hidden">
         {activeThreadItem ? (
             <div className="fixed inset-0 z-50 flex flex-col bg-[radial-gradient(ellipse_at_top,rgba(80,70,210,0.18),transparent_42%),#09090f] backdrop-blur-xl">
+            {(() => {
+              const isExpanded = expandedThreadCardIds[activeThreadItem.id] ?? false;
+              const hasLongText = activeThreadItem.text.trim().length > 180;
+
+              return (
+                <>
             <div className="border-b border-white/10 px-4 pb-3 pt-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1379,7 +1417,12 @@ export default function ClientPortalPage(): JSX.Element {
                   Закрыть
                 </button>
               </div>
-              <div className="mt-3 rounded-[22px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl">
+              <div
+                className={cn(
+                  "mt-3 rounded-[22px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl",
+                  !isExpanded && hasLongText && "h-[176px] overflow-hidden",
+                )}
+              >
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   {activeThreadItem.annotationData ? (
                     <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/20 bg-blue-500/10 px-2.5 py-1 text-[11px] text-blue-300">
@@ -1401,14 +1444,34 @@ export default function ClientPortalPage(): JSX.Element {
                     {activeThreadItem.timecodeSec !== null ? formatTimecode(activeThreadItem.timecodeSec) : "Без таймкода"}
                   </button>
                 </div>
-                <p className="text-sm leading-relaxed text-white/82">{activeThreadItem.text}</p>
+                <p className={cn("text-sm leading-relaxed text-white/82", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", PORTAL_STATUS_CLASSES[activeThreadItem.status])}>
                     {PORTAL_STATUS_LABELS[activeThreadItem.status]}
                   </span>
                 </div>
+                {hasLongText ? (
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      aria-label={isExpanded ? "Свернуть текст правки" : "Раскрыть текст правки"}
+                      onClick={() =>
+                        setExpandedThreadCardIds((current) => ({
+                          ...current,
+                          [activeThreadItem.id]: !isExpanded,
+                        }))
+                      }
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/72 transition hover:border-white/15 hover:text-white"
+                    >
+                      <ChevronDown className={cn("h-4 w-4 transition", isExpanded && "rotate-180")} />
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
+                </>
+              );
+            })()}
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
               <div className="space-y-2">
