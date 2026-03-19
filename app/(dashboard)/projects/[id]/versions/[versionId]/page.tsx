@@ -978,9 +978,6 @@ export default function VersionDetailPage(): JSX.Element {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 pt-1">
                   <h1 className="truncate text-[clamp(22px,6vw,30px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
-                  <p className="mt-1 text-[12px] text-white/52">
-                    Версия {activeVersion.versionNumber} · {feedbackCounts.NEW > 0 ? "Есть правки" : VERSION_STATUS_LABELS[versionUiStatus]}
-                  </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <button
@@ -1023,14 +1020,6 @@ export default function VersionDetailPage(): JSX.Element {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-[clamp(24px,2.4vw,32px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
-                <span className="h-5 w-px bg-white/10" />
-                <span className="text-[13px] text-white/55">Версия {activeVersion.versionNumber}</span>
-                <span className="text-[13px] text-white/55">{VERSION_STATUS_LABELS[versionUiStatus]}</span>
-                {feedbackCounts.NEW > 0 ? (
-                  <span className="rounded-full border border-red-400/25 bg-red-950/40 px-3 py-1 text-[11px] font-semibold text-red-200">
-                    Есть правки
-                  </span>
-                ) : null}
               </div>
             </div>
 
