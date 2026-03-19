@@ -81,6 +81,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
           select: {
             id: true,
             text: true,
+            status: true,
             timecodeSec: true,
             annotationData: true,
             createdAt: true,
@@ -138,6 +139,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         feedback: feedbackItems.map((item) => ({
           id: item.id,
           text: item.text,
+          status: item.status,
           timecodeSec: item.timecodeSec,
           annotationData: item.annotationData,
           createdAt: item.createdAt,

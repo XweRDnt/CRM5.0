@@ -17,9 +17,26 @@ import { normalizeClientPoint } from "@/lib/annotations/coords";
 import { getAnnotationToggle } from "@/lib/annotations/interaction";
 import { getDrawingSurfaceClass } from "@/lib/annotations/overlay";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType, FeedbackThreadMessageResponse } from "@/types";
+import type { FeedbackStatus } from "@prisma/client";
 import { ArrowLeft, ArrowUpRight, ChevronDown, Circle, Minus, Pencil, Redo2, Send, Square, Type, Undo2 } from "lucide-react";
 
 const SUBMIT_TIMEOUT_MS = 15000;
+
+const PORTAL_STATUS_LABELS: Record<FeedbackStatus, string> = {
+  NEW: "Новая",
+  VIEWED: "Просмотрено",
+  IN_PROGRESS: "В работе",
+  RESOLVED: "Готово",
+  REJECTED: "Отклонена",
+};
+
+const PORTAL_STATUS_CLASSES: Record<FeedbackStatus, string> = {
+  NEW: "border-amber-400/24 bg-amber-400/12 text-amber-200",
+  VIEWED: "border-white/15 bg-white/8 text-white/58",
+  IN_PROGRESS: "border-blue-400/24 bg-blue-500/12 text-blue-200",
+  RESOLVED: "border-emerald-400/24 bg-emerald-500/12 text-emerald-200",
+  REJECTED: "border-rose-400/24 bg-rose-500/12 text-rose-200",
+};
 
 type PortalVersion = {
   id: string;
@@ -38,6 +55,7 @@ type PortalVersion = {
 type PortalFeedbackItem = {
   id: string;
   text: string;
+  status: FeedbackStatus;
   timecodeSec: number | null;
   annotationData?: AnnotationData | null;
   createdAt: string;
@@ -1296,6 +1314,14 @@ export default function ClientPortalPage(): JSX.Element {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
+                          {item.annotationData ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/20 bg-blue-500/10 px-2.5 py-1 text-[11px] text-blue-300">
+                              <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                              Аннотация
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
                           <span className="text-[12px] font-semibold text-white/68">{item.authorName}</span>
                           <button
                             type="button"
@@ -1310,14 +1336,13 @@ export default function ClientPortalPage(): JSX.Element {
                           >
                             {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
                           </button>
-                          {item.annotationData ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/20 bg-blue-500/10 px-2.5 py-1 text-[11px] text-blue-300">
-                              <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                              Аннотация
-                            </span>
-                          ) : null}
                         </div>
                         <p className="text-sm leading-relaxed text-white/72">{item.text}</p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", PORTAL_STATUS_CLASSES[item.status])}>
+                            {PORTAL_STATUS_LABELS[item.status]}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="flex shrink-0 items-center gap-2">
