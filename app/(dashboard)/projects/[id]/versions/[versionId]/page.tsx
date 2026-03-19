@@ -752,7 +752,7 @@ export default function VersionDetailPage(): JSX.Element {
           Правок пока нет
         </div>
       ) : activeThreadItem ? (
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">
           {(() => {
             const isExpanded = expandedThreadCardIds[activeThreadItem.id] ?? false;
             const hasLongText = activeThreadItem.text.trim().length > 180;
@@ -826,61 +826,59 @@ export default function VersionDetailPage(): JSX.Element {
                   ) : null}
                 </div>
 
-                <div className="mt-3 min-h-0 flex-1 rounded-[24px] border border-white/10 bg-white/[0.05] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl">
-            <div className="mb-3 text-[10px] uppercase tracking-[0.16em] text-white/28">Обсуждение</div>
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {threadLoadingById[activeThreadItem.id] ? <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs leading-6 text-white/55 backdrop-blur-xl">Загрузка обсуждения...</p> : null}
-                {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
-                  <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs leading-6 text-white/55 backdrop-blur-xl">Обсуждение ещё не начато.</p>
-                ) : null}
-                {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
-                  const isMine = message.authorType === "USER";
-                  return (
-                    <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
-                      <div
-                        className={cn(
-                          "max-w-[88%] rounded-[18px] px-3 py-2.5",
-                          isMine
-                            ? "border border-white/10 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.2))] text-white backdrop-blur-2xl"
-                            : "border border-white/10 bg-white/[0.06] text-white/82 backdrop-blur-2xl",
-                        )}
-                      >
-                        <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/72" : "text-white/35")}>
-                          <span>{isMine ? "Вы" : message.author.name}</span>
-                          <span>{formatDateTime(message.createdAt)}</span>
+                <div className="mt-3 grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.05] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl">
+                  <div className="mb-3 shrink-0 text-[10px] uppercase tracking-[0.16em] text-white/28">Обсуждение</div>
+                  <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
+                    {threadLoadingById[activeThreadItem.id] ? <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs leading-6 text-white/55 backdrop-blur-xl">Загрузка обсуждения...</p> : null}
+                    {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
+                      <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs leading-6 text-white/55 backdrop-blur-xl">Обсуждение ещё не начато.</p>
+                    ) : null}
+                    {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
+                      const isMine = message.authorType === "USER";
+                      return (
+                        <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+                          <div
+                            className={cn(
+                              "max-w-[84%] rounded-[20px] px-3.5 py-3",
+                              isMine
+                                ? "border border-white/10 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.2))] text-white backdrop-blur-2xl"
+                                : "border border-white/10 bg-white/[0.06] text-white/82 backdrop-blur-2xl",
+                            )}
+                          >
+                            <div className={cn("mb-1.5 flex items-center gap-2 text-[10px]", isMine ? "text-white/72" : "text-white/35")}>
+                              <span>{isMine ? "Вы" : message.author.name}</span>
+                              <span>{formatDateTime(message.createdAt)}</span>
+                            </div>
+                            <p className="text-[13px] leading-6">{message.text}</p>
+                          </div>
                         </div>
-                        <p className="text-xs leading-relaxed">{message.text}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-3 border-t border-white/10 pt-3">
-                {canReply ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={threadDrafts[activeThreadItem.id] ?? ""}
-                      onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
-                      disabled={threadSubmittingById[activeThreadItem.id]}
-                      placeholder="Ответить клиенту..."
-                      className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-white/26"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleThreadReply(activeThreadItem.id)}
-                      disabled={threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(67,87,255,0.85),rgba(56,189,248,0.65))] text-white transition disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-white/20"
-                    >
-                      <Send className="h-4 w-4" />
-                    </button>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white/46">Вы можете просматривать обсуждение, но отвечать в треде может только PM или owner.</div>
-                )}
-              </div>
-            </div>
+
+                  <div className="mt-3 shrink-0 border-t border-white/10 pt-3">
+                    {canReply ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={threadDrafts[activeThreadItem.id] ?? ""}
+                          onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
+                          disabled={threadSubmittingById[activeThreadItem.id]}
+                          placeholder="Ответить клиенту..."
+                          className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-white/26"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void handleThreadReply(activeThreadItem.id)}
+                          disabled={threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(67,87,255,0.85),rgba(56,189,248,0.65))] text-white transition disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-white/20"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white/46">Вы можете просматривать обсуждение, но отвечать в треде может только PM или owner.</div>
+                    )}
+                  </div>
                 </div>
               </>
             );
@@ -1470,7 +1468,7 @@ export default function VersionDetailPage(): JSX.Element {
                   </div>
                 </>
               ) : null}
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">{feedbackListContent}</div>
+              <div className={cn("min-h-0 flex-1", activeThreadItem ? "overflow-hidden" : "overflow-y-auto pr-1")}>{feedbackListContent}</div>
             </div>
           </aside>
         </section>
