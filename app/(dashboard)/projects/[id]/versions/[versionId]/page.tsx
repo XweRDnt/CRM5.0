@@ -993,7 +993,7 @@ export default function VersionDetailPage(): JSX.Element {
                     }}
                     aria-label="Поделиться"
                   >
-                    <Share2 className="h-5 w-5" />
+                    <Share2 className="h-6 w-6" />
                   </button>
                   {isOwnerOrPm ? (
                     <button
@@ -1005,7 +1005,7 @@ export default function VersionDetailPage(): JSX.Element {
                       }}
                       aria-label="Сотрудники"
                     >
-                      <Users className="h-5 w-5" />
+                      <Users className="h-6 w-6" />
                     </button>
                   ) : null}
                 </div>
@@ -1039,7 +1039,7 @@ export default function VersionDetailPage(): JSX.Element {
                   setShareMenuOpen((current) => !current);
                 }}
               >
-                <Share2 className="h-5 w-5" />
+                <Share2 className="h-6 w-6" />
               </button>
               {isOwnerOrPm ? (
                 <button
@@ -1051,7 +1051,7 @@ export default function VersionDetailPage(): JSX.Element {
                     setEmployeesModalOpen(true);
                   }}
                 >
-                  <Users className="h-5 w-5" />
+                  <Users className="h-6 w-6" />
                 </button>
               ) : null}
               <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
