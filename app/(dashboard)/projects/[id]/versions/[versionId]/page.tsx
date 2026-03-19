@@ -991,7 +991,7 @@ export default function VersionDetailPage(): JSX.Element {
                     }}
                     aria-label="Поделиться"
                   >
-                    <Share2 className="h-[18px] w-[18px]" />
+                    <Share2 className="h-5 w-5" />
                   </button>
                   {isOwnerOrPm ? (
                     <button
@@ -1003,7 +1003,7 @@ export default function VersionDetailPage(): JSX.Element {
                       }}
                       aria-label="Сотрудники"
                     >
-                      <Users className="h-[18px] w-[18px]" />
+                      <Users className="h-5 w-5" />
                     </button>
                   ) : null}
                 </div>
