@@ -1090,7 +1090,7 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="space-y-3 pb-8 lg:hidden">
+        <section className={cn("space-y-3 pb-8 lg:hidden", activeThreadItem && "hidden")}>
           <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
             <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-white/32">Версии</div>
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -1230,6 +1230,148 @@ export default function VersionDetailPage(): JSX.Element {
             {feedbackListContent}
           </div>
         </section>
+
+        {activeThreadItem ? (
+          <div className="fixed inset-0 z-50 flex flex-col bg-[radial-gradient(ellipse_at_top,rgba(80,70,210,0.18),transparent_42%),#09090f] backdrop-blur-xl lg:hidden">
+            {(() => {
+              const isExpanded = expandedThreadCardIds[activeThreadItem.id] ?? false;
+              const hasLongText = activeThreadItem.text.trim().length > 180;
+              const status = (activeThreadItem.status ?? "NEW") as FeedbackStatus;
+
+              return (
+                <>
+                  <div className="border-b border-white/10 px-4 pb-3 pt-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28">Обсуждение правки</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setOpenThreadIds(new Set())}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/72"
+                        aria-label="Закрыть обсуждение"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div
+                      className={cn(
+                        "mt-3 rounded-[22px] border border-white/10 bg-white/[0.055] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl",
+                        !isExpanded && hasLongText && "h-[176px] overflow-hidden",
+                      )}
+                    >
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex min-w-[104px] items-center rounded-full bg-white/[0.04] px-3 py-1 text-[13px] font-semibold tracking-[0.01em] text-white/92">
+                          {activeThreadItem.author.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => seekToTimecode(activeThreadItem.timecodeSec, activeThreadItem.annotationData)}
+                          className={cn(
+                            "rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                            activeThreadItem.timecodeSec !== null
+                              ? "border-sky-300/15 bg-sky-400/10 text-sky-100"
+                              : "border-white/10 bg-white/[0.04] text-white/35",
+                          )}
+                        >
+                          {activeThreadItem.timecodeSec !== null ? formatTimecode(activeThreadItem.timecodeSec) : "Без таймкода"}
+                        </button>
+                      </div>
+                      {activeThreadItem.annotationData ? (
+                        <div className="mb-2 flex">
+                          <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/10 bg-sky-400/8 px-2 py-0.5 text-[10px] text-sky-200/82">
+                            <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                            С аннотацией
+                          </span>
+                        </div>
+                      ) : null}
+                      <p className={cn("text-sm leading-6 text-white/88", !isExpanded && hasLongText && "line-clamp-3")}>{activeThreadItem.text}</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[status])}>
+                          {STATUS_BADGE_LABELS[status]}
+                        </span>
+                      </div>
+                      {hasLongText ? (
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            aria-label={isExpanded ? "Свернуть текст правки" : "Раскрыть текст правки"}
+                            onClick={() =>
+                              setExpandedThreadCardIds((current) => ({
+                                ...current,
+                                [activeThreadItem.id]: !isExpanded,
+                              }))
+                            }
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/72"
+                          >
+                            <ChevronDown className={cn("h-4 w-4 transition", isExpanded && "rotate-180")} />
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+                    <div className="space-y-2">
+                      {threadLoadingById[activeThreadItem.id] ? <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/50">Загрузка обсуждения...</div> : null}
+                      {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/50">Обсуждение ещё не начато.</div>
+                      ) : null}
+                      {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
+                        const isMine = message.authorType === "USER";
+                        return (
+                          <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+                            <div
+                              className={cn(
+                                "max-w-[88%] rounded-[18px] px-3 py-2.5",
+                                isMine
+                                  ? "border border-white/10 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.2))] text-white backdrop-blur-2xl"
+                                  : "border border-white/10 bg-white/[0.06] text-white/82 backdrop-blur-2xl",
+                              )}
+                            >
+                              <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/72" : "text-white/35")}>
+                                <span>{isMine ? "Вы" : message.author.name}</span>
+                                <span>{formatDateTime(message.createdAt)}</span>
+                              </div>
+                              <p className="text-xs leading-relaxed">{message.text}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/10 px-4 py-3">
+                    {canReply ? (
+                      <div className="flex items-center gap-2 rounded-[20px] border border-white/10 bg-white/[0.05] p-2">
+                        <input
+                          value={threadDrafts[activeThreadItem.id] ?? ""}
+                          onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
+                          disabled={threadSubmittingById[activeThreadItem.id]}
+                          placeholder="Ответить клиенту..."
+                          className="min-w-0 flex-1 bg-transparent px-2 text-sm text-white outline-none placeholder:text-white/24"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void handleThreadReply(activeThreadItem.id)}
+                          disabled={threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white disabled:bg-white/[0.06] disabled:text-white/30"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white/46">
+                        Вы можете просматривать обсуждение, но отвечать в треде может только PM или owner.
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        ) : null}
 
         <section className="hidden min-h-0 flex-1 gap-4 overflow-hidden lg:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
           <div className="left-col flex min-w-0 min-h-0 flex-col gap-3 overflow-hidden">
