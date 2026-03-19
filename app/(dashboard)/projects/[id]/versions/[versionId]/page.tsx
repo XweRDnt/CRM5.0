@@ -1030,24 +1030,26 @@ export default function VersionDetailPage(): JSX.Element {
               <button
                 ref={shareButtonRef}
                 type="button"
-                className="pm-btn pm-btn-muted"
+                aria-label="Поделиться"
+                className="pm-btn pm-btn-muted inline-flex w-[42px] items-center justify-center px-0"
                 onClick={() => {
                   setEmployeesModalOpen(false);
                   setShareMenuOpen((current) => !current);
                 }}
               >
-                Поделиться
+                <Share2 className="h-[18px] w-[18px]" />
               </button>
               {isOwnerOrPm ? (
                 <button
                   type="button"
-                  className="pm-btn pm-btn-muted hidden lg:inline-flex"
+                  aria-label="Сотрудники"
+                  className="pm-btn pm-btn-muted hidden w-[42px] items-center justify-center px-0 lg:inline-flex"
                   onClick={() => {
                     setShareMenuOpen(false);
                     setEmployeesModalOpen(true);
                   }}
                 >
-                  Сотрудники
+                  <Users className="h-[18px] w-[18px]" />
                 </button>
               ) : null}
               <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
