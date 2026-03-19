@@ -8,6 +8,7 @@ import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
 import { VersionDetailMobileSidebar } from "@/components/layout/VersionDetailMobileSidebar";
 import type { FeedbackStatus } from "@prisma/client";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { toast } from "@/components/ui/toast";
 import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
@@ -271,6 +272,7 @@ export default function VersionDetailPage(): JSX.Element {
   const [xmlExporting, setXmlExporting] = useState(false);
   const [resettingPortalLink, setResettingPortalLink] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState(false);
+  const [confirmDeleteVersionOpen, setConfirmDeleteVersionOpen] = useState(false);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [employeesModalOpen, setEmployeesModalOpen] = useState(false);
@@ -606,11 +608,6 @@ export default function VersionDetailPage(): JSX.Element {
       return;
     }
 
-    const confirmed = window.confirm(`Удалить версию ${activeVersion.versionNumber}? Все правки будут удалены.`);
-    if (!confirmed) {
-      return;
-    }
-
     setDeletingVersion(true);
     try {
       await apiFetch(`/api/projects/${projectId}/versions/${activeVersion.id}`, {
@@ -644,6 +641,7 @@ export default function VersionDetailPage(): JSX.Element {
       toast.error("Не удалось удалить версию");
     } finally {
       setDeletingVersion(false);
+      setConfirmDeleteVersionOpen(false);
     }
   };
 
@@ -1619,7 +1617,7 @@ export default function VersionDetailPage(): JSX.Element {
             className="pm-delete-item"
             onClick={() => {
               setDeleteMenuPosition(null);
-              void handleDeleteVersion();
+              setConfirmDeleteVersionOpen(true);
             }}
             disabled={deletingVersion}
           >
@@ -1627,6 +1625,16 @@ export default function VersionDetailPage(): JSX.Element {
           </button>
         </div>
       ) : null}
+
+      <ConfirmDeleteDialog
+        open={confirmDeleteVersionOpen}
+        onOpenChange={setConfirmDeleteVersionOpen}
+        title="Вы точно уверены?"
+        description={activeVersion ? `Версия ${activeVersion.versionNumber} будет удалена без возможности восстановления.` : ""}
+        loading={deletingVersion}
+        confirmLabel="Удалить версию"
+        onConfirm={() => void handleDeleteVersion()}
+      />
 
       <style jsx global>{`
         .pm-etalon {

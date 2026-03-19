@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import useSWR from "swr";
+import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { toast } from "@/components/ui/toast";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
@@ -32,21 +34,22 @@ function ProjectGridSkeleton(): JSX.Element {
 export default function ProjectsPage(): JSX.Element {
   const { data: projects, error, isLoading, mutate } = useSWR("/api/projects", fetcher);
   const { user } = useAuthGuard();
+  const [pendingDeleteProject, setPendingDeleteProject] = useState<{ id: string; name: string } | null>(null);
+  const [deletingProject, setDeletingProject] = useState(false);
   const isEditor = user?.role === "EDITOR";
   const canDelete = user?.role === "OWNER" || user?.role === "PM";
 
-  const handleDeleteProject = async (projectId: string, projectName: string): Promise<void> => {
-    const confirmed = window.confirm(`Удалить проект "${projectName}"? Все версии и комментарии будут удалены.`);
-    if (!confirmed) {
-      return;
-    }
-
+  const handleDeleteProject = async (projectId: string): Promise<void> => {
+    setDeletingProject(true);
     try {
       await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
       await mutate((prev) => (prev ?? []).filter((project) => project.id !== projectId), { revalidate: true });
       toast.success("Проект удалён");
+      setPendingDeleteProject(null);
     } catch {
       toast.error("Не удалось удалить проект");
+    } finally {
+      setDeletingProject(false);
     }
   };
 
@@ -88,11 +91,34 @@ export default function ProjectsPage(): JSX.Element {
               key={project.id}
               project={project}
               canDelete={canDelete}
-              onDelete={(id, name) => void handleDeleteProject(id, name)}
+              onDelete={(id, name) => setPendingDeleteProject({ id, name })}
             />
           ))}
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={pendingDeleteProject !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDeleteProject(null);
+          }
+        }}
+        title="Вы точно уверены?"
+        description={
+          pendingDeleteProject
+            ? `Проект "${pendingDeleteProject.name}" будет удалён без возможности восстановления.`
+            : ""
+        }
+        loading={deletingProject}
+        onConfirm={() => {
+          if (!pendingDeleteProject) {
+            return;
+          }
+
+          return handleDeleteProject(pendingDeleteProject.id);
+        }}
+      />
     </section>
   );
 }
