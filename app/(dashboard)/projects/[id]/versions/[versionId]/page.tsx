@@ -780,7 +780,7 @@ export default function VersionDetailPage(): JSX.Element {
                   )}
                 >
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex min-w-[104px] items-center rounded-full bg-white/[0.04] px-3 py-1 text-[13px] font-semibold tracking-[0.01em] text-white/92">{activeThreadItem.author.name}</span>
+                    <span className="min-w-[104px] text-[13px] font-semibold tracking-[0.01em] text-white/92">{activeThreadItem.author.name}</span>
                     <button
                       type="button"
                       onClick={() => seekToTimecode(activeThreadItem.timecodeSec, activeThreadItem.annotationData)}
@@ -904,7 +904,7 @@ export default function VersionDetailPage(): JSX.Element {
                 <div className="relative flex gap-3 p-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex min-w-[104px] items-center rounded-full bg-white/[0.04] px-3 py-1 text-[13px] font-semibold tracking-[0.01em] text-white/92">{item.author.name}</span>
+                      <span className="min-w-[104px] text-[13px] font-semibold tracking-[0.01em] text-white/92">{item.author.name}</span>
                       <button
                         type="button"
                         onClick={(event) => {
@@ -1264,7 +1264,7 @@ export default function VersionDetailPage(): JSX.Element {
                       )}
                     >
                       <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex min-w-[104px] items-center rounded-full bg-white/[0.04] px-3 py-1 text-[13px] font-semibold tracking-[0.01em] text-white/92">
+                        <span className="min-w-[104px] text-[13px] font-semibold tracking-[0.01em] text-white/92">
                           {activeThreadItem.author.name}
                         </span>
                         <button
