@@ -1006,7 +1006,7 @@ export default function VersionDetailPage(): JSX.Element {
                     projectId={projectId}
                     triggerText=""
                     triggerClassName="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.18))] text-indigo-100 shadow-[0_10px_24px_rgba(67,87,255,0.18)]"
-                    triggerContent={<Plus className="h-[18px] w-[18px]" strokeWidth={2.4} />}
+                    triggerContent={<Plus className="h-[22px] w-[22px]" strokeWidth={2.6} />}
                   />
                 </div>
               </div>
@@ -1046,6 +1046,11 @@ export default function VersionDetailPage(): JSX.Element {
                   <Users className="h-[22px] w-[22px]" strokeWidth={2.35} />
                 </button>
               ) : null}
+              <VersionUploadDialog
+                projectId={projectId}
+                triggerText="+ Новая версия"
+                triggerClassName="pm-btn inline-flex h-12 items-center justify-center px-5 text-[14px] font-semibold"
+              />
             </div>
           </div>
         </section>
