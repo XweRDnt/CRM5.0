@@ -17,7 +17,6 @@ import { strokeToSvg } from "@/lib/annotations/render";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getAnnotationPlaybackPolicy } from "@/lib/annotations/behavior";
-import { VERSION_STATUS_LABELS, toVersionUiStatus } from "@/lib/constants/status-ui";
 import type { AnnotationData, AnnotationStroke, AssetVersionResponse, FeedbackResponse, FeedbackThreadMessageResponse, ProjectResponse } from "@/types";
 
 type ApiWrapped<T> = T | { data: T };
@@ -392,8 +391,6 @@ export default function VersionDetailPage(): JSX.Element {
     });
   }, [memberSearch, workspaceMembers]);
 
-  const hasClientFeedback = visibleBaseFeedback.length > 0;
-  const versionUiStatus = activeVersion ? toVersionUiStatus(activeVersion.status, hasClientFeedback) : "DRAFT";
   const playbackPolicy = getAnnotationPlaybackPolicy();
   const overlayStrokes = activeAnnotation?.strokes ?? [];
   const renderStroke = (stroke: AnnotationStroke, index: number): JSX.Element => (
