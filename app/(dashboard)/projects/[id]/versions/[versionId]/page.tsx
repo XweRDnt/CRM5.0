@@ -904,7 +904,7 @@ export default function VersionDetailPage(): JSX.Element {
                 <div className="relative flex gap-3 p-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="min-w-[104px] text-[13px] font-semibold tracking-[0.01em] text-white/92">{item.author.name}</span>
+                      <span className="text-[15px] font-semibold tracking-[0.01em] text-white">{item.author.name}</span>
                       <button
                         type="button"
                         onClick={(event) => {
@@ -923,14 +923,14 @@ export default function VersionDetailPage(): JSX.Element {
                     </div>
                     {item.annotationData ? (
                       <div className="mb-2 flex">
-                        <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/10 bg-sky-400/8 px-2 py-0.5 text-[10px] text-sky-200/82">
+                        <span className="inline-flex items-center gap-2 px-0 py-0 text-[10px] text-sky-200/82">
                           <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
                           С аннотацией
                         </span>
                       </div>
                     ) : null}
 
-                    <p className="text-sm leading-6 text-white/72">{item.text}</p>
+                    <p className="text-sm leading-6 text-white/94">{item.text}</p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[status])}>
