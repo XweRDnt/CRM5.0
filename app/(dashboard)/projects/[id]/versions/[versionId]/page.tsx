@@ -87,14 +87,6 @@ const FEEDBACK_CARD_CLASSES: Record<FeedbackStatus, string> = {
   REJECTED: "border-rose-400/14 bg-[linear-gradient(180deg,rgba(20,22,33,0.96),rgba(24,14,18,0.98))] hover:border-rose-300/24",
 };
 
-const FEEDBACK_CARD_OPEN_CLASSES: Record<FeedbackStatus, string> = {
-  NEW: "border-amber-300/28 shadow-[0_18px_36px_rgba(245,158,11,0.12)]",
-  VIEWED: "border-violet-300/28 shadow-[0_18px_36px_rgba(99,102,241,0.14)]",
-  IN_PROGRESS: "border-sky-300/28 shadow-[0_18px_36px_rgba(14,165,233,0.14)]",
-  RESOLVED: "border-emerald-300/28 shadow-[0_18px_36px_rgba(16,185,129,0.12)]",
-  REJECTED: "border-rose-300/28 shadow-[0_18px_36px_rgba(244,63,94,0.12)]",
-};
-
 const PROJECT_ROLE_LABELS: Record<ProjectMemberRole, string> = {
   pm: "PM",
   editor: "EDITOR",
@@ -380,6 +372,8 @@ export default function VersionDetailPage(): JSX.Element {
     }
     return visibleBaseFeedback.filter((item) => (item.status ?? "NEW") === activeFilter);
   }, [activeFilter, visibleBaseFeedback]);
+  const activeThreadId = Array.from(openThreadIds)[0] ?? null;
+  const activeThreadItem = activeThreadId ? filteredFeedback.find((item) => item.id === activeThreadId) ?? null : null;
 
   const projectMembersByUserId = useMemo(() => {
     return new Map(projectMembers.map((member) => [member.userId, member]));
@@ -493,15 +487,7 @@ export default function VersionDetailPage(): JSX.Element {
   const toggleThread = async (threadId: string): Promise<void> => {
     const isOpen = openThreadIds.has(threadId);
 
-    setOpenThreadIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(threadId)) {
-        next.delete(threadId);
-      } else {
-        next.add(threadId);
-      }
-      return next;
-    });
+    setOpenThreadIds(isOpen ? new Set() : new Set([threadId]));
 
     if (isOpen) {
       return;
@@ -763,14 +749,106 @@ export default function VersionDetailPage(): JSX.Element {
     <>
       {feedbackLoading ? <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/45">Загрузка правок...</div> : null}
 
-      {!feedbackLoading && filteredFeedback.length === 0 ? (
+      {!feedbackLoading && !activeThreadItem && filteredFeedback.length === 0 ? (
         <div className="rounded-[22px] border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/45">
           Правок пока нет
+        </div>
+      ) : activeThreadItem ? (
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="mb-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setOpenThreadIds(new Set())}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white/72 transition hover:border-white/15 hover:text-white"
+            >
+              Назад к списку
+            </button>
+            <button
+              type="button"
+              onClick={() => seekToTimecode(activeThreadItem.timecodeSec, activeThreadItem.annotationData)}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                activeThreadItem.timecodeSec !== null ? "bg-sky-400/12 text-sky-200" : "bg-white/[0.04] text-white/35",
+              )}
+            >
+              {activeThreadItem.timecodeSec !== null ? formatTimecode(activeThreadItem.timecodeSec) : "Без таймкода"}
+            </button>
+          </div>
+
+          <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[(activeThreadItem.status ?? "NEW") as FeedbackStatus])}>
+                {STATUS_BADGE_LABELS[(activeThreadItem.status ?? "NEW") as FeedbackStatus]}
+              </span>
+              {activeThreadItem.annotationData ? (
+                <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/15 bg-sky-400/10 px-2.5 py-1 text-[11px] text-sky-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                  Есть аннотация
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-3 text-[10px] uppercase tracking-[0.16em] text-white/28">Текст правки</div>
+            <p className="mt-2 text-sm leading-relaxed text-white/84">{activeThreadItem.text}</p>
+          </div>
+
+          <div className="mt-3 min-h-0 flex-1 rounded-[22px] border border-white/10 bg-[#0b0d14]/88 p-3">
+            <div className="mb-3 text-[10px] uppercase tracking-[0.16em] text-white/28">Обсуждение</div>
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {threadLoadingById[activeThreadItem.id] ? <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs leading-6 text-white/55">Загрузка обсуждения...</p> : null}
+                {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
+                  <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs leading-6 text-white/55">Обсуждение ещё не начато.</p>
+                ) : null}
+                {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
+                  const isMine = message.authorType === "USER";
+                  return (
+                    <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+                      <div
+                        className={cn(
+                          "max-w-[88%] rounded-[18px] px-3 py-2.5",
+                          isMine ? "bg-[linear-gradient(135deg,rgba(67,87,255,0.9),rgba(56,189,248,0.75))] text-white" : "border border-white/10 bg-white/[0.05] text-white/82",
+                        )}
+                      >
+                        <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/72" : "text-white/35")}>
+                          <span>{isMine ? "Вы" : message.author.name}</span>
+                          <span>{formatDateTime(message.createdAt)}</span>
+                        </div>
+                        <p className="text-xs leading-relaxed">{message.text}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 border-t border-white/10 pt-3">
+                {canReply ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={threadDrafts[activeThreadItem.id] ?? ""}
+                      onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
+                      disabled={threadSubmittingById[activeThreadItem.id]}
+                      placeholder="Ответить клиенту..."
+                      className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-white/26"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleThreadReply(activeThreadItem.id)}
+                      disabled={threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(67,87,255,0.85),rgba(56,189,248,0.65))] text-white transition disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-white/20"
+                    >
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white/46">Вы можете просматривать обсуждение, но отвечать в треде может только PM или owner.</div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
           {filteredFeedback.map((item) => {
-            const isOpen = openThreadIds.has(item.id);
             const status = (item.status ?? "NEW") as FeedbackStatus;
             return (
               <article
@@ -779,18 +857,12 @@ export default function VersionDetailPage(): JSX.Element {
                 className={cn(
                   "overflow-hidden rounded-[24px] border transition cursor-pointer",
                   FEEDBACK_CARD_CLASSES[status],
-                  isOpen ? FEEDBACK_CARD_OPEN_CLASSES[status] : "",
+                  "hover:border-white/18",
                 )}
               >
                 <div className="relative flex gap-3 p-3.5">
-                  {!isOpen && (item.threadUnreadCount ?? 0) > 0 ? (
-                    <span className="absolute right-4 top-4 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-indigo-400 px-1.5 text-[10px] font-bold text-[#0b0d16] shadow-[0_0_14px_rgba(124,140,255,0.72)]">
-                      {item.threadUnreadCount}
-                    </span>
-                  ) : null}
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-white/95">{item.author.name}</span>
                       <button
                         type="button"
                         onClick={(event) => {
@@ -811,71 +883,21 @@ export default function VersionDetailPage(): JSX.Element {
                     <p className="text-sm leading-6 text-white/72">{item.text}</p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {item.annotationData ? (
-                        <span className="inline-flex items-center gap-2 text-[11px] text-sky-200/75">
-                          <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
-                          С аннотацией
-                        </span>
-                      ) : null}
                       <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold", STATUS_BADGE_CLASSES[status])}>
                         {STATUS_BADGE_LABELS[status]}
                       </span>
-                      <span className="text-[11px] text-white/30">{item.threadMessageCount ?? 0} ответов</span>
+                      {item.annotationData ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/15 bg-sky-400/10 px-2.5 py-1 text-[11px] text-sky-200">
+                          <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                          Аннотация
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 
-                  <ChevronDown className={cn("mt-1 h-4 w-4 shrink-0 text-white/30 transition", isOpen && "rotate-180 text-white/80")} />
-                </div>
-
-                <div
-                  onClick={(event) => event.stopPropagation()}
-                  className={cn(
-                    "grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out",
-                    isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-                  )}
-                >
-                  <div className="min-h-0">
-                    <div className="mx-4 border-t border-white/10 pt-3">
-                      <span className="text-[10px] uppercase tracking-[0.16em] text-white/30">Thread</span>
-                      <div className="mt-2 space-y-2">
-                        {threadLoadingById[item.id] ? <p className="text-xs leading-6 text-white/55">Загрузка обсуждения...</p> : null}
-                        {!threadLoadingById[item.id] && (threadMessagesById[item.id]?.length ?? 0) === 0 ? (
-                          <p className="text-xs leading-6 text-white/55">Обсуждение ещё не начато.</p>
-                        ) : null}
-                        {(threadMessagesById[item.id] ?? []).map((message) => (
-                          <div key={message.id} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-white/88">{message.author.name}</p>
-                                <p className="text-[11px] text-white/35">{message.author.role}</p>
-                              </div>
-                              <p className="text-[10px] text-white/30">{formatDateTime(message.createdAt)}</p>
-                            </div>
-                            <p className="mt-2 text-xs leading-6 text-white/70">{message.text}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 p-3.5">
-                      <input
-                        value={threadDrafts[item.id] ?? ""}
-                        onChange={(event) => setThreadDrafts((current) => ({ ...current, [item.id]: event.target.value }))}
-                        disabled={!canReply || threadSubmittingById[item.id]}
-                        placeholder="Ответить клиенту..."
-                        className={cn(
-                          "min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-white outline-none placeholder:text-white/30",
-                          !canReply && "text-white/30 placeholder:text-white/15",
-                        )}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void handleThreadReply(item.id)}
-                        disabled={!canReply || threadSubmittingById[item.id] || !(threadDrafts[item.id]?.trim())}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(67,87,255,0.22),rgba(56,189,248,0.12))] text-indigo-100 transition hover:border-indigo-300/35 hover:text-white disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-white/20"
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                  <div className="mt-1 flex shrink-0 items-center gap-3">
+                    {(item.threadUnreadCount ?? 0) > 0 ? <span className="h-2.5 w-2.5 rounded-full bg-indigo-300 shadow-[0_0_18px_rgba(165,180,252,0.85)]" /> : null}
+                    <ChevronDown className="h-4 w-4 text-white/30" />
                   </div>
                 </div>
               </article>

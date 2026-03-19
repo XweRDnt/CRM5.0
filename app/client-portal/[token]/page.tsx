@@ -437,7 +437,7 @@ export default function ClientPortalPage(): JSX.Element {
 
   const toggleThread = async (threadId: string): Promise<void> => {
     const isOpen = openThreadIds.includes(threadId);
-    setOpenThreadIds((prev) => (prev.includes(threadId) ? prev.filter((id) => id !== threadId) : [...prev, threadId]));
+    setOpenThreadIds(isOpen ? [] : [threadId]);
 
     if (isOpen) {
       return;
@@ -848,6 +848,8 @@ export default function ClientPortalPage(): JSX.Element {
   const visibleFeedback = data.feedback.filter(
     (item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text),
   );
+  const activeThreadId = openThreadIds[0] ?? null;
+  const activeThreadItem = activeThreadId ? visibleFeedback.find((item) => item.id === activeThreadId) ?? null : null;
   const overlayVisible = annotationMode || activeAnnotation !== null;
   const previewStroke: AnnotationStroke | null = drawingState
     ? drawingState.tool === "freehand"
@@ -1187,126 +1189,233 @@ export default function ClientPortalPage(): JSX.Element {
           <div className="border-b border-white/10 px-4 pb-3 pt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/30">
             Правки
           </div>
-          <div className="flex-1 space-y-2 overflow-y-auto px-3 pb-4 pt-3">
-            {visibleFeedback.length === 0 ? (
+          <div className="flex-1 overflow-y-auto px-3 pb-4 pt-3">
+            {activeThreadItem ? (
+              <div className="hidden h-full min-h-0 flex-col lg:flex">
+                <div className="mb-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOpenThreadIds([])}
+                    className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white/70 transition hover:border-white/15 hover:text-white"
+                  >
+                    Назад к списку
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => seekToTimecode(activeThreadItem.timecodeSec, activeThreadItem.annotationData)}
+                    className={cn(
+                      "rounded-xl px-3 py-2 text-xs font-semibold",
+                      activeThreadItem.timecodeSec !== null ? "bg-blue-500/12 text-blue-300" : "bg-white/5 text-white/35",
+                    )}
+                  >
+                    {activeThreadItem.timecodeSec !== null ? formatTimecode(activeThreadItem.timecodeSec) : "Без таймкода"}
+                  </button>
+                </div>
+
+                <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28">Текст правки</div>
+                  <p className="mt-2 text-sm leading-relaxed text-white/82">{activeThreadItem.text}</p>
+                  <div className="mt-3 flex items-center gap-2 text-[11px] text-white/38">
+                    {activeThreadItem.annotationData ? (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-500/10 px-2.5 py-1 text-blue-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                        Есть аннотация
+                      </span>
+                    ) : (
+                      <span>Без аннотации</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 min-h-0 flex-1 rounded-[22px] border border-white/10 bg-[#0b0d14]/88 p-3">
+                  <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28">Обсуждение</div>
+                  <div className="flex h-full min-h-0 flex-col">
+                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                      {threadLoadingById[activeThreadItem.id] ? <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Загрузка обсуждения...</div> : null}
+                      {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Обсуждение ещё не начато</div>
+                      ) : null}
+                      {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
+                        const isMine = message.authorType === "CLIENT";
+                        return (
+                          <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+                            <div
+                              className={cn(
+                                "max-w-[88%] rounded-[18px] px-3 py-2.5",
+                                isMine ? "bg-[#4F8EF7] text-white" : "border border-white/10 bg-white/[0.05] text-white/82",
+                              )}
+                            >
+                              <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/70" : "text-white/35")}>
+                                <span>{isMine ? "Вы" : message.author.name}</span>
+                                <span>{formatDateTime(message.createdAt)}</span>
+                              </div>
+                              <p className="text-xs leading-relaxed">{message.text}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
+                      <input
+                        value={threadDrafts[activeThreadItem.id] ?? ""}
+                        onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
+                        disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
+                        placeholder="Ответить команде..."
+                        className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-white/84 placeholder:text-white/22 disabled:text-white/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleThreadReply(activeThreadItem.id)}
+                        disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
+                        className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white shadow-[0_10px_24px_rgba(79,142,247,0.3)] disabled:bg-white/[0.06] disabled:text-white/30"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {activeThreadItem ? null : visibleFeedback.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-sm text-white/40">
                 Правок пока нет
               </div>
             ) : (
-              visibleFeedback.map((item) => {
-                const isOpen = openThreadIds.includes(item.id);
-                return (
+              <div className="space-y-2">
+                {visibleFeedback.map((item) => (
                   <article
                     key={item.id}
                     onClick={() => void toggleThread(item.id)}
-                    className={cn(
-                      "group cursor-pointer rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition",
-                      isOpen ? "border-blue-400/30" : "hover:border-blue-400/25",
-                    )}
+                    className="cursor-pointer rounded-[22px] border border-white/10 bg-white/[0.03] p-3.5 transition hover:border-blue-400/25"
                   >
-                    {!isOpen && (item.threadUnreadCount ?? 0) > 0 ? (
-                      <div className="mb-2 flex justify-end">
-                        <span className="inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-blue-400 px-1.5 text-[10px] font-bold text-[#091019]">
-                          {item.threadUnreadCount}
-                        </span>
-                      </div>
-                    ) : null}
-                    <div className="flex items-start gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-white/70">{item.authorName}</span>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            seekToTimecode(item.timecodeSec, item.annotationData);
-                          }}
-                          className={cn(
-                            "rounded-md px-2 py-0.5 text-[11px] font-semibold",
-                            item.timecodeSec !== null
-                              ? "bg-blue-500/10 text-blue-300"
-                              : "bg-white/5 text-white/30",
-                          )}
-                        >
-                          {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
-                        </button>
-                      </div>
-                      <p className="text-sm leading-relaxed text-white/55">{item.text}</p>
-                      {item.annotationData ? (
-                        <div className="mt-2 flex items-center gap-2 text-[11px] text-blue-300/70">
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                          с аннотацией
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              seekToTimecode(item.timecodeSec, item.annotationData);
+                            }}
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                              item.timecodeSec !== null ? "bg-blue-500/12 text-blue-300" : "bg-white/5 text-white/35",
+                            )}
+                          >
+                            {item.timecodeSec !== null ? formatTimecode(item.timecodeSec) : "Без таймкода"}
+                          </button>
+                          {item.annotationData ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/20 bg-blue-500/10 px-2.5 py-1 text-[11px] text-blue-300">
+                              <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                              Аннотация
+                            </span>
+                          ) : null}
                         </div>
-                      ) : null}
-                      <div className="mt-2 flex items-center gap-2 text-[10px] text-white/30">
-                        <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-white/40">
-                          Новая
-                        </span>
-                        <span className="text-white/25">{item.threadMessageCount ?? 0} ответов</span>
+                        <p className="text-sm leading-relaxed text-white/72">{item.text}</p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        {(item.threadUnreadCount ?? 0) > 0 ? <span className="h-2.5 w-2.5 rounded-full bg-blue-400 shadow-[0_0_16px_rgba(96,165,250,0.85)]" /> : null}
+                        <ChevronDown className="h-4 w-4 text-white/25" />
                       </div>
                     </div>
-                    <ChevronDown
-                      className={cn(
-                        "mt-0.5 h-4 w-4 text-white/20 transition group-hover:text-blue-300",
-                        isOpen && "rotate-180 text-blue-300",
-                      )}
-                    />
-                  </div>
-                  <div
-                    onClick={(event) => event.stopPropagation()}
-                    className={cn(
-                      "mt-3 overflow-hidden border-t border-white/10 pt-0 transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
-                      isOpen ? "max-h-48 pt-3 opacity-100" : "max-h-0 pt-0 opacity-0",
-                    )}
-                  >
-                    <div className="space-y-2">
-                      {threadLoadingById[item.id] ? <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Загрузка обсуждения...</div> : null}
-                      {!threadLoadingById[item.id] && (threadMessagesById[item.id]?.length ?? 0) === 0 ? (
-                        <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">
-                          Обсуждение ещё не начато
-                        </div>
-                      ) : null}
-                      {(threadMessagesById[item.id] ?? []).map((message) => (
-                        <div key={message.id} className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/55">
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <p className="font-semibold text-white/80">{message.author.name}</p>
-                              <p className="text-[10px] text-white/35">{message.author.role}</p>
-                            </div>
-                            <p className="text-[10px] text-white/25">{formatDateTime(message.createdAt)}</p>
-                          </div>
-                          <p className="mt-2 leading-relaxed text-white/60">{message.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <input
-                        value={threadDrafts[item.id] ?? ""}
-                        onChange={(event) => setThreadDrafts((current) => ({ ...current, [item.id]: event.target.value }))}
-                        disabled={isVersionLocked || threadSubmittingById[item.id]}
-                        placeholder="Ответить..."
-                        className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/80 placeholder:text-white/20 disabled:text-white/40"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void handleThreadReply(item.id)}
-                        disabled={isVersionLocked || threadSubmittingById[item.id] || !(threadDrafts[item.id]?.trim())}
-                        className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.06] text-white/60 disabled:text-white/30"
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </article>
-                );
-              })
+                  </article>
+                ))}
+              </div>
             )}
           </div>
         </aside>
       </div>
 
       <div className="lg:hidden">
-        <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 px-4 pb-6 pt-2 [background:linear-gradient(to_top,rgba(9,9,15,0.97)_65%,transparent)]">
+        {activeThreadItem ? (
+          <div className="fixed inset-0 z-50 flex flex-col bg-[#09090f]">
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 pb-3 pt-4">
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28">Обсуждение правки</div>
+                <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-white/82">{activeThreadItem.text}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpenThreadIds([])}
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white/72"
+              >
+                Закрыть
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-[11px] text-white/44">
+              <button
+                type="button"
+                onClick={() => seekToTimecode(activeThreadItem.timecodeSec, activeThreadItem.annotationData)}
+                className={cn(
+                  "rounded-full px-2.5 py-1 font-semibold",
+                  activeThreadItem.timecodeSec !== null ? "bg-blue-500/12 text-blue-300" : "bg-white/5 text-white/35",
+                )}
+              >
+                {activeThreadItem.timecodeSec !== null ? formatTimecode(activeThreadItem.timecodeSec) : "Без таймкода"}
+              </button>
+              {activeThreadItem.annotationData ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-blue-400/20 bg-blue-500/10 px-2.5 py-1 text-blue-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                  Аннотация
+                </span>
+              ) : null}
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <div className="space-y-2">
+                {threadLoadingById[activeThreadItem.id] ? <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Загрузка обсуждения...</div> : null}
+                {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Обсуждение ещё не начато</div>
+                ) : null}
+                {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
+                  const isMine = message.authorType === "CLIENT";
+                  return (
+                    <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+                      <div
+                        className={cn(
+                          "max-w-[88%] rounded-[18px] px-3 py-2.5",
+                          isMine ? "bg-[#4F8EF7] text-white" : "border border-white/10 bg-white/[0.05] text-white/82",
+                        )}
+                      >
+                        <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/70" : "text-white/35")}>
+                          <span>{isMine ? "Вы" : message.author.name}</span>
+                          <span>{formatDateTime(message.createdAt)}</span>
+                        </div>
+                        <p className="text-xs leading-relaxed">{message.text}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 px-4 py-3">
+              <div className="flex items-center gap-2 rounded-[20px] border border-white/10 bg-white/[0.05] p-2">
+                <input
+                  value={threadDrafts[activeThreadItem.id] ?? ""}
+                  onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
+                  disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
+                  placeholder="Ответить..."
+                  className="flex-1 bg-transparent px-2 text-sm text-white/82 outline-none placeholder:text-white/24"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleThreadReply(activeThreadItem.id)}
+                  disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white disabled:bg-white/[0.06] disabled:text-white/30"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className={cn("fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 px-4 pb-6 pt-2 [background:linear-gradient(to_top,rgba(9,9,15,0.97)_65%,transparent)]", activeThreadItem && "hidden")}>
           <div
             className={cn(
               "flex items-center gap-2 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.05] px-3 backdrop-blur-xl transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
