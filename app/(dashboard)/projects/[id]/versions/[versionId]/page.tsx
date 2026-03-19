@@ -986,26 +986,26 @@ export default function VersionDetailPage(): JSX.Element {
                   <button
                     ref={shareButtonRef}
                     type="button"
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                    className="inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
                     onClick={() => {
                       setEmployeesModalOpen(false);
                       setShareMenuOpen((current) => !current);
                     }}
                     aria-label="Поделиться"
                   >
-                    <Share2 className="h-6 w-6" />
+                    <Share2 className="h-7 w-7" strokeWidth={2.2} />
                   </button>
                   {isOwnerOrPm ? (
                     <button
                       type="button"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                      className="inline-flex h-12 w-12 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
                       onClick={() => {
                         setShareMenuOpen(false);
                         setEmployeesModalOpen(true);
                       }}
                       aria-label="Сотрудники"
                     >
-                      <Users className="h-6 w-6" />
+                      <Users className="h-7 w-7" strokeWidth={2.2} />
                     </button>
                   ) : null}
                 </div>
@@ -1033,25 +1033,25 @@ export default function VersionDetailPage(): JSX.Element {
                 ref={shareButtonRef}
                 type="button"
                 aria-label="Поделиться"
-                className="pm-btn pm-btn-muted inline-flex w-[42px] items-center justify-center px-0"
+                className="pm-btn pm-btn-muted inline-flex h-12 w-12 items-center justify-center px-0"
                 onClick={() => {
                   setEmployeesModalOpen(false);
                   setShareMenuOpen((current) => !current);
                 }}
               >
-                <Share2 className="h-6 w-6" />
+                <Share2 className="h-7 w-7" strokeWidth={2.2} />
               </button>
               {isOwnerOrPm ? (
                 <button
                   type="button"
                   aria-label="Сотрудники"
-                  className="pm-btn pm-btn-muted hidden w-[42px] items-center justify-center px-0 lg:inline-flex"
+                  className="pm-btn pm-btn-muted hidden h-12 w-12 items-center justify-center px-0 lg:inline-flex"
                   onClick={() => {
                     setShareMenuOpen(false);
                     setEmployeesModalOpen(true);
                   }}
                 >
-                  <Users className="h-6 w-6" />
+                  <Users className="h-7 w-7" strokeWidth={2.2} />
                 </button>
               ) : null}
               <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
