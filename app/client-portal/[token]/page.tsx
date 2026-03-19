@@ -1322,7 +1322,7 @@ export default function ClientPortalPage(): JSX.Element {
                           ) : null}
                         </div>
                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <span className="text-[12px] font-semibold text-white/68">{item.authorName}</span>
+                          <span className="text-[13px] font-semibold tracking-[0.01em] text-white/92">{item.authorName}</span>
                           <button
                             type="button"
                             onClick={(event) => {

@@ -870,7 +870,7 @@ export default function VersionDetailPage(): JSX.Element {
                     </div>
 
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="text-[12px] font-semibold text-white/68">{item.author.name}</span>
+                      <span className="text-[13px] font-semibold tracking-[0.01em] text-white/92">{item.author.name}</span>
                       <button
                         type="button"
                         onClick={(event) => {
