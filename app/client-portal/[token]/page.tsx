@@ -1295,6 +1295,7 @@ export default function ClientPortalPage(): JSX.Element {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="text-[12px] font-semibold text-white/68">{item.authorName}</span>
                           <button
                             type="button"
                             onClick={(event) => {

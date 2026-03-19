@@ -860,6 +860,7 @@ export default function VersionDetailPage(): JSX.Element {
                 <div className="relative flex gap-3 p-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="text-[12px] font-semibold text-white/68">{item.author.name}</span>
                       <button
                         type="button"
                         onClick={(event) => {
