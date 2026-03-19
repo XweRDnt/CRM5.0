@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Check, ChevronDown, Copy, Download, Loader2, Search, Send, Share2, Users } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Copy, Download, Loader2, Search, Send, Share2, Users } from "lucide-react";
 import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
 import { VersionDetailMobileSidebar } from "@/components/layout/VersionDetailMobileSidebar";
 import type { FeedbackStatus } from "@prisma/client";
@@ -759,9 +759,10 @@ export default function VersionDetailPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setOpenThreadIds(new Set())}
-              className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white/72 transition hover:border-white/15 hover:text-white"
+              aria-label="Назад к списку"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/72 transition hover:border-white/15 hover:text-white"
             >
-              Назад к списку
+              <ArrowLeft className="h-4 w-4" />
             </button>
             <button
               type="button"

@@ -17,7 +17,7 @@ import { normalizeClientPoint } from "@/lib/annotations/coords";
 import { getAnnotationToggle } from "@/lib/annotations/interaction";
 import { getDrawingSurfaceClass } from "@/lib/annotations/overlay";
 import type { AnnotationColor, AnnotationData, AnnotationStroke, AnnotationThickness, AnnotationType, FeedbackThreadMessageResponse } from "@/types";
-import { ArrowUpRight, ChevronDown, Circle, Minus, Pencil, Redo2, Send, Square, Type, Undo2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronDown, Circle, Minus, Pencil, Redo2, Send, Square, Type, Undo2 } from "lucide-react";
 
 const SUBMIT_TIMEOUT_MS = 15000;
 
@@ -1196,9 +1196,10 @@ export default function ClientPortalPage(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => setOpenThreadIds([])}
-                    className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white/70 transition hover:border-white/15 hover:text-white"
+                    aria-label="Назад к списку"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/70 transition hover:border-white/15 hover:text-white"
                   >
-                    Назад к списку
+                    <ArrowLeft className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
