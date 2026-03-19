@@ -1037,7 +1037,7 @@ export default function VersionDetailPage(): JSX.Element {
                   setShareMenuOpen((current) => !current);
                 }}
               >
-                <Share2 className="h-[18px] w-[18px]" />
+                <Share2 className="h-5 w-5" />
               </button>
               {isOwnerOrPm ? (
                 <button
@@ -1049,7 +1049,7 @@ export default function VersionDetailPage(): JSX.Element {
                     setEmployeesModalOpen(true);
                   }}
                 >
-                  <Users className="h-[18px] w-[18px]" />
+                  <Users className="h-5 w-5" />
                 </button>
               ) : null}
               <VersionUploadDialog projectId={projectId} triggerText="+ Новая версия" triggerClassName="pm-btn pm-btn-primary" />
