@@ -52,7 +52,7 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
             <X className="h-4 w-4" />
           </button>
         </div>
-        <nav className="sidebar-nav-group glass-item overflow-hidden divide-y divide-white/10">
+        <nav className="sidebar-nav-group sidebar-nav-frosted glass-item overflow-hidden divide-y divide-white/10">
           {navItems
             .filter((item) => (!item.onlyOwnerOrPm || isOwnerOrPm) && (!item.onlyAdmin || user.isAdmin))
             .map((item) => {
