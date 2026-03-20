@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Sidebar", () => {
-  it("renders the left navigation group with the frosted blur treatment", () => {
+  it("renders the sidebar with the macos glass treatment", () => {
     usePathnameMock.mockReturnValue("/projects");
 
     render(
@@ -33,7 +33,11 @@ describe("Sidebar", () => {
       />,
     );
 
+    const aside = screen.getByText("ProdStudio").closest("aside");
     const nav = screen.getByRole("navigation");
+
+    expect(aside?.className).toContain("sidebar-shell-macos");
     expect(nav.className).toContain("sidebar-nav-frosted");
+    expect(nav.className).toContain("sidebar-nav-macos");
   });
 });

@@ -27,14 +27,14 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
 
   return (
     <>
-      <div
-        aria-hidden="true"
-        onClick={onClose}
-        className={cn("fixed inset-0 z-30 bg-black/40 lg:hidden", open ? "block" : "hidden")}
-      />
+        <div
+          aria-hidden="true"
+          onClick={onClose}
+        className={cn("fixed inset-0 z-30 bg-black/28 backdrop-blur-[3px] lg:hidden", open ? "block" : "hidden")}
+        />
       <aside
         className={cn(
-          "glass-sidebar fixed inset-y-0 left-0 z-40 flex w-72 flex-col p-4 backdrop-blur transition-transform lg:static lg:w-64 lg:translate-x-0",
+          "glass-sidebar sidebar-shell-macos fixed inset-y-0 left-0 z-40 flex w-72 flex-col p-4 backdrop-blur transition-transform lg:static lg:w-64 lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -52,7 +52,7 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
             <X className="h-4 w-4" />
           </button>
         </div>
-        <nav className="sidebar-nav-group sidebar-nav-frosted glass-item overflow-hidden divide-y divide-white/10">
+        <nav className="sidebar-nav-group sidebar-nav-frosted sidebar-nav-macos overflow-hidden divide-y divide-white/10">
           {navItems
             .filter((item) => (!item.onlyOwnerOrPm || isOwnerOrPm) && (!item.onlyAdmin || user.isAdmin))
             .map((item) => {
@@ -74,7 +74,7 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
             );
           })}
         </nav>
-        <div className="glass-item mt-auto p-3 text-sm">
+        <div className="glass-item glass-item-macos mt-auto p-3 text-sm">
           <p className="font-medium">
             {user.firstName} {user.lastName}
           </p>
