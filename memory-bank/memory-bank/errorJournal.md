@@ -89,3 +89,15 @@ ode .\node_modules\....
 **Решение:** Миграцию создали вручную в `prisma/migrations/20260315133000_remove_non_kinescope_providers/migration.sql`.
 
 **Вывод:** Если повторится — проверять версию Prisma CLI, доступность Postgres и логи движка; допускается ручная миграция при известной корректной SQL-логике.
+
+---
+
+## [2026-03-20] Legacy iOS shell конфликтовал с dashboard glass theme
+
+**Симптом:** В dashboard sidebar пункты навигации выглядели белёсыми и смешивали светлую тему с тёмным интерфейсом.
+
+**Причина:** Глобальный `AppThemeShell` оборачивал внутренние страницы в старый `data-app-shell="ios"` слой, а `globals.css` содержал большой набор legacy override-правил для светлой glass-темы.
+
+**Решение:** Убрали route-based `ios` shell, удалили связанные CSS override-блоки и затемнили sidebar/dashboard navigation.
+
+**Вывод:** Не держать параллельно два глобальных theme-layer для одного и того же dashboard UI — старые оболочки нужно удалять целиком, а не частично переопределять.
