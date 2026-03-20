@@ -592,10 +592,11 @@ export default function VersionDetailPage(): JSX.Element {
     }
 
     const url = createPublicPortalLink(project.portalToken);
-    const opened = window.open(url, "_blank", "noopener,noreferrer");
-    if (!opened) {
-      window.location.assign(url);
-    }
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.click();
   };
 
   const handleResetPublicLink = async (): Promise<void> => {
