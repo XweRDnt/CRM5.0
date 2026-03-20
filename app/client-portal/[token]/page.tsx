@@ -1726,7 +1726,7 @@ export default function ClientPortalPage(): JSX.Element {
               }}
               placeholder={hasStrokes ? "Комментарий (необязательно)" : "Добавить правку..."}
               disabled={isVersionLocked}
-              className="flex-1 bg-transparent text-[13px] text-white/75 outline-none placeholder:text-white/25"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-white/75 outline-none placeholder:text-white/25"
             />
             <button
               type="button"
@@ -1734,7 +1734,7 @@ export default function ClientPortalPage(): JSX.Element {
               disabled={isVersionLocked}
               aria-label={annotationMode ? "Закрыть рисование" : "Рисовать"}
               className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/40 transition",
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/40 transition",
                 annotationMode && "border-blue-400/40 bg-blue-500/15 text-blue-300",
               )}
             >
@@ -1743,7 +1743,7 @@ export default function ClientPortalPage(): JSX.Element {
             <Button
               type="submit"
               disabled={!canSubmit}
-              className="h-9 w-9 rounded-xl bg-[#4F8EF7] p-0 text-white hover:bg-[#5a97ff] disabled:opacity-40"
+              className="h-9 w-9 shrink-0 rounded-xl bg-[#4F8EF7] p-0 text-white hover:bg-[#5a97ff] disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
             </Button>
