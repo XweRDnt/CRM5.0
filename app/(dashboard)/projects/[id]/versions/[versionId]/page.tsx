@@ -233,7 +233,8 @@ export default function VersionDetailPage(): JSX.Element {
   const params = useParams<{ id: string; versionId: string }>();
   const { id: projectId, versionId } = params;
   const router = useRouter();
-  const kinescopeRef = useRef<KinescopePlayerRef>(null);
+  const mobileKinescopeRef = useRef<KinescopePlayerRef>(null);
+  const desktopKinescopeRef = useRef<KinescopePlayerRef>(null);
   const { user } = useAuthGuard();
   const isOwnerOrPm = user?.role === "OWNER" || user?.role === "PM";
 
@@ -399,11 +400,20 @@ export default function VersionDetailPage(): JSX.Element {
     <g key={`stroke-${index}`} dangerouslySetInnerHTML={{ __html: strokeToSvg(stroke) }} />
   );
 
+  const getActiveKinescopeRef = (): React.RefObject<KinescopePlayerRef | null> => {
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
+      return desktopKinescopeRef;
+    }
+
+    return mobileKinescopeRef;
+  };
+
   const seekToTimecode = (timecodeSec: number | null, annotation: FeedbackResponse["annotationData"]): void => {
     const target = Number.isFinite(timecodeSec) ? Math.max(0, timecodeSec as number) : 0;
-    kinescopeRef.current?.seekTo(target);
+    const playerRef = getActiveKinescopeRef();
+    playerRef.current?.seekTo(target);
     if (playbackPolicy.pauseOnCommentSelect) {
-      kinescopeRef.current?.pause();
+      playerRef.current?.pause();
     }
     setActiveAnnotation(normalizeAnnotationData(annotation));
   };
@@ -1111,7 +1121,7 @@ export default function VersionDetailPage(): JSX.Element {
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
             <div className="relative aspect-video overflow-hidden rounded-[20px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)]">
               <KinescopePlayer
-                ref={kinescopeRef}
+                ref={mobileKinescopeRef}
                 className="h-full w-full"
                 videoId={activeVersion.kinescopeVideoId}
                 videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
@@ -1362,7 +1372,7 @@ export default function VersionDetailPage(): JSX.Element {
               <div className="mx-auto w-full max-w-[1040px]">
                 <div className="relative aspect-video min-h-[340px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)] xl:min-h-[420px] 2xl:min-h-[470px]">
                   <KinescopePlayer
-                    ref={kinescopeRef}
+                    ref={desktopKinescopeRef}
                     className="h-full w-full"
                     videoId={activeVersion.kinescopeVideoId}
                     videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
