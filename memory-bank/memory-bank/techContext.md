@@ -3,71 +3,99 @@
 ## Стек
 
 | Слой | Технология |
-|------|-----------|
+|------|------------|
 | Framework | Next.js (App Router) |
 | База данных | PostgreSQL |
 | ORM | Prisma |
 | Очереди | BullMQ + Redis |
-| Видео | Kinescope API (загрузка + стриминг) |
+| Видео | Kinescope API |
 | Хостинг | Railway |
 | Язык | TypeScript |
 
-## Ключевые модели БД (активные)
+## Ключевые модели БД
 
 ### Tenant
-Агентство. Верхний уровень иерархии. Всё привязано к tenantId.
+Агентство. Верхний уровень изоляции. Всё привязано к `tenantId`.
 
 ### Workspace
-Рабочее пространство агентства (1:1 с Tenant). Содержит kinescopeProjectId для хранения видео.
+Рабочее пространство агентства (1:1 с Tenant). Содержит Kinescope project и subscription-контур.
 
 ### WorkspaceMember
-Сотрудники workspace. Роли: OWNER | EDITOR.
+Участники workspace. В основном UI и операционном контуре реально доведены роли `OWNER` и `EDITOR`.
 
 ### InviteLink
-Токен для приглашения сотрудников. Expire-based, isActive флаг.
+Ссылки-приглашения в workspace. Есть выдача, просмотр и принятие invite link.
 
 ### User
-Сотрудник агентства. Роли в схеме: OWNER | PM | EDITOR | CLIENT_VIEWER. В UI реально используются только OWNER и EDITOR.
+Пользователь системы. В схеме есть роли `OWNER | PM | EDITOR | CLIENT_VIEWER`.
+`PM` уже присутствует в домене, access-control и части сервисов, но ещё не доведён как главная операционная роль продукта.
 
 ### ClientAccount
-Клиент агентства. companyName, contactName, email, phone.
+Клиент агентства: компания, контакт, email, телефон.
 
 ### Project
-Проект (видео для клиента). Содержит portalToken для гостевого доступа клиента. Статусы: DRAFT | IN_PROGRESS | CLIENT_REVIEW | COMPLETED | ON_HOLD | CANCELLED.
+Проект для клиента. Содержит `portalToken` для гостевого доступа и статусы проекта.
 
 ### AssetVersion
-Версия видео. versionNo уникален в рамках проекта. Видео хранится в Kinescope (kinescopeVideoId, streamUrl). Статусы: DRAFT | IN_REVIEW | CHANGES_REQUESTED | APPROVED | FINAL.
+Версия видео внутри проекта. Хранит номер версии, Kinescope ids, stream url, approve state.
 
 ### FeedbackItem
-Комментарий к версии. Может быть от User (authorType: USER) или от клиента без аккаунта (authorType: CLIENT, authorEmail/authorName). timecodeSec — таймкод. Статусы: NEW | IN_PROGRESS | RESOLVED | REJECTED.
+Комментарий / правка по версии. Поддерживает таймкод, текст, status и annotation data.
+
+### Feedback Thread / Read State
+По каждой правке есть тред обсуждения и read-state контур. Это уже рабочая часть продукта, а не бэклог.
 
 ### BillingPlan
-Тарифный план. Коды: FREE | START | GROWTH | BUSINESS. Лимиты: maxProjects, maxMembers, maxTrafficGb, maxStorageGb, maxTranscodingMinutes.
+Тарифный план с лимитами: проекты, участники, трафик, хранилище, минуты транскодинга.
 
 ### WorkspaceSubscription
-Активная подписка workspace. Биллинг ручной (не Stripe). cycle: CALENDAR_MONTH.
+Активная подписка workspace. Биллинг сейчас ручной, не Stripe.
 
 ### KinescopeUsageSnapshot
-Кэш данных об использовании из Kinescope API (трафик, хранилище, транскодинг).
+Кэш использования Kinescope API для workspace billing / usage review.
 
-## Мёртвые модели (в схеме, не используются в UI)
+### AuditLog
+Базовый аудит действий.
 
-- `AITask` — планировалось для AI задач, не реализовано
-- `ScopeDecision` — AI классификация правок, не реализовано
-- `WorkflowStage` — этапы workflow, не реализовано
-- `Subscription` — Stripe биллинг, не реализован
-- `Notification` — система уведомлений, не реализована
+## Что уже есть в интерфейсе
+
+- Dashboard для проектов, клиентов, команды, настроек и админки.
+- Team page: список участников + invite links.
+- Client portal: review, annotations, approve, threads.
+- Scope page: отдельный UI-контур для Scope Guard решений.
+- Admin page: планы, usage, workspace billing, block/unblock.
+- Reset portal token из UI версии проекта.
+
+## Частично живые модули
+
+### ScopeDecision / Scope Guard
+Модуль уже существует технически: schema, service, API и UI.
+Но сейчас он не является главным продуктовым приоритетом и не считается ядром value proposition.
+
+### Notification / Telegram
+Полноценной notification platform ещё нет.
+При этом Telegram notification service уже используется в некоторых portal-сценариях как технический контур.
+
+### PM
+PM уже не "полностью отсутствует": роль есть в схеме и некоторых проверках доступа.
+Но она ещё не доведена как полноценная operating role для агентства.
+
+## Мёртвые или недоведённые направления
+
+- `AITask` — AI-задачи в продукт не доведены.
+- `WorkflowStage` — отдельный workflow engine в рабочий продукт не доведён.
+- `Subscription` (Stripe-контур) — не используется, текущий billing manual/admin-driven.
 
 ## Важные соглашения
 
-- Все запросы к БД через Prisma Client
-- Мультитенантность через tenantId в каждой модели
-- Гостевой доступ клиентов через portalToken (без auth)
-- Видео загружается через Kinescope, streamUrl сохраняется в AssetVersion
-- BullMQ используется для фоновых задач (обработка видео)
-- Биллинг проверяется перед созданием проектов/версий/участников
+- Все запросы к БД идут через Prisma Client.
+- Tenant isolation обязательна в каждой доменной операции.
+- Клиентский доступ идёт через `portalToken`, без отдельной регистрации.
+- Видео хранится через Kinescope, а приложение держит метаданные и workflow вокруг него.
+- BullMQ используется для фоновых задач и асинхронной обработки.
+- Billing guard проверяет лимиты перед созданием проектов, версий и участников.
 
 ## Известные баги
 
-- trafficGb всегда сохраняется как 0 в KinescopeUsageSnapshot
-- Сломан rollover подписки при смене периода
+- `trafficGb` сейчас сохраняется некорректно в `KinescopeUsageSnapshot`.
+- Сломан rollover подписки при смене периода.
