@@ -916,11 +916,6 @@ export default function ClientPortalPage(): JSX.Element {
         <div className="mx-auto flex min-h-[72px] max-w-6xl items-center justify-between gap-3 px-4 sm:px-5">
           <div className="min-w-0">
             <div className="truncate text-[clamp(20px,4vw,30px)] font-bold leading-none tracking-[-0.04em] text-white">{data.project.name}</div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-white/46">
-              <span>Клиент: {data.project.clientName}</span>
-              <span className="hidden h-4 w-px bg-white/10 sm:block" />
-              <span>Версия {activeVersion?.versionNumber ?? "—"}</span>
-            </div>
           </div>
           <Button
             onClick={() => setApproveDialogOpen(true)}
