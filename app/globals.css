@@ -64,52 +64,6 @@ html[data-app-theme="dark"] .app-ios-shell {
   min-height: 100vh;
 }
 
-.app-theme-toggle {
-  all: unset;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  position: fixed;
-  right: 8.5rem;
-  top: 0.875rem;
-  z-index: 30;
-  border-radius: 999px;
-  border: 1px solid rgba(100, 116, 139, 0.42);
-  background: #f8fafc;
-  color: #0f172a;
-  padding: 0.45rem 0.9rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
-}
-
-body:has(.app-dialog-overlay[data-state="open"]) .app-theme-toggle {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.app-theme-toggle:hover {
-  transform: translateY(-1px);
-  background: #ffffff;
-}
-
-.app-theme-toggle:focus,
-.app-theme-toggle:focus-visible {
-  outline: none;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
-}
-
-@media (max-width: 640px) {
-  .app-theme-toggle {
-    top: auto;
-    bottom: 0.75rem;
-    right: 0.75rem;
-  }
-}
-
 [data-app-shell="ios"] .ui-card {
   border-color: var(--app-border) !important;
   background: var(--app-surface) !important;
@@ -211,13 +165,6 @@ body:has(.app-dialog-overlay[data-state="open"]) .app-theme-toggle {
 [data-app-shell="ios"] .text-neutral-600,
 [data-app-shell="ios"] .text-neutral-500 {
   color: var(--app-text-muted) !important;
-}
-
-html[data-app-theme="dark"] .app-ios-shell .app-theme-toggle {
-  background: #0f172a;
-  border-color: rgba(148, 163, 184, 0.56);
-  color: #f1f5f9;
-  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
 }
 
 [data-app-shell="ios"] .sidebar-nav-item {
