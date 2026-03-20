@@ -72,7 +72,7 @@ export default function MarketingPage(): JSX.Element {
         <section className="relative mx-auto w-full max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pt-24 lg:px-8 lg:pb-24">
           <div className="max-w-3xl">
             <h1 className="text-3xl font-semibold leading-tight text-white sm:text-5xl">
-              Согласуйте видео с клиентом без хаоса в Telegram
+              &&&Согласуйте видео с клиентом без хаоса в Telegram
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
               Клиент открывает ссылку, оставляет правки по таймкоду — вы сразу видите что и когда менять. Без
