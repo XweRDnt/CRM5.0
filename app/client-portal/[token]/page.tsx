@@ -1590,10 +1590,11 @@ export default function ClientPortalPage(): JSX.Element {
         <div className={cn("fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 px-4 pb-6 pt-2 [background:linear-gradient(to_top,rgba(9,9,15,0.97)_65%,transparent)]", activeThreadItem && "hidden")}>
           <div
             className={cn(
-              "flex items-center gap-2 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.05] px-3 backdrop-blur-xl transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
+              "overflow-x-auto overflow-y-hidden rounded-2xl border border-white/10 bg-white/[0.05] px-3 scrollbar-none backdrop-blur-xl transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]",
               annotationMode ? "max-h-20 py-2 opacity-100" : "max-h-0 py-0 opacity-0 border-transparent",
             )}
           >
+            <div className="flex w-max items-center gap-2">
             <div className="flex items-center gap-1">
               {([
                 { key: "arrow", label: "Стрелка", icon: ArrowUpRight },
@@ -1688,6 +1689,7 @@ export default function ClientPortalPage(): JSX.Element {
               >
                 <Redo2 className="h-4 w-4" />
               </button>
+            </div>
             </div>
           </div>
 
