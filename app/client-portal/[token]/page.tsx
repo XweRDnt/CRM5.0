@@ -939,21 +939,56 @@ export default function ClientPortalPage(): JSX.Element {
 
       <div className="mx-auto flex max-w-[1760px] flex-col gap-3 px-4 pb-32 pt-24 lg:min-h-[calc(100vh-3rem)] lg:flex-row lg:pb-8 xl:px-6">
         <section className="flex w-full flex-col gap-3 lg:w-[70%]">
-          {data.versions.length > 1 ? (
-            <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-              <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-white/32">Версии</div>
-              <select
-                value={activeVersion?.id ?? ""}
-                onChange={(event) => selectVersion(event.target.value)}
-                className="rounded-full border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(67,87,255,0.18),rgba(56,189,248,0.08))] px-4 py-2 text-[12px] font-semibold text-white/86 backdrop-blur-xl outline-none"
-              >
-                {data.versions.map((version) => (
-                  <option key={version.id} value={version.id}>
-                    Версия {version.versionNumber}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {data.versions.length > 0 ? (
+            <>
+              <section className="hidden shrink-0 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:block">
+                <div className="flex shrink-0 items-center gap-2 overflow-x-auto scrollbar-none">
+                  {data.versions.map((version) => {
+                    const isActive = version.id === activeVersion?.id;
+                    return (
+                      <button
+                        key={version.id}
+                        type="button"
+                        className={cn(
+                          "rounded-full border px-4 py-2 text-xs font-semibold transition",
+                          isActive
+                            ? "border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.2),rgba(56,189,248,0.12))] text-indigo-100"
+                            : "border-white/10 bg-white/[0.03] text-white/40 hover:border-white/15 hover:text-white/75",
+                        )}
+                        onClick={() => selectVersion(version.id)}
+                      >
+                        Версия {version.versionNumber}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className={cn("space-y-3 lg:hidden", activeThreadItem && "hidden")}>
+                <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                    {data.versions.map((version) => {
+                      const isActive = version.id === activeVersion?.id;
+                      return (
+                        <button
+                          key={version.id}
+                          type="button"
+                          className={cn(
+                            "shrink-0 rounded-full border px-4 py-2 text-[12px] font-semibold whitespace-nowrap transition",
+                            isActive
+                              ? "border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.2),rgba(56,189,248,0.12))] text-indigo-100"
+                              : "border-white/10 bg-white/[0.03] text-white/52 hover:border-white/15 hover:text-white/80",
+                          )}
+                          onClick={() => selectVersion(version.id)}
+                        >
+                          Версия {version.versionNumber}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            </>
           ) : null}
 
           <div
