@@ -35,9 +35,14 @@ describe("Sidebar", () => {
 
     const aside = screen.getByText("ProdStudio").closest("aside");
     const nav = screen.getByRole("navigation");
+    const profileCard = screen.getByText("OWNER").closest("div");
 
     expect(aside?.className).toContain("sidebar-shell-macos");
+    expect(aside?.className).toContain("w-72");
+    expect(aside?.className).toContain("lg:w-64");
+    expect(nav.className).toContain("glass-item");
     expect(nav.className).toContain("sidebar-nav-frosted");
     expect(nav.className).toContain("sidebar-nav-macos");
+    expect(profileCard?.className).toContain("glass-item");
   });
 });
