@@ -62,6 +62,13 @@ vi.mock("swr", () => ({
   }),
 }));
 
+vi.mock("@/lib/hooks/use-demo-project-overlay", () => ({
+  useDemoProjectOverlay: () => ({
+    overlay: { feedback: [], threadMessages: [] },
+    setOverlay: vi.fn(),
+  }),
+}));
+
 vi.mock("@/lib/i18n/messages", () => ({
   getMessages: () => ({
     portal: {
@@ -129,17 +136,16 @@ describe("Client portal readonly mode", () => {
     );
   });
 
-  it("hides approve, main feedback form, and thread reply form in readonly mode", async () => {
+  it("keeps local demo feedback and thread forms available while hiding approve", async () => {
     render(<ClientPortalPage />);
 
     expect(screen.queryByText("Утвердить")).toBeNull();
-    expect(screen.queryByPlaceholderText("Добавить правку...")).toBeNull();
+    expect(screen.getByText("Демо-режим: локальные правки")).not.toBeNull();
 
     fireEvent.click(screen.getByText("Please tighten the intro pacing"));
 
     await waitFor(() => {
-      expect(screen.queryByPlaceholderText("Ответить команде...")).toBeNull();
-      expect(screen.queryByPlaceholderText("Ответить...")).toBeNull();
+      expect(screen.getByPlaceholderText("Ответить команде...")).not.toBeNull();
     });
   });
 });

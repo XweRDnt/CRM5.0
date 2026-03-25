@@ -11,10 +11,12 @@ import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/Kin
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { toast } from "@/components/ui/toast";
 import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
+import { useDemoProjectOverlay } from "@/lib/hooks/use-demo-project-overlay";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
-import { appendWorkspaceDemoThreadMessage, canReplyInWorkspaceThread } from "@/lib/utils/workspace-demo-thread";
+import { appendDemoProjectThreadMessage, mergeDemoProjectThreadMessages, mergeWorkspaceFeedbackWithDemoOverlay } from "@/lib/utils/demo-project-overlay";
+import { canReplyInWorkspaceThread } from "@/lib/utils/workspace-demo-thread";
 import { strokeToSvg } from "@/lib/annotations/render";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { validateAnnotationData } from "@/lib/annotations/validation";
@@ -331,13 +333,18 @@ export default function VersionDetailPage(): JSX.Element {
     () => versions.find((version) => version.id === activeVersionId) ?? versions[versions.length - 1],
     [activeVersionId, versions],
   );
+  const { overlay: demoOverlay, setOverlay: setDemoOverlay } = useDemoProjectOverlay(project?.id ?? null);
+  const mergedFeedbackResponse = useMemo(
+    () => (user?.isDemo && activeVersion ? mergeWorkspaceFeedbackWithDemoOverlay(feedbackResponse, demoOverlay, activeVersion.id) : feedbackResponse),
+    [activeVersion, demoOverlay, feedbackResponse, user?.isDemo],
+  );
 
   const versionFeedback = useMemo(() => {
     if (!activeVersion) {
       return [];
     }
 
-    return feedbackResponse
+    return mergedFeedbackResponse
       .filter((item) => item.assetVersionId === activeVersion.id && item.authorType === "CLIENT")
       .sort((a, b) => {
         const aTime = a.timecodeSec ?? Number.MAX_SAFE_INTEGER;
@@ -347,7 +354,7 @@ export default function VersionDetailPage(): JSX.Element {
         }
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
-  }, [activeVersion, feedbackResponse]);
+  }, [activeVersion, mergedFeedbackResponse]);
 
   const visibleBaseFeedback = useMemo(
     () => versionFeedback.filter((item) => item.status !== "REJECTED"),
@@ -508,11 +515,14 @@ export default function VersionDetailPage(): JSX.Element {
       return;
     }
 
-    if (!threadMessagesById[threadId]) {
+    const isLocalDemoFeedback = user?.isDemo && demoOverlay.feedback.some((item) => item.id === threadId);
+    if (!threadMessagesById[threadId] && !isLocalDemoFeedback) {
       await loadThreadMessages(threadId);
     }
 
-    await markThreadRead(threadId);
+    if (!isLocalDemoFeedback) {
+      await markThreadRead(threadId);
+    }
   };
 
   const handleThreadReply = async (feedbackId: string): Promise<void> => {
@@ -524,36 +534,18 @@ export default function VersionDetailPage(): JSX.Element {
     setThreadSubmittingById((current) => ({ ...current, [feedbackId]: true }));
     try {
       if (user.isDemo) {
-        const createdAt = new Date();
-        const message = {
-          id: `demo-${feedbackId}-${createdAt.getTime()}`,
-          feedbackItemId: feedbackId,
-          authorType: "USER" as const,
-          author: {
-            id: user.id,
-            name: `${user.firstName} ${user.lastName}`.trim() || user.email,
-            role: user.role,
-            email: user.email,
-          },
-          text,
-          createdAt,
-        };
-        setThreadMessagesById((current) => appendWorkspaceDemoThreadMessage(current, feedbackId, user, text, createdAt));
-        setThreadDrafts((current) => ({ ...current, [feedbackId]: "" }));
-        await mutateFeedback(
-          (previous) =>
-            (previous ?? []).map((item) =>
-              item.id === feedbackId
-                ? {
-                    ...item,
-                    threadMessageCount: (item.threadMessageCount ?? 0) + 1,
-                    lastThreadMessageAt: message.createdAt,
-                    lastThreadMessagePreview: message.text,
-                  }
-                : item,
-            ),
-          { revalidate: false },
+        setDemoOverlay((current) =>
+          appendDemoProjectThreadMessage(current, {
+            feedbackItemId: feedbackId,
+            authorType: "USER",
+            authorId: user.id,
+            authorName: `${user.firstName} ${user.lastName}`.trim() || user.email,
+            authorRole: user.role,
+            authorEmail: user.email,
+            text,
+          }).overlay,
         );
+        setThreadDrafts((current) => ({ ...current, [feedbackId]: "" }));
         return;
       }
 
@@ -789,6 +781,12 @@ export default function VersionDetailPage(): JSX.Element {
   }, []);
 
   const canReply = canReplyInWorkspaceThread(user);
+  const activeThreadMessages =
+    activeThreadItem === null
+      ? []
+      : user?.isDemo
+        ? mergeDemoProjectThreadMessages(threadMessagesById[activeThreadItem.id] ?? [], demoOverlay, activeThreadItem.id)
+        : (threadMessagesById[activeThreadItem.id] ?? []);
   const publicPortalLink = project?.portalToken ? createPublicPortalLink(project.portalToken) : "";
 
   const feedbackListContent = (
@@ -878,10 +876,10 @@ export default function VersionDetailPage(): JSX.Element {
                   <div className="mb-3 shrink-0 text-[10px] uppercase tracking-[0.16em] text-white/28">Обсуждение</div>
                   <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
                     {threadLoadingById[activeThreadItem.id] ? <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs leading-6 text-white/55 backdrop-blur-xl">Загрузка обсуждения...</p> : null}
-                    {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
+                    {!threadLoadingById[activeThreadItem.id] && activeThreadMessages.length === 0 ? (
                       <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs leading-6 text-white/55 backdrop-blur-xl">Обсуждение ещё не начато.</p>
                     ) : null}
-                    {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
+                    {activeThreadMessages.map((message) => {
                       const isMine = message.authorType === "USER";
                       return (
                         <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
@@ -1348,10 +1346,10 @@ export default function VersionDetailPage(): JSX.Element {
                   <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
                     <div className="space-y-2">
                       {threadLoadingById[activeThreadItem.id] ? <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/50">Загрузка обсуждения...</div> : null}
-                      {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
+                      {!threadLoadingById[activeThreadItem.id] && activeThreadMessages.length === 0 ? (
                         <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/50">Обсуждение ещё не начато.</div>
                       ) : null}
-                      {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
+                      {activeThreadMessages.map((message) => {
                         const isMine = message.authorType === "USER";
                         return (
                           <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>

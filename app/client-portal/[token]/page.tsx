@@ -8,8 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { cn } from "@/lib/utils/cn";
+import { useDemoProjectOverlay } from "@/lib/hooks/use-demo-project-overlay";
 import { getMessages } from "@/lib/i18n/messages";
 import { formatTimecode } from "@/lib/utils/time";
+import {
+  appendDemoProjectThreadMessage,
+  createDemoProjectFeedback,
+  mergeDemoProjectThreadMessages,
+  mergePortalFeedbackWithDemoOverlay,
+} from "@/lib/utils/demo-project-overlay";
 import { strokeToSvg } from "@/lib/annotations/render";
 import { validateAnnotationData } from "@/lib/annotations/validation";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
@@ -218,6 +225,7 @@ export default function ClientPortalPage(): JSX.Element {
     : `/api/public/portal/${token}`;
 
   const { data, isLoading, error, mutate } = useSWR(portalUrl, fetcher);
+  const { overlay: demoOverlay, setOverlay: setDemoOverlay } = useDemoProjectOverlay(data?.project.id ?? null);
   const activeVersion = useMemo(
     () => data?.versions.find((version) => version.id === data.activeVersionId) ?? null,
     [data],
@@ -508,18 +516,17 @@ export default function ClientPortalPage(): JSX.Element {
       return;
     }
 
-    if (!threadMessagesById[threadId]) {
+    const isLocalDemoFeedback = isDemoReadonly && demoOverlay.feedback.some((item) => item.id === threadId);
+    if (!threadMessagesById[threadId] && !isLocalDemoFeedback) {
       await loadThreadMessages(threadId);
     }
 
-    await markThreadRead(threadId);
+    if (!isLocalDemoFeedback) {
+      await markThreadRead(threadId);
+    }
   };
 
   const handleThreadReply = async (threadId: string): Promise<void> => {
-    if (isDemoReadonly) {
-      return;
-    }
-
     const text = threadDrafts[threadId]?.trim() ?? "";
     if (!text) {
       return;
@@ -527,6 +534,21 @@ export default function ClientPortalPage(): JSX.Element {
 
     setThreadSubmittingById((current) => ({ ...current, [threadId]: true }));
     try {
+      if (isDemoReadonly) {
+        setDemoOverlay((current) =>
+          appendDemoProjectThreadMessage(current, {
+            feedbackItemId: threadId,
+            authorType: "CLIENT",
+            authorName: authorName.trim() || "Client",
+            authorRole: "CLIENT",
+            authorEmail: null,
+            text,
+          }).overlay,
+        );
+        setThreadDrafts((current) => ({ ...current, [threadId]: "" }));
+        return;
+      }
+
       const response = await fetch(`/api/public/feedback/${threadId}/thread`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -575,7 +597,7 @@ export default function ClientPortalPage(): JSX.Element {
   const isOwnedFeedback = (feedbackId: string): boolean => ownedFeedbackIds.includes(feedbackId);
 
   const openDeleteConfirm = (feedbackId: string): void => {
-    if (!isOwnedFeedback(feedbackId) || isDemoReadonly) {
+    if (!isOwnedFeedback(feedbackId)) {
       return;
     }
 
@@ -592,7 +614,7 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const handleOwnedFeedbackContextMenu = (event: React.MouseEvent, feedbackId: string): void => {
-    if (!isOwnedFeedback(feedbackId) || isDemoReadonly) {
+    if (!isOwnedFeedback(feedbackId)) {
       return;
     }
 
@@ -602,7 +624,7 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const handleOwnedFeedbackPointerDown = (event: React.PointerEvent, feedbackId: string): void => {
-    if (event.pointerType !== "touch" || !isOwnedFeedback(feedbackId) || isDemoReadonly) {
+    if (event.pointerType !== "touch" || !isOwnedFeedback(feedbackId)) {
       return;
     }
 
@@ -649,6 +671,18 @@ export default function ClientPortalPage(): JSX.Element {
     setDeletingFeedback(true);
 
     try {
+      if (isDemoReadonly) {
+        setDemoOverlay((current) => ({
+          feedback: current.feedback.filter((item) => item.id !== deleteTargetId),
+          threadMessages: current.threadMessages.filter((item) => item.feedbackItemId !== deleteTargetId),
+        }));
+        setOwnedFeedbackIds((current) => current.filter((id) => id !== deleteTargetId));
+        setOpenThreadIds((current) => current.filter((id) => id !== deleteTargetId));
+        setDeleteTargetId(null);
+        toast.success("Правка удалена");
+        return;
+      }
+
       const response = await fetch(`/api/public/feedback/${deleteTargetId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -983,7 +1017,7 @@ export default function ClientPortalPage(): JSX.Element {
 
   const submitFeedback = async (event?: React.FormEvent): Promise<void> => {
     event?.preventDefault();
-    if (!activeVersion || isDemoReadonly) {
+    if (!activeVersion) {
       return;
     }
 
@@ -1007,6 +1041,30 @@ export default function ClientPortalPage(): JSX.Element {
     }
 
     try {
+      if (isDemoReadonly) {
+        const localAnnotation = annotationStrokes.length > 0 ? ({ version: 1, strokes: annotationStrokes } satisfies AnnotationData) : null;
+        const result = createDemoProjectFeedback(demoOverlay, {
+          assetVersionId: activeVersion.id,
+          authorName: trimmedAuthor,
+          authorEmail: null,
+          text: trimmedText,
+          timecodeSec: effectiveTimecodeSec,
+          annotationData: localAnnotation,
+        });
+        setDemoOverlay(result.overlay);
+        setOwnedFeedbackIds((current) => (current.includes(result.feedbackId) ? current : [...current, result.feedbackId]));
+        setCommentText("");
+        setCapturedTimecodeSec(null);
+        setAnnotationMode(false);
+        setAnnotationStrokes([]);
+        setRedoStrokes([]);
+        setActiveAnnotation(null);
+        setDrawingState(null);
+        setPendingText(null);
+        toast.success(m.feedback.submitSuccess);
+        return;
+      }
+
       const response = await fetch("/api/public/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1054,11 +1112,19 @@ export default function ClientPortalPage(): JSX.Element {
   const hasComment = trimmedComment.length > 0;
   const hasStrokes = annotationStrokes.length > 0;
   const canSubmit = !submitting && !isVersionLocked && trimmedAuthor.length > 0 && (hasComment || hasStrokes);
-  const visibleFeedback = data.feedback.filter(
+  const feedbackWithDemoOverlay =
+    isDemoReadonly && activeVersion ? mergePortalFeedbackWithDemoOverlay(data.feedback, demoOverlay, activeVersion.id) : data.feedback;
+  const visibleFeedback = feedbackWithDemoOverlay.filter(
     (item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text),
   );
   const activeThreadId = openThreadIds[0] ?? null;
   const activeThreadItem = activeThreadId ? visibleFeedback.find((item) => item.id === activeThreadId) ?? null : null;
+  const activeThreadMessages =
+    activeThreadItem === null
+      ? []
+      : isDemoReadonly
+        ? mergeDemoProjectThreadMessages(threadMessagesById[activeThreadItem.id] ?? [], demoOverlay, activeThreadItem.id)
+        : (threadMessagesById[activeThreadItem.id] ?? []);
   const overlayVisible = annotationMode || activeAnnotation !== null;
   const previewStroke: AnnotationStroke | null = drawingState
     ? drawingState.tool === "freehand"
@@ -1101,7 +1167,7 @@ export default function ClientPortalPage(): JSX.Element {
           </div>
           {isDemoReadonly ? (
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[12px] font-medium text-white/55">
-              Демо-режим: только просмотр
+              Демо-режим: локальные правки
             </div>
           ) : (
             <Button
@@ -1528,10 +1594,10 @@ export default function ClientPortalPage(): JSX.Element {
                   <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/28">Обсуждение</div>
                     <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
                       {threadLoadingById[activeThreadItem.id] ? <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Загрузка обсуждения...</div> : null}
-                      {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
+                      {!threadLoadingById[activeThreadItem.id] && activeThreadMessages.length === 0 ? (
                         <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Обсуждение ещё не начато</div>
                       ) : null}
-                      {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
+                      {activeThreadMessages.map((message) => {
                         const isMine = message.authorType === "CLIENT";
                         return (
                           <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
@@ -1554,25 +1620,23 @@ export default function ClientPortalPage(): JSX.Element {
                       })}
                     </div>
 
-                    {isDemoReadonly ? null : (
-                      <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
-                        <input
-                          value={threadDrafts[activeThreadItem.id] ?? ""}
-                          onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
-                          disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
-                          placeholder="Ответить команде..."
-                          className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-white/84 placeholder:text-white/22 disabled:text-white/40"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void handleThreadReply(activeThreadItem.id)}
-                          disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
-                          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white shadow-[0_10px_24px_rgba(79,142,247,0.3)] disabled:bg-white/[0.06] disabled:text-white/30"
-                        >
-                          <Send className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
+                      <input
+                        value={threadDrafts[activeThreadItem.id] ?? ""}
+                        onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
+                        disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
+                        placeholder="Ответить команде..."
+                        className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-white/84 placeholder:text-white/22 disabled:text-white/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleThreadReply(activeThreadItem.id)}
+                        disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
+                        className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white shadow-[0_10px_24px_rgba(79,142,247,0.3)] disabled:bg-white/[0.06] disabled:text-white/30"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
                 </div>
                     </>
                   );
@@ -1734,10 +1798,10 @@ export default function ClientPortalPage(): JSX.Element {
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
               <div className="space-y-3">
                 {threadLoadingById[activeThreadItem.id] ? <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Загрузка обсуждения...</div> : null}
-                {!threadLoadingById[activeThreadItem.id] && (threadMessagesById[activeThreadItem.id]?.length ?? 0) === 0 ? (
+                {!threadLoadingById[activeThreadItem.id] && activeThreadMessages.length === 0 ? (
                   <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">Обсуждение ещё не начато</div>
                 ) : null}
-                {(threadMessagesById[activeThreadItem.id] ?? []).map((message) => {
+                {activeThreadMessages.map((message) => {
                       const isMine = message.authorType === "CLIENT";
                       return (
                         <div key={message.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
@@ -1761,27 +1825,25 @@ export default function ClientPortalPage(): JSX.Element {
               </div>
             </div>
 
-            {isDemoReadonly ? null : (
-              <div className="border-t border-white/10 px-4 py-3">
-                <div className="flex items-center gap-2 rounded-[20px] border border-white/10 bg-white/[0.05] p-2">
-                  <input
-                    value={threadDrafts[activeThreadItem.id] ?? ""}
-                    onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
-                    disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
-                    placeholder="Ответить..."
-                    className="flex-1 bg-transparent px-2 text-sm text-white/82 outline-none placeholder:text-white/24"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void handleThreadReply(activeThreadItem.id)}
-                    disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
-                    className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white disabled:bg-white/[0.06] disabled:text-white/30"
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                </div>
+            <div className="border-t border-white/10 px-4 py-3">
+              <div className="flex items-center gap-2 rounded-[20px] border border-white/10 bg-white/[0.05] p-2">
+                <input
+                  value={threadDrafts[activeThreadItem.id] ?? ""}
+                  onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
+                  disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
+                  placeholder="Ответить..."
+                  className="flex-1 bg-transparent px-2 text-sm text-white/82 outline-none placeholder:text-white/24"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleThreadReply(activeThreadItem.id)}
+                  disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white disabled:bg-white/[0.06] disabled:text-white/30"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
               </div>
-            )}
+            </div>
           </div>
         ) : null}
 
