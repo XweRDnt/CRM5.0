@@ -9,11 +9,38 @@ export class ApiRequestError<TPayload = unknown> extends Error {
   }
 }
 
+function getCookieValue(name: string): string {
+  if (typeof document === "undefined") {
+    return "";
+  }
+
+  const prefix = `${name}=`;
+  const cookie = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+
+  if (!cookie) {
+    return "";
+  }
+
+  return decodeURIComponent(cookie.slice(prefix.length));
+}
+
+export function clearWorkspaceDemoToken(): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.cookie = "workspaceDemoToken=; Max-Age=0; path=/; SameSite=Lax";
+}
+
 export function getAuthToken(): string {
   if (typeof window === "undefined") {
     return "";
   }
-  return localStorage.getItem("token") ?? "";
+
+  return getCookieValue("workspaceDemoToken") || localStorage.getItem("token") || "";
 }
 
 export function getTenantId(): string {

@@ -12,6 +12,7 @@ export type AuthUser = {
   email: string;
   role: string;
   isAdmin: boolean;
+  isDemo?: boolean;
   tenant: {
     id: string;
     name: string;

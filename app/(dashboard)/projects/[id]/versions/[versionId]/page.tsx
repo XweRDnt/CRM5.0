@@ -236,7 +236,7 @@ export default function VersionDetailPage(): JSX.Element {
   const mobileKinescopeRef = useRef<KinescopePlayerRef>(null);
   const desktopKinescopeRef = useRef<KinescopePlayerRef>(null);
   const { user } = useAuthGuard();
-  const isOwnerOrPm = user?.role === "OWNER" || user?.role === "PM";
+  const isOwnerOrPm = !user?.isDemo && (user?.role === "OWNER" || user?.role === "PM");
 
   const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
   const { data: versionsResponse, isLoading: versionsLoading, mutate: mutateVersions } = useSWR(
@@ -419,7 +419,7 @@ export default function VersionDetailPage(): JSX.Element {
   };
 
   useEffect(() => {
-    if (!activeVersion || !user || feedbackLoading) {
+    if (!activeVersion || !user || user.isDemo || feedbackLoading) {
       return;
     }
     if (autoViewedVersionsRef.current.has(activeVersion.id)) {
@@ -483,6 +483,10 @@ export default function VersionDetailPage(): JSX.Element {
   };
 
   const markThreadRead = async (feedbackId: string): Promise<void> => {
+    if (user?.isDemo) {
+      return;
+    }
+
     try {
       await apiFetch(`/api/feedback/${feedbackId}/thread/read`, { method: "POST" });
       await mutateFeedback(

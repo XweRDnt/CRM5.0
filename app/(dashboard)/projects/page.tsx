@@ -37,7 +37,7 @@ export default function ProjectsPage(): JSX.Element {
   const [pendingDeleteProject, setPendingDeleteProject] = useState<{ id: string; name: string } | null>(null);
   const [deletingProject, setDeletingProject] = useState(false);
   const isEditor = user?.role === "EDITOR";
-  const canDelete = user?.role === "OWNER" || user?.role === "PM";
+  const canDelete = !user?.isDemo && (user?.role === "OWNER" || user?.role === "PM");
 
   const handleDeleteProject = async (projectId: string): Promise<void> => {
     setDeletingProject(true);
@@ -60,9 +60,11 @@ export default function ProjectsPage(): JSX.Element {
           <h1 className="text-2xl font-semibold">Проекты</h1>
           <p className="text-sm glass-muted">Управляйте версиями видео и комментариями клиентов.</p>
         </div>
-        <Button asChild>
-          <Link href="/projects/new">+ Новый проект</Link>
-        </Button>
+        {user?.isDemo ? null : (
+          <Button asChild>
+            <Link href="/projects/new">+ Новый проект</Link>
+          </Button>
+        )}
       </header>
 
       {isLoading && <ProjectGridSkeleton />}

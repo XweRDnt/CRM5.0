@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/utils/db";
 import { inviteService } from "@/lib/services/invite.service";
 import { billingGuardService } from "@/lib/services/billing-guard.service";
+import { resolveWorkspaceDemoSession } from "@/lib/utils/workspace-demo-auth";
 import type { SignupInput, SignupResult, LoginResult, JWTPayload, User, UserRole } from "@/types";
 
 export class AuthService {
@@ -97,6 +98,11 @@ export class AuthService {
   async verifyToken(token: string): Promise<JWTPayload> {
     if (typeof token !== "string" || token.trim().length === 0) {
       throw new Error("Token is required");
+    }
+
+    const demoSession = await resolveWorkspaceDemoSession(token);
+    if (demoSession) {
+      return demoSession.payload;
     }
 
     const secret = this.getJWTSecret();
@@ -371,6 +377,11 @@ export class AuthService {
   }
 
   async getCurrentUser(token: string): Promise<User> {
+    const demoSession = await resolveWorkspaceDemoSession(token);
+    if (demoSession) {
+      return demoSession.user;
+    }
+
     const payload = await this.verifyToken(token);
 
     const user = await prisma.user.findUnique({

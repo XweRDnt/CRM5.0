@@ -230,6 +230,7 @@ export type JWTPayload = {
   userId: string;
   tenantId: string;
   role: UserRole;
+  isDemo?: boolean;
   iat?: number;
   exp?: number;
 };

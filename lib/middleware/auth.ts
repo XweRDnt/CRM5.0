@@ -26,6 +26,10 @@ export function withAuth<TContext>(
       return Response.json({ error: "Invalid token" }, { status: 401 });
     }
 
+    if (payload.isDemo && !["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) {
+      return Response.json({ code: "DEMO_READONLY", error: "Demo mode is read-only" }, { status: 403 });
+    }
+
     if (await authService.isWorkspaceBlocked(payload.tenantId)) {
       return Response.json({ error: "Workspace is blocked" }, { status: 403 });
     }

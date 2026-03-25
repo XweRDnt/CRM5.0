@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
+import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import type { AssetVersionResponse } from "@/types";
 
@@ -16,6 +17,7 @@ const fetcher = (url: string) => apiFetch<AssetVersionResponse[]>(url);
 export default function ProjectDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuthGuard();
   const projectId = params.id;
   const { data, isLoading, error } = useSWR(`/api/projects/${projectId}/versions`, fetcher);
 
@@ -60,7 +62,7 @@ export default function ProjectDetailPage(): JSX.Element {
       <Card>
         <CardContent className="space-y-3 py-6">
           <p className="text-sm text-neutral-400">У проекта пока нет версий. Добавьте первую версию.</p>
-          <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" />
+          {user?.isDemo ? null : <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" />}
         </CardContent>
       </Card>
     );

@@ -13,6 +13,7 @@ export const GET = withAuth(async (request) => {
       {
         ...user,
         isAdmin,
+        isDemo: request.user.isDemo === true,
       },
       { status: 200 },
     );

@@ -1,17 +1,23 @@
-import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 import { isWorkspaceDemoToken } from "@/lib/utils/workspace-demo-token";
-import { WorkspaceDemoProjectsPageClient } from "./workspace-demo-projects-page-client";
 
 export default async function WorkspaceDemoPage({
   params,
 }: {
   params: Promise<{ token: string }>;
-}): Promise<JSX.Element> {
+}): Promise<never> {
   const { token } = await params;
 
   if (!isWorkspaceDemoToken(token)) {
     notFound();
   }
 
-  return <WorkspaceDemoProjectsPageClient token={token} />;
+  const cookieStore = await cookies();
+  cookieStore.set("workspaceDemoToken", token, {
+    path: "/",
+    sameSite: "lax",
+  });
+
+  redirect("/projects");
 }

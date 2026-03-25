@@ -24,6 +24,7 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
   const pathname = usePathname();
   const m = getMessages();
   const isOwnerOrPm = user.role === "OWNER" || user.role === "PM";
+  const visibleNavItems = user.isDemo ? navItems.filter((item) => item.key === "projects") : navItems;
 
   return (
     <>
@@ -53,7 +54,7 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
           </button>
         </div>
         <nav className="sidebar-nav-group sidebar-nav-frosted sidebar-nav-macos glass-item overflow-hidden divide-y divide-white/10">
-          {navItems
+          {visibleNavItems
             .filter((item) => (!item.onlyOwnerOrPm || isOwnerOrPm) && (!item.onlyAdmin || user.isAdmin))
             .map((item) => {
             const Icon = item.icon;
