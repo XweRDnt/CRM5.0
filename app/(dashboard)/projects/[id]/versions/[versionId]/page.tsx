@@ -14,6 +14,7 @@ import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
+import { appendWorkspaceDemoThreadMessage, canReplyInWorkspaceThread } from "@/lib/utils/workspace-demo-thread";
 import { strokeToSvg } from "@/lib/annotations/render";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
 import { validateAnnotationData } from "@/lib/annotations/validation";
@@ -516,12 +517,46 @@ export default function VersionDetailPage(): JSX.Element {
 
   const handleThreadReply = async (feedbackId: string): Promise<void> => {
     const text = threadDrafts[feedbackId]?.trim() ?? "";
-    if (!text) {
+    if (!text || !user) {
       return;
     }
 
     setThreadSubmittingById((current) => ({ ...current, [feedbackId]: true }));
     try {
+      if (user.isDemo) {
+        const createdAt = new Date();
+        const message = {
+          id: `demo-${feedbackId}-${createdAt.getTime()}`,
+          feedbackItemId: feedbackId,
+          authorType: "USER" as const,
+          author: {
+            id: user.id,
+            name: `${user.firstName} ${user.lastName}`.trim() || user.email,
+            role: user.role,
+            email: user.email,
+          },
+          text,
+          createdAt,
+        };
+        setThreadMessagesById((current) => appendWorkspaceDemoThreadMessage(current, feedbackId, user, text, createdAt));
+        setThreadDrafts((current) => ({ ...current, [feedbackId]: "" }));
+        await mutateFeedback(
+          (previous) =>
+            (previous ?? []).map((item) =>
+              item.id === feedbackId
+                ? {
+                    ...item,
+                    threadMessageCount: (item.threadMessageCount ?? 0) + 1,
+                    lastThreadMessageAt: message.createdAt,
+                    lastThreadMessagePreview: message.text,
+                  }
+                : item,
+            ),
+          { revalidate: false },
+        );
+        return;
+      }
+
       const message = await apiFetch<FeedbackThreadMessageResponse>(`/api/feedback/${feedbackId}/thread`, {
         method: "POST",
         body: JSON.stringify({ text }),
@@ -753,7 +788,7 @@ export default function VersionDetailPage(): JSX.Element {
     };
   }, []);
 
-  const canReply = isOwnerOrPm;
+  const canReply = canReplyInWorkspaceThread(user);
   const publicPortalLink = project?.portalToken ? createPublicPortalLink(project.portalToken) : "";
 
   const feedbackListContent = (
