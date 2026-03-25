@@ -824,12 +824,13 @@ export default function ClientPortalPage(): JSX.Element {
     const timeout = window.setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
     const trimmedAuthor = authorName.trim();
     const trimmedText = commentText.trim();
+    const effectiveTimecodeSec = capturedTimecodeSec ?? playerCurrentTimeSec;
     const payload: Record<string, unknown> = {
       assetVersionId: activeVersion.id,
       authorType: "CLIENT",
       authorName: trimmedAuthor,
       text: trimmedText,
-      timecodeSec: capturedTimecodeSec ?? undefined,
+      timecodeSec: effectiveTimecodeSec,
     };
 
     if (annotationStrokes.length > 0) {
