@@ -110,6 +110,8 @@ const fetcher = async (url: string): Promise<PortalResponse> => {
   return (await response.json()) as PortalResponse;
 };
 
+const getOwnedFeedbackStorageKey = (token: string): string => `portal_owned_feedback_ids:${token}`;
+
 const isValidAnnotationData = (value: unknown): value is AnnotationData => {
   const result = validateAnnotationData(value);
   return result.ok;
@@ -254,7 +256,30 @@ export default function ClientPortalPage(): JSX.Element {
   const [threadLoadingById, setThreadLoadingById] = useState<Record<string, boolean>>({});
   const [threadSubmittingById, setThreadSubmittingById] = useState<Record<string, boolean>>({});
   const [expandedThreadCardIds, setExpandedThreadCardIds] = useState<Record<string, boolean>>({});
+  const [ownedFeedbackIds, setOwnedFeedbackIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") {
+      return [];
+    }
+
+    try {
+      const raw = localStorage.getItem(getOwnedFeedbackStorageKey(params.token));
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deletingFeedback, setDeletingFeedback] = useState(false);
   const debugAnnotations = searchParams.get("debugAnnotations") === "1";
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressFeedbackIdRef = useRef<string | null>(null);
+  const suppressClickFeedbackIdRef = useRef<string | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
   const blurActiveElement = (): void => {
     if (typeof document === "undefined") {
       return;
@@ -337,6 +362,14 @@ export default function ClientPortalPage(): JSX.Element {
       localStorage.setItem("portal_author_name", authorName);
     }
   }, [authorName]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    localStorage.setItem(getOwnedFeedbackStorageKey(token), JSON.stringify(ownedFeedbackIds));
+  }, [ownedFeedbackIds, token]);
 
   if (isLoading) {
     return (
@@ -536,6 +569,142 @@ export default function ClientPortalPage(): JSX.Element {
       toast.error(error instanceof Error ? error.message : "Не удалось отправить сообщение");
     } finally {
       setThreadSubmittingById((current) => ({ ...current, [threadId]: false }));
+    }
+  };
+
+  const isOwnedFeedback = (feedbackId: string): boolean => ownedFeedbackIds.includes(feedbackId);
+
+  const openDeleteConfirm = (feedbackId: string): void => {
+    if (!isOwnedFeedback(feedbackId) || isDemoReadonly) {
+      return;
+    }
+
+    setDeleteTargetId(feedbackId);
+  };
+
+  const clearLongPressTimer = (): void => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressFeedbackIdRef.current = null;
+    longPressStartRef.current = null;
+  };
+
+  const handleOwnedFeedbackContextMenu = (event: React.MouseEvent, feedbackId: string): void => {
+    if (!isOwnedFeedback(feedbackId) || isDemoReadonly) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    openDeleteConfirm(feedbackId);
+  };
+
+  const handleOwnedFeedbackPointerDown = (event: React.PointerEvent, feedbackId: string): void => {
+    if (event.pointerType !== "touch" || !isOwnedFeedback(feedbackId) || isDemoReadonly) {
+      return;
+    }
+
+    clearLongPressTimer();
+    longPressFeedbackIdRef.current = feedbackId;
+    longPressStartRef.current = { x: event.clientX, y: event.clientY };
+    longPressTimerRef.current = window.setTimeout(() => {
+      suppressClickFeedbackIdRef.current = feedbackId;
+      openDeleteConfirm(feedbackId);
+      clearLongPressTimer();
+    }, 500);
+  };
+
+  const handleOwnedFeedbackPointerMove = (event: React.PointerEvent): void => {
+    if (!longPressStartRef.current) {
+      return;
+    }
+
+    const dx = Math.abs(event.clientX - longPressStartRef.current.x);
+    const dy = Math.abs(event.clientY - longPressStartRef.current.y);
+    if (dx > 12 || dy > 12) {
+      clearLongPressTimer();
+    }
+  };
+
+  const handleOwnedFeedbackPointerEnd = (): void => {
+    clearLongPressTimer();
+  };
+
+  const handleFeedbackCardClick = async (feedbackId: string): Promise<void> => {
+    if (suppressClickFeedbackIdRef.current === feedbackId) {
+      suppressClickFeedbackIdRef.current = null;
+      return;
+    }
+
+    await toggleThread(feedbackId);
+  };
+
+  const handleDeleteFeedback = async (): Promise<void> => {
+    if (!deleteTargetId) {
+      return;
+    }
+
+    setDeletingFeedback(true);
+
+    try {
+      const response = await fetch(`/api/public/feedback/${deleteTargetId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Не удалось удалить правку");
+      }
+
+      setOwnedFeedbackIds((current) => current.filter((id) => id !== deleteTargetId));
+      setOpenThreadIds((current) => current.filter((id) => id !== deleteTargetId));
+      setThreadMessagesById((current) => {
+        const next = { ...current };
+        delete next[deleteTargetId];
+        return next;
+      });
+      setThreadDrafts((current) => {
+        const next = { ...current };
+        delete next[deleteTargetId];
+        return next;
+      });
+      setThreadLoadingById((current) => {
+        const next = { ...current };
+        delete next[deleteTargetId];
+        return next;
+      });
+      setThreadSubmittingById((current) => {
+        const next = { ...current };
+        delete next[deleteTargetId];
+        return next;
+      });
+      setExpandedThreadCardIds((current) => {
+        const next = { ...current };
+        delete next[deleteTargetId];
+        return next;
+      });
+
+      await mutate(
+        (current) =>
+          current
+            ? {
+                ...current,
+                feedback: current.feedback.filter((item) => item.id !== deleteTargetId),
+              }
+            : current,
+        { revalidate: false },
+      );
+
+      setDeleteTargetId(null);
+      toast.success("Правка удалена");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось удалить правку");
+    } finally {
+      setDeletingFeedback(false);
     }
   };
 
@@ -849,6 +1018,9 @@ export default function ClientPortalPage(): JSX.Element {
         const json = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(json?.error || "Failed to submit feedback");
       }
+
+      const createdFeedback = (await response.json()) as { id: string };
+      setOwnedFeedbackIds((current) => (current.includes(createdFeedback.id) ? current : [...current, createdFeedback.id]));
 
       setCommentText("");
       setCapturedTimecodeSec(null);
@@ -1417,7 +1589,12 @@ export default function ClientPortalPage(): JSX.Element {
                 {visibleFeedback.map((item) => (
                   <article
                     key={item.id}
-                    onClick={() => void toggleThread(item.id)}
+                    onClick={() => void handleFeedbackCardClick(item.id)}
+                    onContextMenu={(event) => handleOwnedFeedbackContextMenu(event, item.id)}
+                    onPointerDown={(event) => handleOwnedFeedbackPointerDown(event, item.id)}
+                    onPointerMove={handleOwnedFeedbackPointerMove}
+                    onPointerUp={handleOwnedFeedbackPointerEnd}
+                    onPointerCancel={handleOwnedFeedbackPointerEnd}
                     className={cn(
                       "cursor-pointer overflow-hidden rounded-[24px] border p-3.5 transition hover:border-white/18",
                       PORTAL_FEEDBACK_CARD_CLASSES[item.status],
@@ -1802,6 +1979,23 @@ export default function ClientPortalPage(): JSX.Element {
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog open={deleteTargetId !== null} onOpenChange={(open) => !open && !deletingFeedback && setDeleteTargetId(null)}>
+        <DialogContent className="rounded-3xl border border-white/10 bg-[#141414] text-white">
+          <DialogHeader>
+            <DialogTitle>Удалить правку?</DialogTitle>
+            <DialogDescription>Это действие удалит правку из клиентского портала.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTargetId(null)} disabled={deletingFeedback}>
+              Отмена
+            </Button>
+            <Button onClick={handleDeleteFeedback} disabled={deletingFeedback} className="rounded-full bg-rose-500 text-white hover:bg-rose-400">
+              {deletingFeedback ? "..." : "Удалить"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
