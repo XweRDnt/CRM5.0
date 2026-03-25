@@ -3,6 +3,7 @@ import { AuthorType } from "@prisma/client";
 import { FeedbackService } from "@/lib/services/feedback.service";
 import { prisma } from "@/lib/utils/db";
 import { APIError, handleAPIError } from "@/lib/utils/api-error";
+import { isDemoToken } from "@/lib/utils/demo-token";
 import { resolvePortalProjectToken } from "@/lib/utils/portal-token";
 
 const paramsSchema = z.object({
@@ -77,6 +78,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const { id } = paramsSchema.parse(await context.params);
     const payload = createPortalThreadMessageSchema.parse(await request.json());
     const { portalToken } = await assertPortalFeedbackAccess(id, payload.token);
+
+    if (isDemoToken(portalToken)) {
+      return Response.json({ code: "DEMO_READONLY", error: "Demo mode is read-only" }, { status: 403 });
+    }
+
     const feedbackService = new FeedbackService(prisma);
 
     const message = await feedbackService.createThreadMessage({

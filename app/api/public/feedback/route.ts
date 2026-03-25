@@ -4,6 +4,7 @@ import { getTelegramNotificationService } from "@/lib/services/telegram-notifica
 import { prisma } from "@/lib/utils/db";
 import { handleAPIError } from "@/lib/utils/api-error";
 import { validateAnnotationData } from "@/lib/annotations/validation";
+import { isDemoToken } from "@/lib/utils/demo-token";
 
 const createPublicFeedbackSchema = z
   .object({
@@ -48,6 +49,10 @@ export async function POST(request: Request): Promise<Response> {
 
     if (!version) {
       return Response.json({ error: "Asset version not found" }, { status: 404 });
+    }
+
+    if (isDemoToken(version.project.portalToken)) {
+      return Response.json({ code: "DEMO_READONLY", error: "Demo mode is read-only" }, { status: 403 });
     }
 
     if (version.status === "APPROVED" || version.status === "FINAL") {

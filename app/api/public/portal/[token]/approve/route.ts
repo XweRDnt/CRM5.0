@@ -4,6 +4,7 @@ import { assetService } from "@/lib/services/asset.service";
 import { getTelegramNotificationService } from "@/lib/services/telegram-notification.service";
 import { prisma } from "@/lib/utils/db";
 import { handleAPIError } from "@/lib/utils/api-error";
+import { isDemoToken } from "@/lib/utils/demo-token";
 import { resolvePortalProjectToken } from "@/lib/utils/portal-token";
 
 const paramsSchema = z.object({
@@ -22,6 +23,10 @@ export async function POST(request: Request, context: { params: Promise<{ token:
 
     if (!portalToken) {
       return Response.json({ error: "Invalid portal token" }, { status: 400 });
+    }
+
+    if (isDemoToken(portalToken)) {
+      return Response.json({ code: "DEMO_READONLY", error: "Demo mode is read-only" }, { status: 403 });
     }
 
     const project = await prisma.project.findFirst({

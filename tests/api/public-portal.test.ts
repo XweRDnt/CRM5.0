@@ -1,6 +1,7 @@
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { API_URL, createClient, createProject, createVersion, signupAndLogin } from "@/tests/api/helpers";
+import { prisma } from "@/lib/utils/db";
 
 async function getProjectPortalToken(token: string, projectId: string): Promise<string> {
   const response = await request(API_URL)
@@ -15,6 +16,10 @@ async function getProjectPortalToken(token: string, projectId: string): Promise<
 }
 
 describe("Public Portal API", () => {
+  afterEach(() => {
+    delete process.env.DEMO_PORTAL_TOKEN;
+  });
+
   it("GET /api/public/portal/[token] returns versions and active IN_REVIEW version", async () => {
     const session = await signupAndLogin();
     const client = await createClient(session.token);
@@ -65,6 +70,23 @@ describe("Public Portal API", () => {
     expect(response.body.status).toBe("APPROVED");
   });
 
+  it("POST /api/public/portal/[token]/approve rejects demo token writes", async () => {
+    const session = await signupAndLogin();
+    const client = await createClient(session.token);
+    const project = await createProject(session.token, client.id);
+    const version = await createVersion(session.token, project.id, { versionNo: 1 });
+    const portalToken = await getProjectPortalToken(session.token, project.id);
+
+    process.env.DEMO_PORTAL_TOKEN = portalToken;
+
+    const response = await request(API_URL)
+      .post(`/api/public/portal/${portalToken}/approve`)
+      .send({ versionId: version.id });
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("DEMO_READONLY");
+  });
+
   it("POST /api/public/portal/[token]/approve rejects version from another project", async () => {
     const session = await signupAndLogin();
     const client = await createClient(session.token);
@@ -100,5 +122,83 @@ describe("Public Portal API", () => {
 
     const newPortalResponse = await request(API_URL).get(`/api/public/portal/${resetResponse.body.portalToken}`);
     expect(newPortalResponse.status).toBe(200);
+  });
+
+  it("POST /api/public/feedback rejects writes for the demo portal project", async () => {
+    const session = await signupAndLogin();
+    const client = await createClient(session.token);
+    const project = await createProject(session.token, client.id);
+    const version = await createVersion(session.token, project.id, { versionNo: 1 });
+    const portalToken = await getProjectPortalToken(session.token, project.id);
+
+    process.env.DEMO_PORTAL_TOKEN = portalToken;
+
+    const response = await request(API_URL).post("/api/public/feedback").send({
+      assetVersionId: version.id,
+      authorType: "CLIENT",
+      authorName: "Demo Viewer",
+      text: "Read-only demo should reject this",
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("DEMO_READONLY");
+  });
+
+  it("POST /api/public/feedback/[id]/thread rejects replies for the demo token", async () => {
+    const session = await signupAndLogin();
+    const client = await createClient(session.token);
+    const project = await createProject(session.token, client.id);
+    const version = await createVersion(session.token, project.id, { versionNo: 1 });
+    const portalToken = await getProjectPortalToken(session.token, project.id);
+
+    const feedback = await prisma.feedbackItem.create({
+      data: {
+        assetVersionId: version.id,
+        authorType: "CLIENT",
+        authorName: "Client",
+        text: "Existing feedback",
+        status: "NEW",
+      },
+      select: { id: true },
+    });
+
+    process.env.DEMO_PORTAL_TOKEN = portalToken;
+
+    const response = await request(API_URL).post(`/api/public/feedback/${feedback.id}/thread`).send({
+      token: portalToken,
+      authorName: "Demo Viewer",
+      text: "Should fail in demo mode",
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("DEMO_READONLY");
+  });
+
+  it("POST /api/public/feedback/[id]/thread/read rejects read markers for the demo token", async () => {
+    const session = await signupAndLogin();
+    const client = await createClient(session.token);
+    const project = await createProject(session.token, client.id);
+    const version = await createVersion(session.token, project.id, { versionNo: 1 });
+    const portalToken = await getProjectPortalToken(session.token, project.id);
+
+    const feedback = await prisma.feedbackItem.create({
+      data: {
+        assetVersionId: version.id,
+        authorType: "CLIENT",
+        authorName: "Client",
+        text: "Existing feedback",
+        status: "NEW",
+      },
+      select: { id: true },
+    });
+
+    process.env.DEMO_PORTAL_TOKEN = portalToken;
+
+    const response = await request(API_URL).post(`/api/public/feedback/${feedback.id}/thread/read`).send({
+      token: portalToken,
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("DEMO_READONLY");
   });
 });

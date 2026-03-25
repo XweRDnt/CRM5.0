@@ -209,6 +209,7 @@ export default function ClientPortalPage(): JSX.Element {
   const searchParams = useSearchParams();
   const token = params.token;
   const requestedVersionId = searchParams.get("versionId") ?? undefined;
+  const isDemoReadonly = searchParams.get("readonly") === "true";
 
   const portalUrl = requestedVersionId
     ? `/api/public/portal/${token}?versionId=${encodeURIComponent(requestedVersionId)}`
@@ -437,6 +438,10 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const markThreadRead = async (threadId: string): Promise<void> => {
+    if (isDemoReadonly) {
+      return;
+    }
+
     try {
       const response = await fetch(`/api/public/feedback/${threadId}/thread/read`, {
         method: "POST",
@@ -478,6 +483,10 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const handleThreadReply = async (threadId: string): Promise<void> => {
+    if (isDemoReadonly) {
+      return;
+    }
+
     const text = threadDrafts[threadId]?.trim() ?? "";
     if (!text) {
       return;
@@ -777,7 +786,7 @@ export default function ClientPortalPage(): JSX.Element {
   };
 
   const approveVersion = async (): Promise<void> => {
-    if (!activeVersion) {
+    if (!activeVersion || isDemoReadonly) {
       return;
     }
 
@@ -805,7 +814,7 @@ export default function ClientPortalPage(): JSX.Element {
 
   const submitFeedback = async (event?: React.FormEvent): Promise<void> => {
     event?.preventDefault();
-    if (!activeVersion) {
+    if (!activeVersion || isDemoReadonly) {
       return;
     }
 
@@ -917,18 +926,24 @@ export default function ClientPortalPage(): JSX.Element {
           <div className="min-w-0">
             <div className="truncate text-[clamp(20px,4vw,30px)] font-bold leading-none tracking-[-0.04em] text-white">{data.project.name}</div>
           </div>
-          <Button
-            onClick={() => setApproveDialogOpen(true)}
-            disabled={isVersionLocked || !activeVersion}
-            className={cn(
-              "h-10 rounded-2xl px-4 text-[12px] font-semibold shadow-[0_10px_24px_rgba(79,142,247,0.22)]",
-              isVersionLocked
-                ? "border border-white/10 bg-white/10 text-white/40 shadow-none"
-                : "bg-[#4F8EF7] text-white hover:bg-[#5a97ff]",
-            )}
-          >
-            {isVersionLocked ? m.portal.approved : "Утвердить"}
-          </Button>
+          {isDemoReadonly ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[12px] font-medium text-white/55">
+              Демо-режим: только просмотр
+            </div>
+          ) : (
+            <Button
+              onClick={() => setApproveDialogOpen(true)}
+              disabled={isVersionLocked || !activeVersion}
+              className={cn(
+                "h-10 rounded-2xl px-4 text-[12px] font-semibold shadow-[0_10px_24px_rgba(79,142,247,0.22)]",
+                isVersionLocked
+                  ? "border border-white/10 bg-white/10 text-white/40 shadow-none"
+                  : "bg-[#4F8EF7] text-white hover:bg-[#5a97ff]",
+              )}
+            >
+              {isVersionLocked ? m.portal.approved : "Утвердить"}
+            </Button>
+          )}
         </div>
       </header>
 
@@ -1178,63 +1193,69 @@ export default function ClientPortalPage(): JSX.Element {
             </div>
           </div>
 
-          <form
-            onSubmit={submitFeedback}
-            className="hidden items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2.5 backdrop-blur-xl lg:flex"
-          >
-            <button
-              type="button"
-              onClick={() => setCapturedTimecodeSec(null)}
-              className="flex-shrink-0 rounded-lg border border-blue-400/30 bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-300"
+          {isDemoReadonly ? (
+            <div className="hidden rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/48 backdrop-blur-xl lg:block">
+              Демо-режим: отправка комментариев и утверждение отключены.
+            </div>
+          ) : (
+            <form
+              onSubmit={submitFeedback}
+              className="hidden items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2.5 backdrop-blur-xl lg:flex"
             >
-              {formatTimecode(capturedTimecodeSec ?? playerCurrentTimeSec)}
-            </button>
-            <div className="h-4 w-px bg-white/10" />
-            <input
-              value={authorName}
-              onChange={(event) => setAuthorName(event.target.value)}
-              placeholder="Имя"
-              required
-              disabled={isVersionLocked}
-              className="w-24 flex-shrink-0 bg-transparent text-sm text-white/50 outline-none placeholder:text-white/25"
-            />
-            <div className="h-4 w-px bg-white/10" />
-            <input
-              ref={commentInputDesktopRef}
-              value={commentText}
-              onChange={(event) => setCommentText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  if (canSubmit) {
-                    void submitFeedback();
+              <button
+                type="button"
+                onClick={() => setCapturedTimecodeSec(null)}
+                className="flex-shrink-0 rounded-lg border border-blue-400/30 bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-300"
+              >
+                {formatTimecode(capturedTimecodeSec ?? playerCurrentTimeSec)}
+              </button>
+              <div className="h-4 w-px bg-white/10" />
+              <input
+                value={authorName}
+                onChange={(event) => setAuthorName(event.target.value)}
+                placeholder="Имя"
+                required
+                disabled={isVersionLocked}
+                className="w-24 flex-shrink-0 bg-transparent text-sm text-white/50 outline-none placeholder:text-white/25"
+              />
+              <div className="h-4 w-px bg-white/10" />
+              <input
+                ref={commentInputDesktopRef}
+                value={commentText}
+                onChange={(event) => setCommentText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (canSubmit) {
+                      void submitFeedback();
+                    }
                   }
-                }
-              }}
-              placeholder={hasStrokes ? "Комментарий (необязательно)" : "Добавить правку..."}
-              disabled={isVersionLocked}
-              className="flex-1 bg-transparent text-sm text-white/70 outline-none placeholder:text-white/25"
-            />
-            <button
-              type="button"
-              onClick={toggleAnnotationMode}
-              disabled={isVersionLocked}
-              aria-label={annotationMode ? "Закрыть рисование" : "Рисовать"}
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/40 transition",
-                annotationMode && "border-blue-400/40 bg-blue-500/15 text-blue-300",
-              )}
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-            <Button
-              type="submit"
-              disabled={!canSubmit}
-              className="h-8 w-8 rounded-xl bg-[#4F8EF7] p-0 text-white hover:bg-[#5a97ff] disabled:opacity-40"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </form>
+                }}
+                placeholder={hasStrokes ? "Комментарий (необязательно)" : "Добавить правку..."}
+                disabled={isVersionLocked}
+                className="flex-1 bg-transparent text-sm text-white/70 outline-none placeholder:text-white/25"
+              />
+              <button
+                type="button"
+                onClick={toggleAnnotationMode}
+                disabled={isVersionLocked}
+                aria-label={annotationMode ? "Закрыть рисование" : "Рисовать"}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/40 transition",
+                  annotationMode && "border-blue-400/40 bg-blue-500/15 text-blue-300",
+                )}
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <Button
+                type="submit"
+                disabled={!canSubmit}
+                className="h-8 w-8 rounded-xl bg-[#4F8EF7] p-0 text-white hover:bg-[#5a97ff] disabled:opacity-40"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          )}
 
           {activeVersion && activeVersion.processingStatus !== "READY" ? (
             <p className="text-xs text-white/50">
@@ -1360,23 +1381,25 @@ export default function ClientPortalPage(): JSX.Element {
                       })}
                     </div>
 
-                    <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
-                      <input
-                        value={threadDrafts[activeThreadItem.id] ?? ""}
-                        onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
-                        disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
-                        placeholder="Ответить команде..."
-                        className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-white/84 placeholder:text-white/22 disabled:text-white/40"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void handleThreadReply(activeThreadItem.id)}
-                        disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
-                        className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white shadow-[0_10px_24px_rgba(79,142,247,0.3)] disabled:bg-white/[0.06] disabled:text-white/30"
-                      >
-                        <Send className="h-4 w-4" />
-                      </button>
-                    </div>
+                    {isDemoReadonly ? null : (
+                      <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
+                        <input
+                          value={threadDrafts[activeThreadItem.id] ?? ""}
+                          onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
+                          disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
+                          placeholder="Ответить команде..."
+                          className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-white/84 placeholder:text-white/22 disabled:text-white/40"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void handleThreadReply(activeThreadItem.id)}
+                          disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
+                          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white shadow-[0_10px_24px_rgba(79,142,247,0.3)] disabled:bg-white/[0.06] disabled:text-white/30"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
                 </div>
                     </>
                   );
@@ -1560,25 +1583,27 @@ export default function ClientPortalPage(): JSX.Element {
               </div>
             </div>
 
-            <div className="border-t border-white/10 px-4 py-3">
-              <div className="flex items-center gap-2 rounded-[20px] border border-white/10 bg-white/[0.05] p-2">
-                <input
-                  value={threadDrafts[activeThreadItem.id] ?? ""}
-                  onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
-                  disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
-                  placeholder="Ответить..."
-                  className="flex-1 bg-transparent px-2 text-sm text-white/82 outline-none placeholder:text-white/24"
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleThreadReply(activeThreadItem.id)}
-                  disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
-                  className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white disabled:bg-white/[0.06] disabled:text-white/30"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
+            {isDemoReadonly ? null : (
+              <div className="border-t border-white/10 px-4 py-3">
+                <div className="flex items-center gap-2 rounded-[20px] border border-white/10 bg-white/[0.05] p-2">
+                  <input
+                    value={threadDrafts[activeThreadItem.id] ?? ""}
+                    onChange={(event) => setThreadDrafts((current) => ({ ...current, [activeThreadItem.id]: event.target.value }))}
+                    disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id]}
+                    placeholder="Ответить..."
+                    className="flex-1 bg-transparent px-2 text-sm text-white/82 outline-none placeholder:text-white/24"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleThreadReply(activeThreadItem.id)}
+                    disabled={isVersionLocked || threadSubmittingById[activeThreadItem.id] || !(threadDrafts[activeThreadItem.id]?.trim())}
+                    className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4F8EF7] text-white disabled:bg-white/[0.06] disabled:text-white/30"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : null}
 
@@ -1688,86 +1713,94 @@ export default function ClientPortalPage(): JSX.Element {
             </div>
           </div>
 
-          <form
-            onSubmit={submitFeedback}
-            className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2.5 backdrop-blur-xl"
-          >
-            <button
-              type="button"
-              onClick={() => setCapturedTimecodeSec(null)}
-              className="flex-shrink-0 rounded-lg border border-blue-400/30 bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-300"
+          {isDemoReadonly ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-[13px] text-white/48 backdrop-blur-xl">
+              Демо-режим: отправка комментариев и утверждение отключены.
+            </div>
+          ) : (
+            <form
+              onSubmit={submitFeedback}
+              className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2.5 backdrop-blur-xl"
             >
-              {formatTimecode(capturedTimecodeSec ?? playerCurrentTimeSec)}
-            </button>
-            <div className="h-4 w-px bg-white/10" />
-            <input
-              value={authorName}
-              onChange={(event) => setAuthorName(event.target.value)}
-              placeholder="Имя"
-              required
-              disabled={isVersionLocked}
-              className="w-16 flex-shrink-0 bg-transparent text-[13px] text-white/50 outline-none placeholder:text-white/25"
-            />
-            <div className="h-4 w-px bg-white/10" />
-            <input
-              ref={commentInputMobileRef}
-              value={commentText}
-              onChange={(event) => setCommentText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  if (canSubmit) {
-                    void submitFeedback();
+              <button
+                type="button"
+                onClick={() => setCapturedTimecodeSec(null)}
+                className="flex-shrink-0 rounded-lg border border-blue-400/30 bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-300"
+              >
+                {formatTimecode(capturedTimecodeSec ?? playerCurrentTimeSec)}
+              </button>
+              <div className="h-4 w-px bg-white/10" />
+              <input
+                value={authorName}
+                onChange={(event) => setAuthorName(event.target.value)}
+                placeholder="Имя"
+                required
+                disabled={isVersionLocked}
+                className="w-16 flex-shrink-0 bg-transparent text-[13px] text-white/50 outline-none placeholder:text-white/25"
+              />
+              <div className="h-4 w-px bg-white/10" />
+              <input
+                ref={commentInputMobileRef}
+                value={commentText}
+                onChange={(event) => setCommentText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (canSubmit) {
+                      void submitFeedback();
+                    }
                   }
-                }
-              }}
-              placeholder={hasStrokes ? "Комментарий (необязательно)" : "Добавить правку..."}
-              disabled={isVersionLocked}
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-white/75 outline-none placeholder:text-white/25"
-            />
-            <button
-              type="button"
-              onClick={toggleAnnotationMode}
-              disabled={isVersionLocked}
-              aria-label={annotationMode ? "Закрыть рисование" : "Рисовать"}
-              className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/40 transition",
-                annotationMode && "border-blue-400/40 bg-blue-500/15 text-blue-300",
-              )}
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-            <Button
-              type="submit"
-              disabled={!canSubmit}
-              className="h-9 w-9 shrink-0 rounded-xl bg-[#4F8EF7] p-0 text-white hover:bg-[#5a97ff] disabled:opacity-40"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </form>
+                }}
+                placeholder={hasStrokes ? "Комментарий (необязательно)" : "Добавить правку..."}
+                disabled={isVersionLocked}
+                className="min-w-0 flex-1 bg-transparent text-[13px] text-white/75 outline-none placeholder:text-white/25"
+              />
+              <button
+                type="button"
+                onClick={toggleAnnotationMode}
+                disabled={isVersionLocked}
+                aria-label={annotationMode ? "Закрыть рисование" : "Рисовать"}
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/40 transition",
+                  annotationMode && "border-blue-400/40 bg-blue-500/15 text-blue-300",
+                )}
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <Button
+                type="submit"
+                disabled={!canSubmit}
+                className="h-9 w-9 shrink-0 rounded-xl bg-[#4F8EF7] p-0 text-white hover:bg-[#5a97ff] disabled:opacity-40"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          )}
         </div>
       </div>
 
-      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <DialogContent className="rounded-3xl border border-white/10 bg-[#141414] text-white">
-          <DialogHeader>
-            <DialogTitle>{m.portal.approveDialogTitle}</DialogTitle>
-            <DialogDescription>{m.portal.approveDialogDescription}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setApproveDialogOpen(false)} disabled={approving}>
-              {m.portal.cancel}
-            </Button>
-            <Button
-              onClick={approveVersion}
-              disabled={approving || !activeVersion}
-              className="rounded-full bg-[#4F8EF7] text-white hover:bg-[#5a97ff]"
-            >
-              {approving ? "..." : m.portal.approveConfirm}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isDemoReadonly ? null : (
+        <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+          <DialogContent className="rounded-3xl border border-white/10 bg-[#141414] text-white">
+            <DialogHeader>
+              <DialogTitle>{m.portal.approveDialogTitle}</DialogTitle>
+              <DialogDescription>{m.portal.approveDialogDescription}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setApproveDialogOpen(false)} disabled={approving}>
+                {m.portal.cancel}
+              </Button>
+              <Button
+                onClick={approveVersion}
+                disabled={approving || !activeVersion}
+                className="rounded-full bg-[#4F8EF7] text-white hover:bg-[#5a97ff]"
+              >
+                {approving ? "..." : m.portal.approveConfirm}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </main>
   );
 }
