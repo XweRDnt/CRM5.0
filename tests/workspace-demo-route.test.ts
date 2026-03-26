@@ -32,7 +32,7 @@ describe("WorkspaceDemoPage", () => {
     });
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost:3000/projects");
+    expect(response.headers.get("location")).toBe("http://localhost:3000/projects?workspaceDemoToken=workspace-demo-secret");
     expect(response.headers.get("set-cookie")).toContain("workspaceDemoToken=workspace-demo-secret");
   });
 });

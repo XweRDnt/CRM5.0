@@ -15,7 +15,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   return new Response(null, {
     status: 307,
     headers: {
-      Location: new URL("/projects", process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").toString(),
+      Location: new URL(`/projects?workspaceDemoToken=${encodeURIComponent(token)}`, process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").toString(),
       "Set-Cookie": `workspaceDemoToken=${encodeURIComponent(token)}; Path=/; SameSite=Lax`,
     },
   });

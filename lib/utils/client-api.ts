@@ -27,6 +27,14 @@ function getCookieValue(name: string): string {
   return decodeURIComponent(cookie.slice(prefix.length));
 }
 
+function getQueryValue(name: string): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return new URLSearchParams(window.location.search).get(name) ?? "";
+}
+
 export function clearWorkspaceDemoToken(): void {
   if (typeof document === "undefined") {
     return;
@@ -40,7 +48,7 @@ export function getAuthToken(): string {
     return "";
   }
 
-  return getCookieValue("workspaceDemoToken") || localStorage.getItem("token") || "";
+  return getCookieValue("workspaceDemoToken") || getQueryValue("workspaceDemoToken") || localStorage.getItem("token") || "";
 }
 
 export function getTenantId(): string {

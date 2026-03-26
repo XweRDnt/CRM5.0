@@ -16,4 +16,10 @@ describe("client api demo token handling", () => {
 
     expect(getAuthToken()).toBe("demo-token");
   });
+
+  it("falls back to the workspace demo token from the URL when the cookie is not available yet", () => {
+    window.history.replaceState({}, "", "/projects?workspaceDemoToken=url-demo-token");
+
+    expect(getAuthToken()).toBe("url-demo-token");
+  });
 });
