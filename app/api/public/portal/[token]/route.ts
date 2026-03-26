@@ -2,6 +2,7 @@ import { VersionStatus, type AssetVersion } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/utils/db";
 import { handleAPIError } from "@/lib/utils/api-error";
+import { isDemoToken } from "@/lib/utils/demo-token";
 import { resolvePortalProjectToken } from "@/lib/utils/portal-token";
 
 const paramsSchema = z.object({
@@ -122,6 +123,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
           clientName: project.client.contactName,
           companyName: project.client.companyName,
         },
+        isDemo: isDemoToken(portalToken),
         activeVersionId: activeVersion?.id ?? null,
         versions: project.versions.map((version) => ({
           id: version.id,

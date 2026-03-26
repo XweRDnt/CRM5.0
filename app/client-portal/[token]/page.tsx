@@ -89,6 +89,7 @@ type PortalResponse = {
     clientName: string;
     companyName: string;
   };
+  isDemo?: boolean;
   activeVersionId: string | null;
   versions: PortalVersion[];
   feedback: PortalFeedbackItem[];
@@ -218,13 +219,13 @@ export default function ClientPortalPage(): JSX.Element {
   const searchParams = useSearchParams();
   const token = params.token;
   const requestedVersionId = searchParams.get("versionId") ?? undefined;
-  const isDemoReadonly = searchParams.get("readonly") === "true";
 
   const portalUrl = requestedVersionId
     ? `/api/public/portal/${token}?versionId=${encodeURIComponent(requestedVersionId)}`
     : `/api/public/portal/${token}`;
 
   const { data, isLoading, error, mutate } = useSWR(portalUrl, fetcher);
+  const isDemoReadonly = searchParams.get("readonly") === "true" || data?.isDemo === true;
   const { overlay: demoOverlay, setOverlay: setDemoOverlay } = useDemoProjectOverlay(data?.project.id ?? null);
   const activeVersion = useMemo(
     () => data?.versions.find((version) => version.id === data.activeVersionId) ?? null,

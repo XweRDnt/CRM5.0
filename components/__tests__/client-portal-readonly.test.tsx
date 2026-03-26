@@ -13,6 +13,7 @@ const mockPortalData = {
     clientName: "Client",
     companyName: "Company",
   },
+  isDemo: true,
   activeVersionId: "version_1",
   versions: [
     {
@@ -50,7 +51,7 @@ const mockPortalData = {
 vi.mock("next/navigation", () => ({
   useParams: () => ({ token: "demo-token" }),
   useRouter: () => ({ replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams("readonly=true"),
+  useSearchParams: () => new URLSearchParams(""),
 }));
 
 vi.mock("swr", () => ({
@@ -136,7 +137,7 @@ describe("Client portal readonly mode", () => {
     );
   });
 
-  it("keeps local demo feedback and thread forms available while hiding approve", async () => {
+  it("treats demo portal token as local demo mode even without readonly query", async () => {
     render(<ClientPortalPage />);
 
     expect(screen.queryByText("Утвердить")).toBeNull();
