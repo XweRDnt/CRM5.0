@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { mutate } from "swr";
-import { getAuthToken } from "@/lib/utils/client-api";
+import { clearWorkspaceDemoToken, getAuthToken } from "@/lib/utils/client-api";
+
+const AUTH_GUARD_TIMEOUT_MS = 8000;
 
 export type AuthUser = {
   id: string;
@@ -30,15 +32,19 @@ export function useAuthGuard(): { ready: boolean; user: AuthUser | null } {
     const token = getAuthToken();
 
     if (!token) {
+      setReady(true);
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
 
     let cancelled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), AUTH_GUARD_TIMEOUT_MS);
 
     const validate = async (): Promise<void> => {
       try {
         const response = await fetch("/api/auth/me", {
+          signal: controller.signal,
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -57,7 +63,14 @@ export function useAuthGuard(): { ready: boolean; user: AuthUser | null } {
         await mutate(() => true, undefined, { revalidate: false });
         localStorage.removeItem("token");
         localStorage.removeItem("tenantId");
+        clearWorkspaceDemoToken();
+        if (!cancelled) {
+          setUser(null);
+          setReady(true);
+        }
         router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      } finally {
+        window.clearTimeout(timeout);
       }
     };
 

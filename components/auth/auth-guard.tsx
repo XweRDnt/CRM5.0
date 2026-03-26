@@ -11,12 +11,16 @@ type AuthGuardProps = {
 export function AuthGuard({ children }: AuthGuardProps): JSX.Element {
   const { ready, user } = useAuthGuard();
 
-  if (!ready || !user) {
+  if (!ready) {
     return (
       <section className="flex min-h-screen items-center justify-center bg-neutral-100">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </section>
     );
+  }
+
+  if (!user) {
+    return <section className="flex min-h-screen items-center justify-center bg-neutral-100 text-sm text-neutral-500">Redirecting...</section>;
   }
 
   return <>{children({ user })}</>;

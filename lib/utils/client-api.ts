@@ -35,6 +35,14 @@ function getQueryValue(name: string): string {
   return new URLSearchParams(window.location.search).get(name) ?? "";
 }
 
+function setCookieValue(name: string, value: string): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax`;
+}
+
 export function clearWorkspaceDemoToken(): void {
   if (typeof document === "undefined") {
     return;
@@ -43,12 +51,22 @@ export function clearWorkspaceDemoToken(): void {
   document.cookie = "workspaceDemoToken=; Max-Age=0; path=/; SameSite=Lax";
 }
 
+export function persistWorkspaceDemoTokenFromQuery(): string {
+  const token = getQueryValue("workspaceDemoToken");
+  if (!token) {
+    return "";
+  }
+
+  setCookieValue("workspaceDemoToken", token);
+  return token;
+}
+
 export function getAuthToken(): string {
   if (typeof window === "undefined") {
     return "";
   }
 
-  return getCookieValue("workspaceDemoToken") || getQueryValue("workspaceDemoToken") || localStorage.getItem("token") || "";
+  return getCookieValue("workspaceDemoToken") || persistWorkspaceDemoTokenFromQuery() || localStorage.getItem("token") || "";
 }
 
 export function getTenantId(): string {

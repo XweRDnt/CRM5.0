@@ -21,5 +21,6 @@ describe("client api demo token handling", () => {
     window.history.replaceState({}, "", "/projects?workspaceDemoToken=url-demo-token");
 
     expect(getAuthToken()).toBe("url-demo-token");
+    expect(document.cookie).toContain("workspaceDemoToken=url-demo-token");
   });
 });
