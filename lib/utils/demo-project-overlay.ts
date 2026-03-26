@@ -37,6 +37,8 @@ export const EMPTY_DEMO_PROJECT_OVERLAY: DemoProjectOverlay = {
   threadMessages: [],
 };
 
+const demoProjectOverlaySnapshotCache = new Map<string, { raw: string | null; overlay: DemoProjectOverlay }>();
+
 export function getDemoProjectOverlayStorageKey(projectId: string): string {
   return `demo_project_overlay:${projectId}`;
 }
@@ -48,18 +50,29 @@ export function readDemoProjectOverlay(projectId: string): DemoProjectOverlay {
 
   try {
     const raw = window.localStorage.getItem(getDemoProjectOverlayStorageKey(projectId));
-    if (!raw) {
-      return EMPTY_DEMO_PROJECT_OVERLAY;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<DemoProjectOverlay> | null;
-    return {
-      feedback: Array.isArray(parsed?.feedback) ? parsed.feedback.filter(isDemoProjectOverlayFeedback) : [],
-      threadMessages: Array.isArray(parsed?.threadMessages) ? parsed.threadMessages.filter(isDemoProjectOverlayThreadMessage) : [],
-    };
+    return getCachedDemoProjectOverlaySnapshot(projectId, raw);
   } catch {
     return EMPTY_DEMO_PROJECT_OVERLAY;
   }
+}
+
+export function getCachedDemoProjectOverlaySnapshot(projectId: string, raw: string | null): DemoProjectOverlay {
+  const cached = demoProjectOverlaySnapshotCache.get(projectId);
+  if (cached && cached.raw === raw) {
+    return cached.overlay;
+  }
+
+  let overlay = EMPTY_DEMO_PROJECT_OVERLAY;
+  if (raw) {
+    const parsed = JSON.parse(raw) as Partial<DemoProjectOverlay> | null;
+    overlay = {
+      feedback: Array.isArray(parsed?.feedback) ? parsed.feedback.filter(isDemoProjectOverlayFeedback) : [],
+      threadMessages: Array.isArray(parsed?.threadMessages) ? parsed.threadMessages.filter(isDemoProjectOverlayThreadMessage) : [],
+    };
+  }
+
+  demoProjectOverlaySnapshotCache.set(projectId, { raw, overlay });
+  return overlay;
 }
 
 export function writeDemoProjectOverlay(projectId: string, overlay: DemoProjectOverlay): void {
@@ -67,7 +80,9 @@ export function writeDemoProjectOverlay(projectId: string, overlay: DemoProjectO
     return;
   }
 
-  window.localStorage.setItem(getDemoProjectOverlayStorageKey(projectId), JSON.stringify(overlay));
+  const raw = JSON.stringify(overlay);
+  demoProjectOverlaySnapshotCache.set(projectId, { raw, overlay });
+  window.localStorage.setItem(getDemoProjectOverlayStorageKey(projectId), raw);
 }
 
 function isDemoProjectOverlayFeedback(value: unknown): value is DemoProjectOverlayFeedback {

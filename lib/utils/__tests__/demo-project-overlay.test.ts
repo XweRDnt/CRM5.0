@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendDemoProjectThreadMessage,
   createDemoProjectFeedback,
+  getCachedDemoProjectOverlaySnapshot,
   mergeDemoProjectThreadMessages,
   mergePortalFeedbackWithDemoOverlay,
   mergeWorkspaceFeedbackWithDemoOverlay,
@@ -120,5 +121,35 @@ describe("demo project overlay", () => {
       lastThreadMessagePreview: "Local client reply",
     });
     expect(mergedFeedback[0].lastThreadMessageAt).toEqual(new Date("2026-03-25T12:05:00.000Z"));
+  });
+
+  it("returns the same snapshot reference when overlay storage has not changed", () => {
+    const first = getCachedDemoProjectOverlaySnapshot("project_1", null);
+    const second = getCachedDemoProjectOverlaySnapshot("project_1", null);
+    expect(second).toBe(first);
+
+    const raw = JSON.stringify({
+      feedback: [
+        {
+          id: "demo-feedback-version_1-1",
+          assetVersionId: "version_1",
+          authorType: "CLIENT",
+          authorName: "Pasha",
+          authorEmail: null,
+          text: "Local",
+          status: "NEW",
+          timecodeSec: 10,
+          annotationData: null,
+          createdAt: "2026-03-25T12:00:00.000Z",
+          updatedAt: "2026-03-25T12:00:00.000Z",
+        },
+      ],
+      threadMessages: [],
+    });
+
+    const third = getCachedDemoProjectOverlaySnapshot("project_1", raw);
+    const fourth = getCachedDemoProjectOverlaySnapshot("project_1", raw);
+    expect(fourth).toBe(third);
+    expect(third).not.toBe(first);
   });
 });
