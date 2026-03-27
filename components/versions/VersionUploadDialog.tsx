@@ -62,21 +62,21 @@ export function VersionUploadDialog({
       <DialogContent
         className={
           appTheme === "dark"
-            ? "version-upload-dialog !w-[min(1100px,96vw)] !max-w-[1100px] !overflow-hidden !rounded-[32px] !border-white/10 !bg-[linear-gradient(180deg,rgba(16,18,29,0.97),rgba(9,11,19,0.97))] !p-0 !text-neutral-100 !shadow-[0_34px_120px_rgba(0,0,0,0.52)] !backdrop-blur-[30px]"
-            : "version-upload-dialog !w-[min(1100px,96vw)] !max-w-[1100px] !overflow-hidden !rounded-[32px] !border-neutral-200/70 !bg-white/96 !p-0 !text-neutral-900 !shadow-[0_34px_120px_rgba(15,23,42,0.18)] !backdrop-blur-[30px]"
+            ? "!h-[min(92vh,920px)] !w-[min(1320px,97vw)] !max-w-[1320px] !overflow-hidden !rounded-[36px] !border-white/10 !bg-[linear-gradient(180deg,rgba(10,12,20,0.98),rgba(6,9,16,0.98))] !p-0 !text-neutral-100 !shadow-[0_40px_140px_rgba(0,0,0,0.58)] !backdrop-blur-[34px]"
+            : "!h-[min(92vh,920px)] !w-[min(1320px,97vw)] !max-w-[1320px] !overflow-hidden !rounded-[36px] !border-neutral-200/70 !bg-white/96 !p-0 !text-neutral-900 !shadow-[0_34px_120px_rgba(15,23,42,0.18)] !backdrop-blur-[30px]"
         }
       >
-        <div className="relative overflow-hidden">
+        <div className="relative flex h-full flex-col overflow-hidden">
           <div
             aria-hidden="true"
             className={
               appTheme === "dark"
-                ? "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(67,87,255,0.24),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.16),transparent_32%)]"
-                : "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.16),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.12),transparent_32%)]"
+                ? "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(67,87,255,0.2),transparent_28%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.14),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_18%)]"
+                : "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.1),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.7),transparent_18%)]"
             }
           />
 
-          <div className="relative p-6 sm:p-7">
+          <div className="relative border-b border-white/10 px-6 pb-5 pt-6 sm:px-8">
             <DialogHeader className="space-y-3">
               <p
                 className={
@@ -90,33 +90,31 @@ export function VersionUploadDialog({
               <DialogTitle
                 className={
                   appTheme === "dark"
-                    ? "text-[30px] font-semibold tracking-[-0.04em] text-neutral-100"
-                    : "text-[30px] font-semibold tracking-[-0.04em] text-neutral-900"
+                    ? "text-[32px] font-semibold tracking-[-0.05em] text-neutral-100"
+                    : "text-[32px] font-semibold tracking-[-0.05em] text-neutral-900"
                 }
               >
                 Загрузить новую версию
               </DialogTitle>
               <DialogDescription
-                className={appTheme === "dark" ? "max-w-xl text-sm leading-6 text-white/62" : "max-w-xl text-sm leading-6 text-neutral-600"}
+                className={
+                  appTheme === "dark"
+                    ? "max-w-2xl text-sm leading-6 text-white/62"
+                    : "max-w-2xl text-sm leading-6 text-neutral-600"
+                }
               >
-                Добавьте видео, проверьте название версии и загрузите файл в одном окне.
+                Большая зона перетаскивания, автоназвание версии и быстрый путь до готового review-flow без лишних шагов.
               </DialogDescription>
             </DialogHeader>
+          </div>
 
-            <div
-              className={
-                appTheme === "dark"
-                  ? "mt-6 rounded-[28px] border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl sm:p-5"
-                  : "mt-6 rounded-[28px] border border-neutral-200/80 bg-white/75 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-xl sm:p-5"
-              }
-            >
-              <VersionUploadFlow
-                projectId={projectId}
-                surface="dialog"
-                onCancel={() => setOpen(false)}
-                onCompleted={() => setOpen(false)}
-              />
-            </div>
+          <div className="relative min-h-0 flex-1 p-4 sm:p-6">
+            <VersionUploadFlow
+              projectId={projectId}
+              surface="dialog"
+              onCancel={() => setOpen(false)}
+              onCompleted={() => setOpen(false)}
+            />
           </div>
         </div>
       </DialogContent>

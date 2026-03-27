@@ -573,9 +573,13 @@ export function VersionUploadFlow({
     isLightTheme ? "border-neutral-200 bg-white" : "border-white/10 bg-white/[0.03]",
   );
 
-  return (
-    <form className={cn("version-upload-form space-y-5", surface === "dialog" ? "min-h-[620px]" : "")} onSubmit={handleSubmit}>
-      <div className={cn("space-y-2", sectionCardClassName)}>
+  const layoutClassName =
+    surface === "dialog"
+      ? "grid h-full min-h-0 gap-5 lg:grid-cols-[320px,minmax(0,1fr)]"
+      : "space-y-5";
+
+  const fieldsSection = (
+    <div className={cn("space-y-2", sectionCardClassName)}>
         <label htmlFor={`versionTitle-${projectId}`} className={cn("block text-sm font-medium", labelClassName)}>
           Название версии
         </label>
@@ -592,8 +596,10 @@ export function VersionUploadFlow({
           По умолчанию подставляется следующая версия, но вы можете назвать её по-своему.
         </p>
       </div>
+  );
 
-      <div className={cn("space-y-2", sectionCardClassName)}>
+  const uploadSection = (
+      <div className={cn("space-y-2", sectionCardClassName, surface === "dialog" ? "flex h-full min-h-0 flex-col" : "")}>
         <label className={cn("block text-sm font-medium", labelClassName)}>Видеофайл</label>
         <div
           className={dropzoneClassName}
@@ -609,9 +615,9 @@ export function VersionUploadFlow({
             onChange={(event) => applyFileSelection(event.target.files?.[0] ?? null)}
             disabled={isBusy}
           />
-          <div className={cn("flex flex-col items-center justify-center gap-5 text-center", surface === "dialog" ? "min-h-[440px] sm:min-h-[470px]" : "min-h-[360px] sm:min-h-[392px]")}>
+          <div className={cn("flex flex-col items-center justify-center gap-5 text-center", surface === "dialog" ? "min-h-[520px] flex-1 sm:min-h-[560px]" : "min-h-[360px] sm:min-h-[392px]")}>
             <div>
-              <p className={cn("text-lg font-semibold", bodyTextClassName)}>Перетащите видео в это окно</p>
+              <p className={cn("text-xl font-semibold tracking-[-0.03em]", bodyTextClassName)}>Перетащите видео в это окно</p>
               <p className={cn("mt-2 text-sm", mutedTextClassName)}>
                 Зона загрузки занимает всё окно, чтобы файл было удобно бросить сразу. Форматы: MP4, MOV, WEBM, AVI. Максимум 5GB.
               </p>
@@ -633,7 +639,7 @@ export function VersionUploadFlow({
             <Button
               type="button"
               variant="outline"
-              className={cn("min-w-40", outlineButtonClassName)}
+              className={cn("min-w-44 rounded-2xl", outlineButtonClassName)}
               onClick={() => fileInputRef.current?.click()}
               disabled={isBusy}
             >
@@ -642,7 +648,9 @@ export function VersionUploadFlow({
           </div>
         </div>
       </div>
+  );
 
+  const statusSection = (
       <div className={statusCardClassName} aria-live="polite">
         <p className={cn("text-sm", bodyTextClassName)}>Статус: {statusLabel[stage]}</p>
         {progressValue !== null ? (
@@ -651,33 +659,64 @@ export function VersionUploadFlow({
           </div>
         ) : null}
       </div>
+  );
 
-      {errorMessage ? <p className={cn("text-sm", isLightTheme ? "text-red-600" : "text-red-400")}>{errorMessage}</p> : null}
-
-      <div className={cn("flex flex-col gap-2", surface === "dialog" ? "sm:flex-row sm:justify-end" : "sm:flex-row")}>
+  const actionsSection = (
+      <div className={cn("flex flex-col gap-2", surface === "dialog" ? "" : "sm:flex-row")}>
         {surface === "dialog" && onCancel ? (
-          <Button type="button" variant="outline" className={outlineButtonClassName} onClick={onCancel} disabled={isBusy}>
+          <Button type="button" variant="outline" className={cn("rounded-2xl", outlineButtonClassName)} onClick={onCancel} disabled={isBusy}>
             Закрыть
           </Button>
         ) : null}
         {stage === "uploading" ? (
-          <Button type="button" variant="outline" className={outlineButtonClassName} onClick={handleCancelUpload}>
+          <Button type="button" variant="outline" className={cn("rounded-2xl", outlineButtonClassName)} onClick={handleCancelUpload}>
             Отменить загрузку
           </Button>
         ) : null}
         {stage === "processing" ? (
-          <Button type="button" variant="outline" className={outlineButtonClassName} onClick={handleContinueInBackground} disabled={continueInBackgroundRequested}>
+          <Button type="button" variant="outline" className={cn("rounded-2xl", outlineButtonClassName)} onClick={handleContinueInBackground} disabled={continueInBackgroundRequested}>
             Продолжить в фоне
           </Button>
         ) : null}
         <Button
           type="submit"
-          className={cn(surface === "page" ? "w-full sm:w-auto" : "")}
+          className={cn("rounded-2xl", surface === "page" ? "w-full sm:w-auto" : "w-full")}
           disabled={!canSubmit || isBusy || !selectedFile || versionTitle.trim().length === 0 || readingFileMetadata || selectedFileDurationSec === null}
         >
           {primaryButtonLabel}
         </Button>
       </div>
+  );
+
+  if (surface === "dialog") {
+    return (
+      <form className={cn("version-upload-form min-h-0", layoutClassName)} onSubmit={handleSubmit}>
+        <div className="flex min-h-0 flex-col gap-4">
+          <div className={cn(sectionCardClassName, "space-y-3")}>
+            <div className="space-y-1">
+              <p className={cn("text-xs font-semibold uppercase tracking-[0.22em]", mutedTextClassName)}>Version Setup</p>
+              <p className={cn("text-sm leading-6", bodyTextClassName)}>
+                Подготовьте название, затем просто бросьте файл в большую зону справа.
+              </p>
+            </div>
+          </div>
+          {fieldsSection}
+          {statusSection}
+          {errorMessage ? <p className={cn("px-1 text-sm", isLightTheme ? "text-red-600" : "text-red-400")}>{errorMessage}</p> : null}
+          <div className="mt-auto">{actionsSection}</div>
+        </div>
+        <div className="min-h-0">{uploadSection}</div>
+      </form>
+    );
+  }
+
+  return (
+    <form className={cn("version-upload-form", layoutClassName)} onSubmit={handleSubmit}>
+      {fieldsSection}
+      {uploadSection}
+      {statusSection}
+      {errorMessage ? <p className={cn("text-sm", isLightTheme ? "text-red-600" : "text-red-400")}>{errorMessage}</p> : null}
+      {actionsSection}
     </form>
   );
 }
