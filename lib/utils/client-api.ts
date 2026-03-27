@@ -9,23 +9,7 @@ export class ApiRequestError<TPayload = unknown> extends Error {
   }
 }
 
-function getCookieValue(name: string): string {
-  if (typeof document === "undefined") {
-    return "";
-  }
-
-  const prefix = `${name}=`;
-  const cookie = document.cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(prefix));
-
-  if (!cookie) {
-    return "";
-  }
-
-  return decodeURIComponent(cookie.slice(prefix.length));
-}
+const WORKSPACE_DEMO_STORAGE_KEY = "workspaceDemoToken";
 
 function getQueryValue(name: string): string {
   if (typeof window === "undefined") {
@@ -35,15 +19,43 @@ function getQueryValue(name: string): string {
   return new URLSearchParams(window.location.search).get(name) ?? "";
 }
 
-function setCookieValue(name: string, value: string): void {
-  if (typeof document === "undefined") {
+function getSessionStorageValue(key: string): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.sessionStorage.getItem(key) ?? "";
+}
+
+function setSessionStorageValue(key: string, value: string): void {
+  if (typeof window === "undefined") {
     return;
   }
 
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax`;
+  window.sessionStorage.setItem(key, value);
+}
+
+function clearQueryValue(name: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has(name)) {
+    return;
+  }
+
+  url.searchParams.delete(name);
+  const search = url.searchParams.toString();
+  const nextUrl = `${url.pathname}${search ? `?${search}` : ""}${url.hash}`;
+  window.history.replaceState(window.history.state, "", nextUrl);
 }
 
 export function clearWorkspaceDemoToken(): void {
+  if (typeof window !== "undefined") {
+    window.sessionStorage.removeItem(WORKSPACE_DEMO_STORAGE_KEY);
+  }
+
   if (typeof document === "undefined") {
     return;
   }
@@ -57,16 +69,36 @@ export function persistWorkspaceDemoTokenFromQuery(): string {
     return "";
   }
 
-  setCookieValue("workspaceDemoToken", token);
+  setSessionStorageValue(WORKSPACE_DEMO_STORAGE_KEY, token);
+  clearQueryValue("workspaceDemoToken");
   return token;
 }
 
-export function getAuthToken(): string {
+export type AuthTokenState =
+  | { source: "workspace-demo"; token: string }
+  | { source: "auth"; token: string }
+  | { source: "none"; token: "" };
+
+export function getAuthTokenState(): AuthTokenState {
   if (typeof window === "undefined") {
-    return "";
+    return { source: "none", token: "" };
   }
 
-  return getCookieValue("workspaceDemoToken") || persistWorkspaceDemoTokenFromQuery() || localStorage.getItem("token") || "";
+  const workspaceDemoToken = persistWorkspaceDemoTokenFromQuery() || getSessionStorageValue(WORKSPACE_DEMO_STORAGE_KEY);
+  if (workspaceDemoToken) {
+    return { source: "workspace-demo", token: workspaceDemoToken };
+  }
+
+  const authToken = localStorage.getItem("token") || "";
+  if (authToken) {
+    return { source: "auth", token: authToken };
+  }
+
+  return { source: "none", token: "" };
+}
+
+export function getAuthToken(): string {
+  return getAuthTokenState().token;
 }
 
 export function getTenantId(): string {

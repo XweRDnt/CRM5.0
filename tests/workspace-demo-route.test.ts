@@ -24,7 +24,7 @@ describe("WorkspaceDemoPage", () => {
     expect(response.status).toBe(404);
   });
 
-  it("stores the demo token cookie and redirects to the real dashboard", async () => {
+  it("redirects to the real dashboard and clears the legacy demo cookie", async () => {
     isWorkspaceDemoTokenMock.mockReturnValue(true);
 
     const response = await GET(new Request("http://localhost/workspace-demo/workspace-demo-secret"), {
@@ -33,7 +33,7 @@ describe("WorkspaceDemoPage", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("/projects?workspaceDemoToken=workspace-demo-secret");
-    expect(response.headers.get("set-cookie")).toContain("workspaceDemoToken=workspace-demo-secret");
+    expect(response.headers.get("set-cookie")).toContain("workspaceDemoToken=;");
   });
 
   it("does not depend on NEXT_PUBLIC_APP_URL for redirects", async () => {

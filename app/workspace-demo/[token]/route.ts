@@ -18,7 +18,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     status: 307,
     headers: {
       Location: location,
-      "Set-Cookie": `workspaceDemoToken=${encodeURIComponent(token)}; Path=/; SameSite=Lax`,
+      "Set-Cookie": "workspaceDemoToken=; Max-Age=0; Path=/; SameSite=Lax",
     },
   });
 }

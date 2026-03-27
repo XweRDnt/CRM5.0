@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { mutate } from "swr";
-import { clearWorkspaceDemoToken, getAuthToken } from "@/lib/utils/client-api";
+import { clearWorkspaceDemoToken, getAuthTokenState } from "@/lib/utils/client-api";
 
 const AUTH_GUARD_TIMEOUT_MS = 8000;
 
@@ -29,7 +29,8 @@ export function useAuthGuard(): { ready: boolean; user: AuthUser | null } {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    const token = getAuthToken();
+    const authTokenState = getAuthTokenState();
+    const token = authTokenState.token;
 
     if (!token) {
       setReady(true);
@@ -61,9 +62,24 @@ export function useAuthGuard(): { ready: boolean; user: AuthUser | null } {
         }
       } catch {
         await mutate(() => true, undefined, { revalidate: false });
-        localStorage.removeItem("token");
-        localStorage.removeItem("tenantId");
-        clearWorkspaceDemoToken();
+        const hasPrimarySession = typeof window !== "undefined" && Boolean(localStorage.getItem("token"));
+
+        if (authTokenState.source === "workspace-demo") {
+          clearWorkspaceDemoToken();
+          if (hasPrimarySession) {
+            if (!cancelled) {
+              setUser(null);
+              setReady(true);
+            }
+            router.replace(pathname);
+            return;
+          }
+        } else {
+          localStorage.removeItem("token");
+          localStorage.removeItem("tenantId");
+          clearWorkspaceDemoToken();
+        }
+
         if (!cancelled) {
           setUser(null);
           setReady(true);
