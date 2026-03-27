@@ -32,11 +32,11 @@ describe("WorkspaceDemoPage", () => {
     });
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost/projects?workspaceDemoToken=workspace-demo-secret");
+    expect(response.headers.get("location")).toBe("/projects?workspaceDemoToken=workspace-demo-secret");
     expect(response.headers.get("set-cookie")).toContain("workspaceDemoToken=workspace-demo-secret");
   });
 
-  it("builds the redirect from the incoming request URL instead of NEXT_PUBLIC_APP_URL", async () => {
+  it("does not depend on NEXT_PUBLIC_APP_URL for redirects", async () => {
     isWorkspaceDemoTokenMock.mockReturnValue(true);
     process.env.NEXT_PUBLIC_APP_URL = "https://\u043f\u0440\u0430\u0432\u043a\u0438.xyz";
 
@@ -44,6 +44,6 @@ describe("WorkspaceDemoPage", () => {
       params: Promise.resolve({ token: "workspace-demo-secret" }),
     });
 
-    expect(response.headers.get("location")).toBe("https://xn--80aeshwg.xyz/projects?workspaceDemoToken=workspace-demo-secret");
+    expect(response.headers.get("location")).toBe("/projects?workspaceDemoToken=workspace-demo-secret");
   });
 });

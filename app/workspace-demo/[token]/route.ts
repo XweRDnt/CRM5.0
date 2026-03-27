@@ -5,14 +5,14 @@ const paramsSchema = z.object({
   token: z.string().min(1),
 });
 
-export async function GET(request: Request, context: { params: Promise<{ token: string }> }): Promise<Response> {
+export async function GET(_request: Request, context: { params: Promise<{ token: string }> }): Promise<Response> {
   const { token } = paramsSchema.parse(await context.params);
 
   if (!isWorkspaceDemoToken(token)) {
     return new Response("Not found", { status: 404 });
   }
 
-  const location = new URL(`/projects?workspaceDemoToken=${encodeURIComponent(token)}`, request.url).toString();
+  const location = `/projects?workspaceDemoToken=${encodeURIComponent(token)}`;
 
   return new Response(null, {
     status: 307,
