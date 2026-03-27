@@ -7,15 +7,13 @@ import { ProjectCard } from "@/components/projects/ProjectCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiFetch } from "@/lib/utils/client-api";
-import type { ClientResponse, ProjectResponse, TaskResponse } from "@/types";
+import type { ProjectResponse, TaskResponse } from "@/types";
 
 const projectsFetcher = (url: string) => apiFetch<ProjectResponse[]>(url);
-const clientsFetcher = (url: string) => apiFetch<ClientResponse[]>(url);
 const tasksFetcher = (url: string) => apiFetch<TaskResponse[]>(url);
 
 export default function DashboardPage(): JSX.Element {
   const { data: projects, error: projectsError, isLoading: projectsLoading } = useSWR("/api/projects", projectsFetcher);
-  const { data: clients, isLoading: clientsLoading } = useSWR("/api/clients", clientsFetcher);
   const { data: tasks, isLoading: tasksLoading } = useSWR("/api/tasks", tasksFetcher);
 
   const openTasks = tasks?.filter((task) => task.status !== "DONE" && task.status !== "CANCELLED").length ?? 0;
@@ -29,21 +27,13 @@ export default function DashboardPage(): JSX.Element {
         </Button>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader className="space-y-0 border-b border-neutral-200 px-4 pb-2 pt-3">
             <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">Projects</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pt-3">
             <p className="text-3xl font-semibold">{projectsLoading ? "--" : (projects?.length ?? 0)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="space-y-0 border-b border-neutral-200 px-4 pb-2 pt-3">
-            <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">Clients</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pt-3">
-            <p className="text-3xl font-semibold">{clientsLoading ? "--" : (clients?.length ?? 0)}</p>
           </CardContent>
         </Card>
         <Card>

@@ -33,22 +33,15 @@ async function createUser(tenantId: string, email: string, firstName = "Test", l
 }
 
 async function createClient(tenantId: string, email: string) {
-  return prisma.clientAccount.create({
-    data: {
-      tenantId,
-      companyName: "Client Co",
-      contactName: "Client Contact",
-      email,
-    },
-  });
+  return { id: `client-${tenantId}-${email}` };
 }
 
 async function createProject(tenantId: string, clientAccountId: string, name: string) {
   return prisma.project.create({
     data: {
       tenantId,
-      clientAccountId,
       name,
+      portalToken: `portal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     },
   });
 }
@@ -71,7 +64,6 @@ async function cleanup() {
   await prisma.assetVersion.deleteMany();
   await prisma.videoUploadSession.deleteMany();
   await prisma.project.deleteMany();
-  await prisma.clientAccount.deleteMany();
   await prisma.user.deleteMany();
   await prisma.tenant.deleteMany();
 }

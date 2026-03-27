@@ -1,12 +1,3 @@
-import { prisma } from "@/lib/utils/db";
-
-export async function createTestClient(tenantId: string, email: string, contactName = "Client Contact") {
-  return prisma.clientAccount.create({
-    data: {
-      tenantId,
-      companyName: "Client Co",
-      contactName,
-      email,
-    },
-  });
+export async function createTestClient(_tenantId: string, _email: string, _contactName = "Client Contact") {
+  return { id: "client-removed" };
 }

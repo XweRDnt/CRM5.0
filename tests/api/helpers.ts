@@ -18,8 +18,6 @@ export async function signupAndLogin(): Promise<AuthSession> {
   const signupResponse = await request(API_URL).post("/api/auth/signup").send({
     email,
     password,
-    firstName: "Owner",
-    lastName: "User",
     workspaceName: `Agency ${nonce}`,
   });
 
@@ -43,31 +41,21 @@ export async function signupAndLogin(): Promise<AuthSession> {
   };
 }
 
-export async function createClient(token: string): Promise<{ id: string }> {
-  const response = await request(API_URL)
-    .post("/api/clients")
-    .set("Authorization", `Bearer ${token}`)
-    .send({
-      name: "Client Test",
-      email: `client-${randomUUID()}@example.com`,
-      companyName: "ACME",
-    });
-
-  if (response.status !== 201) {
-    throw new Error(`Client create failed (${response.status}): ${JSON.stringify(response.body)}`);
-  }
-
-  return response.body as { id: string };
+export async function createClient(_token: string): Promise<{ id: string }> {
+  return { id: "client-removed" };
 }
 
-export async function createProject(token: string, clientId: string): Promise<{ id: string }> {
+export async function createProject(token: string, legacyClientIdOrName?: string, maybeName?: string): Promise<{ id: string }> {
+  const name =
+    maybeName ??
+    (legacyClientIdOrName && !legacyClientIdOrName.startsWith("client-") ? legacyClientIdOrName : undefined) ??
+    `Project ${Date.now()}`;
+
   const response = await request(API_URL)
     .post("/api/projects")
     .set("Authorization", `Bearer ${token}`)
     .send({
-      name: `Project ${Date.now()}`,
-      clientId,
-      revisionsLimit: 3,
+      name,
     });
 
   if (response.status !== 201) {
@@ -100,6 +88,7 @@ export async function createVersion(
   projectId: string,
   overrides?: Partial<{
     versionNo: number;
+    title: string;
     fileUrl: string;
     fileName: string;
     fileSize: number;
@@ -132,7 +121,8 @@ export async function createVersion(
     .post(`/api/projects/${projectId}/versions`)
     .set("Authorization", `Bearer ${token}`)
     .send({
-      versionNo: overrides?.versionNo ?? 1,
+      versionNo: overrides?.versionNo,
+      title: overrides?.title,
       fileUrl: overrides?.fileUrl ?? `https://example.com/video-${randomUUID()}.mp4`,
       fileName: overrides?.fileName ?? "video.mp4",
       fileSize: overrides?.fileSize ?? 10_000_000,

@@ -13,6 +13,7 @@ const paramsSchema = z.object({
 
 const createVersionSchema = z.object({
   versionNo: z.number().int().min(1).optional(),
+  title: z.string().min(1).max(255).optional(),
   fileUrl: z.string().url().optional(),
   fileKey: z.string().min(1).optional(),
   fileName: z.string().min(1).max(255),
@@ -59,6 +60,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest, context: { params
       projectId: id,
       tenantId: req.user.tenantId,
       versionNo: payload.versionNo,
+      title: payload.title,
       fileUrl: payload.fileUrl,
       fileKey: payload.fileKey,
       fileName: payload.fileName,

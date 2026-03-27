@@ -4,7 +4,6 @@ type Messages = {
   appName: string;
   nav: {
     projects: string;
-    clients: string;
     team: string;
     closeMenu: string;
   };
@@ -58,7 +57,6 @@ const messages: Record<Locale, Messages> = {
     appName: "VideoFeedback",
     nav: {
       projects: "Проекты",
-      clients: "Клиенты",
       team: "Команда",
       closeMenu: "Закрыть меню",
     },
@@ -110,7 +108,6 @@ const messages: Record<Locale, Messages> = {
     appName: "VideoFeedback",
     nav: {
       projects: "Projects",
-      clients: "Clients",
       team: "Team",
       closeMenu: "Close menu",
     },

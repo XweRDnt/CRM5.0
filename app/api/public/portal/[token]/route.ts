@@ -46,12 +46,6 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     const project = await prisma.project.findFirst({
       where: { portalToken },
       include: {
-        client: {
-          select: {
-            contactName: true,
-            companyName: true,
-          },
-        },
         versions: {
           orderBy: { versionNo: "desc" },
         },
@@ -120,8 +114,6 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         project: {
           id: project.id,
           name: project.name,
-          clientName: project.client.contactName,
-          companyName: project.client.companyName,
         },
         isDemo: isDemoToken(portalToken),
         activeVersionId: activeVersion?.id ?? null,

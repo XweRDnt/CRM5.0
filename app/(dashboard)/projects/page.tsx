@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import useSWR from "swr";
 import { useState } from "react";
+import useSWR from "swr";
 import { AlertCircle } from "lucide-react";
+import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +36,7 @@ export default function ProjectsPage(): JSX.Element {
   const { user } = useAuthGuard();
   const [pendingDeleteProject, setPendingDeleteProject] = useState<{ id: string; name: string } | null>(null);
   const [deletingProject, setDeletingProject] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const isEditor = user?.role === "EDITOR";
   const canDelete = !user?.isDemo && (user?.role === "OWNER" || user?.role === "PM");
 
@@ -53,17 +54,24 @@ export default function ProjectsPage(): JSX.Element {
     }
   };
 
+  const handleProjectCreated = (project: ProjectResponse): void => {
+    void mutate((prev) => (prev ? [project, ...prev.filter((item) => item.id !== project.id)] : [project]), { revalidate: false });
+  };
+
   return (
     <section className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Проекты</h1>
-          <p className="text-sm glass-muted">Управляйте версиями видео и комментариями клиентов.</p>
+          <p className="text-sm glass-muted">Управляйте версиями видео и быстро запускайте новые согласования.</p>
         </div>
         {user?.isDemo ? null : (
-          <Button asChild>
-            <Link href="/projects/new">+ Новый проект</Link>
-          </Button>
+          <CreateProjectDialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+            onCreated={handleProjectCreated}
+            trigger={<Button type="button">+ Новый проект</Button>}
+          />
         )}
       </header>
 
@@ -80,8 +88,24 @@ export default function ProjectsPage(): JSX.Element {
 
       {!isLoading && !error && (projects?.length ?? 0) === 0 && (
         <Card className="glass-card">
-          <CardContent className="py-10 text-center text-sm glass-muted">
-            {isEditor ? "Владелец ещё не добавил вас ни в один проект" : "Пока нет проектов. Создайте первый проект для сбора правок."}
+          <CardContent className="space-y-5 py-10 text-center">
+            <p className="text-sm glass-muted">
+              {isEditor
+                ? "Владелец ещё не добавил вас ни в один проект."
+                : "Пока нет проектов. Создайте первый проект за несколько секунд."}
+            </p>
+            {!isEditor && !user?.isDemo ? (
+              <CreateProjectDialog
+                open={isCreateDialogOpen}
+                onOpenChange={setIsCreateDialogOpen}
+                onCreated={handleProjectCreated}
+                trigger={
+                  <Button type="button">
+                    Создать первый проект
+                  </Button>
+                }
+              />
+            ) : null}
           </CardContent>
         </Card>
       )}

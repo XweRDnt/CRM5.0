@@ -15,7 +15,6 @@ async function cleanup() {
   await prisma.feedbackItem.deleteMany();
   await prisma.assetVersion.deleteMany();
   await prisma.project.deleteMany();
-  await prisma.clientAccount.deleteMany();
   await prisma.user.deleteMany();
   await prisma.tenant.deleteMany();
 }

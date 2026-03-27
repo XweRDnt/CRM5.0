@@ -22,7 +22,6 @@ async function clearDb() {
   await prisma.aITask.deleteMany();
   await prisma.projectMember.deleteMany();
   await prisma.project.deleteMany();
-  await prisma.clientAccount.deleteMany();
   await prisma.user.deleteMany();
   await prisma.tenant.deleteMany();
 }

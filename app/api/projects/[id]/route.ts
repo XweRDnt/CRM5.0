@@ -14,7 +14,6 @@ const updateProjectSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(5000).nullable().optional(),
   status: z.nativeEnum(ProjectStatus).optional(),
-  clientId: z.string().min(1).optional(),
   brief: z.string().max(10000).nullable().optional(),
   revisionsLimit: z.number().int().min(1).max(10).optional(),
 });
@@ -39,23 +38,12 @@ export const PATCH = withAuth(async (req: AuthenticatedRequest, context: { param
       throw new APIError(400, "At least one field is required", "BAD_REQUEST");
     }
 
-    if (payload.clientId) {
-      const client = await prisma.clientAccount.findFirst({
-        where: { id: payload.clientId, tenantId: req.user.tenantId },
-        select: { id: true },
-      });
-      if (!client) {
-        throw new APIError(404, "Client not found", "NOT_FOUND");
-      }
-    }
-
     const updated = await prisma.project.updateMany({
       where: { id, ...buildAccessibleProjectsWhere(req.user) },
       data: {
         name: payload.name,
         description: payload.description === undefined ? undefined : payload.description,
         status: payload.status,
-        clientAccountId: payload.clientId,
         scopeDocUrl: payload.brief === undefined ? undefined : payload.brief,
         maxRevisions: payload.revisionsLimit,
       },

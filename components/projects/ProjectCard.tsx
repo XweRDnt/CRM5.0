@@ -196,7 +196,6 @@ export function ProjectCard({ project, canDelete = false, onDelete }: ProjectCar
         <CardHeader className="flex-row items-start justify-between space-y-0">
           <div>
             <CardTitle>{project.name}</CardTitle>
-            <p className="mt-1 text-sm glass-muted">{project.client.name}</p>
           </div>
           <span
             className={cn(

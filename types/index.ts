@@ -98,22 +98,9 @@ export interface User {
   };
 }
 
-export type ClientAccount = {
-  id: string;
-  tenantId: string;
-  companyName: string;
-  contactName: string;
-  email: string;
-  phone?: string;
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
 export type Project = {
   id: string;
   tenantId: string;
-  clientAccountId: string;
   name: string;
   status: ProjectStatus;
   dueDate?: Date;
@@ -125,6 +112,7 @@ export type AssetVersion = {
   id: string;
   projectId: string;
   versionNo: number;
+  title: string | null;
   fileUrl: string;
   fileName: string;
   fileSize: number;
@@ -185,8 +173,8 @@ export type AITask = {
 export interface SignupInput {
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   workspaceName?: string;
   inviteToken?: string;
   tenantName?: string;
@@ -241,36 +229,15 @@ export type LoginInput = {
   tenantSlug?: string;
 };
 
-export interface CreateClientInput {
-  tenantId: string;
-  name: string;
-  email: string;
-  phone?: string;
-  companyName?: string;
-}
-
-export interface ClientResponse {
-  id: string;
-  tenantId: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  companyName: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface CreateProjectInput {
   tenantId: string;
   name: string;
   description?: string;
-  clientId: string;
   brief?: string;
   revisionsLimit?: number;
 }
 
 export interface ProjectFilters {
-  clientId?: string;
   status?: ProjectStatus;
 }
 
@@ -281,12 +248,6 @@ export interface ProjectResponse {
   name: string;
   description: string | null;
   status: ProjectStatus;
-  clientId: string;
-  client: {
-    id: string;
-    name: string;
-    email: string;
-  };
   brief: string | null;
   revisionsLimit: number;
   revisionsUsed: number;
@@ -375,6 +336,7 @@ export interface CreateVersionInput {
   projectId: string;
   tenantId: string;
   versionNo?: number;
+  title?: string;
   fileUrl?: string;
   fileKey?: string;
   fileName: string;
@@ -394,6 +356,7 @@ export interface AssetVersionResponse {
   id: string;
   projectId: string;
   versionNumber: number;
+  title: string;
   fileUrl: string;
   fileName: string;
   fileSize: number;

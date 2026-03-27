@@ -5,8 +5,8 @@ import { handleAPIError } from "@/lib/utils/api-error";
 const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().max(100).optional(),
   workspaceName: z.string().min(1).max(120).optional(),
   inviteToken: z.string().min(1).optional(),
   tenantName: z.string().min(1).max(120).optional(),

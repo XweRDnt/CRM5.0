@@ -51,8 +51,8 @@ export function VersionUploadDialog({
       <DialogContent
         className={
           appTheme === "dark"
-            ? "version-upload-dialog max-w-2xl !border-slate-700 !bg-slate-900/95 !text-neutral-100"
-            : "version-upload-dialog max-w-2xl !border-neutral-200 !bg-white !text-neutral-900"
+            ? "version-upload-dialog max-w-4xl !border-slate-700 !bg-slate-900/95 !text-neutral-100 shadow-[0_30px_120px_rgba(2,6,23,0.56)] backdrop-blur-[26px]"
+            : "version-upload-dialog max-w-4xl !border-neutral-200 !bg-white/95 !text-neutral-900 shadow-[0_30px_120px_rgba(15,23,42,0.18)] backdrop-blur-[26px]"
         }
       >
         <DialogHeader>
@@ -60,7 +60,7 @@ export function VersionUploadDialog({
             Загрузить новую версию
           </DialogTitle>
           <DialogDescription className={appTheme === "dark" ? "text-neutral-400" : "text-neutral-600"}>
-            Добавьте видео, проверьте номер версии и загрузите файл.
+            Добавьте видео, проверьте название версии и загрузите файл.
           </DialogDescription>
         </DialogHeader>
         <VersionUploadFlow

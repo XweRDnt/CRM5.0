@@ -23,6 +23,7 @@ type AssetVersionWithUploader = {
   id: string;
   projectId: string;
   versionNo: number;
+  title: string | null;
   fileUrl: string;
   fileKey: string;
   fileName: string;
@@ -64,6 +65,7 @@ export class AssetService {
       projectId,
       tenantId,
       versionNo: requestedVersionNo,
+      title,
       fileKey,
       fileName,
       fileSize,
@@ -125,6 +127,8 @@ export class AssetService {
       throw new Error("Version number must be greater than 0");
     }
 
+    const resolvedTitle = title?.trim() || `Версия ${versionNo}`;
+
     const existingVersion = await this.prismaClient.assetVersion.findFirst({
       where: {
         projectId,
@@ -159,6 +163,7 @@ export class AssetService {
         data: {
           projectId,
           versionNo,
+          title: resolvedTitle,
           fileUrl: resolvedFileUrl,
           fileKey: resolvedFileKey,
           fileName,
@@ -484,6 +489,7 @@ export class AssetService {
       id: version.id,
       projectId: version.projectId,
       versionNumber: version.versionNo,
+      title: version.title ?? `Версия ${version.versionNo}`,
       fileUrl: version.fileUrl,
       fileName: version.fileName,
       fileSize: version.fileSize,

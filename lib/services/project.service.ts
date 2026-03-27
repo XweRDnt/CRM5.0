@@ -61,17 +61,11 @@ export class ProjectService {
     name: string;
     description: string | null;
     status: PrismaProjectStatus;
-    clientAccountId: string;
     scopeDocUrl: string | null;
     maxRevisions: number;
     currentRevisionCount: number;
     createdAt: Date;
     updatedAt: Date;
-    client: {
-      id: string;
-      contactName: string;
-      email: string;
-    };
   }): ProjectResponse {
     return {
       id: project.id,
@@ -80,12 +74,6 @@ export class ProjectService {
       name: project.name,
       description: project.description,
       status: toAppProjectStatus(project.status),
-      clientId: project.clientAccountId,
-      client: {
-        id: project.client.id,
-        name: project.client.contactName,
-        email: project.client.email,
-      },
       brief: project.scopeDocUrl,
       revisionsLimit: project.maxRevisions,
       revisionsUsed: project.currentRevisionCount,
@@ -97,7 +85,6 @@ export class ProjectService {
   async createProject(input: CreateProjectInput): Promise<ProjectResponse> {
     const tenantId = input.tenantId?.trim();
     const name = input.name?.trim();
-    const clientId = input.clientId?.trim();
     const revisionsLimit = input.revisionsLimit ?? 3;
 
     if (!tenantId) {
@@ -106,28 +93,13 @@ export class ProjectService {
     if (!name || name.length < 1 || name.length > 200) {
       throw new Error("Name must be between 1 and 200 characters");
     }
-    if (!clientId) {
-      throw new Error("clientId is required");
-    }
     if (revisionsLimit < 1) {
       throw new Error("revisionsLimit must be greater than or equal to 1");
-    }
-
-    const client = await prisma.clientAccount.findFirst({
-      where: {
-        id: clientId,
-        tenantId,
-      },
-      select: { id: true },
-    });
-    if (!client) {
-      throw new Error("Client not found in this tenant");
     }
 
     const created = await prisma.project.create({
       data: {
         tenantId,
-        clientAccountId: clientId,
         portalToken: generatePortalProjectToken(),
         name,
         description: input.description ?? null,
@@ -135,15 +107,6 @@ export class ProjectService {
         status: PrismaProjectStatus.DRAFT,
         maxRevisions: revisionsLimit,
         currentRevisionCount: 0,
-      },
-      include: {
-        client: {
-          select: {
-            id: true,
-            contactName: true,
-            email: true,
-          },
-        },
       },
     });
 
@@ -165,15 +128,6 @@ export class ProjectService {
         id: projectId,
         ...(user ? buildAccessibleProjectsWhere(user) : { tenantId }),
       },
-      include: {
-        client: {
-          select: {
-            id: true,
-            contactName: true,
-            email: true,
-          },
-        },
-      },
     });
     if (!project) {
       throw new Error("Project not found");
@@ -190,17 +144,7 @@ export class ProjectService {
     const projects = await prisma.project.findMany({
       where: {
         ...(user ? buildAccessibleProjectsWhere(user) : { tenantId }),
-        clientAccountId: filters?.clientId,
         status: filters?.status ? toPrismaProjectStatus(filters.status) : undefined,
-      },
-      include: {
-        client: {
-          select: {
-            id: true,
-            contactName: true,
-            email: true,
-          },
-        },
       },
       orderBy: { createdAt: "desc" },
     });

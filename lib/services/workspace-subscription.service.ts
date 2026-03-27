@@ -151,9 +151,31 @@ async function ensurePlanExists(code: BillingPlanCode): Promise<void> {
   }
 }
 
+async function ensureDefaultFreePlanExists(): Promise<void> {
+  await prisma.billingPlan.upsert({
+    where: { code: BillingPlanCode.FREE },
+    update: {
+      isActive: true,
+      name: "Free",
+      currency: "USD",
+      priceMinor: 0,
+      sortOrder: 0,
+    },
+    create: {
+      code: BillingPlanCode.FREE,
+      name: "Free",
+      currency: "USD",
+      priceMinor: 0,
+      isActive: true,
+      sortOrder: 0,
+    },
+  });
+}
+
 export class WorkspaceSubscriptionService {
   async ensureWorkspaceSubscription(workspaceId: string): Promise<WorkspaceSubscriptionDetails> {
     await ensureWorkspaceExists(workspaceId);
+    await ensureDefaultFreePlanExists();
 
     const existing = await prisma.workspaceSubscription.findUnique({
       where: { workspaceId },

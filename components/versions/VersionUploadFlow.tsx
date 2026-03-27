@@ -7,9 +7,9 @@ import * as tus from "tus-js-client";
 import type { VideoProcessingStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiFetch, ApiRequestError } from "@/lib/utils/client-api";
+import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
-import type { ConfirmUploadResponse, UploadUrlResponse, VersionConflictResponse, VersionMetaResponse } from "@/types";
+import type { ConfirmUploadResponse, UploadUrlResponse, VersionMetaResponse } from "@/types";
 
 type UploadStage = "idle" | "preparing" | "uploading" | "processing" | "submitting" | "done" | "canceled";
 
@@ -64,14 +64,6 @@ function formatDuration(seconds: number): string {
   }
 
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
-}
-
-function suggestNextAvailableVersion(usedVersionNumbers: Set<number>, startFrom: number): number {
-  let candidate = Math.max(1, startFrom);
-  while (usedVersionNumbers.has(candidate)) {
-    candidate += 1;
-  }
-  return candidate;
 }
 
 function normalizeProcessingStatus(status: VideoProcessingStatus | undefined): VideoProcessingStatus {
@@ -259,8 +251,8 @@ export function VersionUploadFlow({
   const latestConfirmRef = useRef<ConfirmUploadResponse | null>(null);
   const fileSelectionTokenRef = useRef(0);
 
-  const [versionNoValue, setVersionNoValue] = useState("1");
-  const [versionTouchedByUser, setVersionTouchedByUser] = useState(false);
+  const [versionTitle, setVersionTitle] = useState("Версия 1");
+  const [versionTitleTouchedByUser, setVersionTitleTouchedByUser] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileDurationSec, setSelectedFileDurationSec] = useState<number | null>(null);
   const [readingFileMetadata, setReadingFileMetadata] = useState(false);
@@ -269,7 +261,6 @@ export function VersionUploadFlow({
   const [processingAttempt, setProcessingAttempt] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
-  const [conflictSuggestion, setConflictSuggestion] = useState<number | null>(null);
   const [continueInBackgroundRequested, setContinueInBackgroundRequested] = useState(false);
   const [appTheme, setAppTheme] = useState<"light" | "dark">("light");
 
@@ -279,11 +270,11 @@ export function VersionUploadFlow({
   );
 
   useEffect(() => {
-    if (!meta || versionTouchedByUser) {
+    if (!meta || versionTitleTouchedByUser) {
       return;
     }
-    setVersionNoValue(String(meta.nextVersionNumber));
-  }, [meta, versionTouchedByUser]);
+    setVersionTitle(`Версия ${meta.nextVersionNumber}`);
+  }, [meta, versionTitleTouchedByUser]);
 
   useEffect(() => {
     return () => {
@@ -308,21 +299,6 @@ export function VersionUploadFlow({
     return () => observer.disconnect();
   }, []);
 
-  const usedVersionNumbers = useMemo(() => new Set(meta?.usedVersionNumbers ?? []), [meta]);
-
-  const parsedVersionNo = Number(versionNoValue);
-  const isVersionNoValid = Number.isInteger(parsedVersionNo) && parsedVersionNo > 0;
-  const isLocalVersionConflict = isVersionNoValid && usedVersionNumbers.has(parsedVersionNo);
-
-  const suggestedVersionNo = useMemo(() => {
-    return suggestNextAvailableVersion(
-      usedVersionNumbers,
-      Math.max(meta?.nextVersionNumber ?? 1, isVersionNoValid ? parsedVersionNo + 1 : 1),
-    );
-  }, [meta?.nextVersionNumber, parsedVersionNo, isVersionNoValid, usedVersionNumbers]);
-
-  const activeConflictSuggestion = conflictSuggestion ?? (isLocalVersionConflict ? suggestedVersionNo : null);
-  const hasVersionConflict = activeConflictSuggestion !== null && activeConflictSuggestion !== parsedVersionNo;
   const isBusy = stage === "preparing" || stage === "uploading" || stage === "processing" || stage === "submitting";
   const canSubmit = stage === "idle" || stage === "canceled";
 
@@ -403,10 +379,9 @@ export function VersionUploadFlow({
     latestConfirmRef.current = null;
   };
 
-  const handleVersionNoChange = (nextValue: string): void => {
-    setVersionTouchedByUser(true);
-    setVersionNoValue(nextValue);
-    setConflictSuggestion(null);
+  const handleVersionTitleChange = (nextValue: string): void => {
+    setVersionTitleTouchedByUser(true);
+    setVersionTitle(nextValue);
     setErrorMessage("");
   };
 
@@ -436,20 +411,10 @@ export function VersionUploadFlow({
     pollingAbortControllerRef.current?.abort();
   };
 
-  const applySuggestedVersion = (): void => {
-    if (activeConflictSuggestion === null) {
-      return;
-    }
-    setVersionTouchedByUser(true);
-    setVersionNoValue(String(activeConflictSuggestion));
-    setConflictSuggestion(null);
-    setErrorMessage("");
-  };
-
   const createVersionRecord = async (
     uploadSession: UploadUrlResponse,
     file: File,
-    versionNo: number,
+    title: string,
     confirmResult: ConfirmUploadResponse | null,
   ): Promise<void> => {
     const resolvedStatus = normalizeProcessingStatus(confirmResult?.processingStatus);
@@ -460,7 +425,7 @@ export function VersionUploadFlow({
     await apiFetch(`/api/projects/${projectId}/versions`, {
       method: "POST",
       body: JSON.stringify({
-        versionNo,
+        title,
         fileName: file.name,
         fileSize: file.size,
         durationSec: confirmResult?.durationSec ?? selectedFileDurationSec ?? undefined,
@@ -480,12 +445,8 @@ export function VersionUploadFlow({
       setErrorMessage("Выберите видеофайл для загрузки.");
       return;
     }
-    if (!isVersionNoValid) {
-      setErrorMessage("Укажите корректный номер версии.");
-      return;
-    }
-    if (hasVersionConflict) {
-      setErrorMessage("Версия с таким номером уже существует.");
+    if (versionTitle.trim().length === 0) {
+      setErrorMessage("Введите название версии.");
       return;
     }
     if (readingFileMetadata) {
@@ -563,7 +524,7 @@ export function VersionUploadFlow({
       }
 
       setStage("submitting");
-      await createVersionRecord(uploadSession, selectedFile, parsedVersionNo, confirmResult);
+      await createVersionRecord(uploadSession, selectedFile, versionTitle.trim(), confirmResult);
       await mutateMeta();
       setStage("done");
       onCompleted?.();
@@ -573,12 +534,6 @@ export function VersionUploadFlow({
       if (submitError instanceof UploadCanceledError) {
         setStage("canceled");
         setErrorMessage("Загрузка отменена. Нажмите «Повторить загрузку», чтобы попробовать снова.");
-      } else if (submitError instanceof ApiRequestError && submitError.status === 409) {
-        const payload = submitError.payload as VersionConflictResponse | undefined;
-        setConflictSuggestion(typeof payload?.suggestedVersionNo === "number" ? payload.suggestedVersionNo : null);
-        setErrorMessage("Версия с таким номером уже существует.");
-        await mutateMeta();
-        setStage("idle");
       } else {
         setStage("idle");
         setErrorMessage(submitError instanceof Error ? submitError.message : "Не удалось загрузить версию.");
@@ -606,47 +561,30 @@ export function VersionUploadFlow({
   const bodyTextClassName = isLightTheme ? "text-neutral-700" : "text-neutral-300";
 
   return (
-    <form className="version-upload-form space-y-4" onSubmit={handleSubmit}>
+    <form className="version-upload-form space-y-5" onSubmit={handleSubmit}>
       <div className="space-y-2">
-        <label htmlFor={`versionNo-${projectId}`} className={cn("block text-sm font-medium", labelClassName)}>
-          Номер версии
+        <label htmlFor={`versionTitle-${projectId}`} className={cn("block text-sm font-medium", labelClassName)}>
+          Название версии
         </label>
         <Input
-          id={`versionNo-${projectId}`}
-          min={1}
-          type="number"
-          inputMode="numeric"
+          id={`versionTitle-${projectId}`}
           className={inputClassName}
-          value={versionNoValue}
-          onChange={(event) => handleVersionNoChange(event.target.value)}
+          value={versionTitle}
+          onChange={(event) => handleVersionTitleChange(event.target.value)}
           disabled={isBusy || metaLoading}
-          aria-invalid={!isVersionNoValid || hasVersionConflict}
-          aria-describedby={`versionNoHelp-${projectId} versionNoError-${projectId}`}
+          aria-invalid={versionTitle.trim().length === 0}
+          aria-describedby={`versionTitleHelp-${projectId}`}
         />
-        <p id={`versionNoHelp-${projectId}`} className={cn("text-xs", mutedTextClassName)}>
-          Подставляется автоматически, но вы можете изменить вручную.
+        <p id={`versionTitleHelp-${projectId}`} className={cn("text-xs", mutedTextClassName)}>
+          По умолчанию подставляется следующая версия, но вы можете назвать её по-своему.
         </p>
-        {hasVersionConflict ? (
-          <div
-            id={`versionNoError-${projectId}`}
-            className={cn(
-              "version-upload-conflict rounded-md border px-3 py-2 text-sm",
-              isLightTheme ? "border-amber-300 bg-amber-50 text-amber-900" : "border-amber-500/40 bg-amber-950/30 text-amber-200",
-            )}
-          >
-            <p>Этот номер уже используется.</p>
-            <Button type="button" variant="outline" size="sm" className={cn("mt-2", outlineButtonClassName)} onClick={applySuggestedVersion}>
-              Применить v{activeConflictSuggestion}
-            </Button>
-          </div>
-        ) : null}
       </div>
 
       <div className="space-y-2">
         <label className={cn("block text-sm font-medium", labelClassName)}>Видеофайл</label>
         <div
           className={cn(
-            "version-upload-dropzone rounded-lg border border-dashed p-4 transition-colors",
+            "version-upload-dropzone min-h-[420px] rounded-[28px] border border-dashed p-6 transition-colors sm:min-h-[480px] sm:p-8",
             isLightTheme ? "border-neutral-300 bg-white" : "border-neutral-700 bg-neutral-900/40",
             isDragActive && (isLightTheme ? "version-upload-dropzone-active border-blue-500 bg-blue-50" : "version-upload-dropzone-active border-blue-400 bg-blue-950/20"),
           )}
@@ -662,12 +600,14 @@ export function VersionUploadFlow({
             onChange={(event) => applyFileSelection(event.target.files?.[0] ?? null)}
             disabled={isBusy}
           />
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-h-[360px] flex-col items-center justify-center gap-5 text-center sm:min-h-[392px]">
             <div>
-              <p className={cn("text-sm", bodyTextClassName)}>Перетащите файл сюда или выберите его вручную.</p>
-              <p className={cn("mt-1 text-xs", mutedTextClassName)}>Форматы: MP4, MOV, WEBM, AVI. Максимум 5GB.</p>
+              <p className={cn("text-lg font-semibold", bodyTextClassName)}>Перетащите видео в это окно</p>
+              <p className={cn("mt-2 text-sm", mutedTextClassName)}>
+                Зона загрузки занимает всё окно, чтобы файл было удобно бросить сразу. Форматы: MP4, MOV, WEBM, AVI. Максимум 5GB.
+              </p>
               {selectedFile ? (
-                <div className="mt-2 space-y-1">
+                <div className="mt-4 space-y-1">
                   <p className={cn("text-sm font-medium", isLightTheme ? "text-neutral-900" : "text-neutral-100")}>
                     {selectedFile.name} ({formatFileSize(selectedFile.size)})
                   </p>
@@ -681,7 +621,13 @@ export function VersionUploadFlow({
                 </div>
               ) : null}
             </div>
-            <Button type="button" variant="outline" className={outlineButtonClassName} onClick={() => fileInputRef.current?.click()} disabled={isBusy}>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn("min-w-40", outlineButtonClassName)}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isBusy}
+            >
               Выбрать файл
             </Button>
           </div>
@@ -721,7 +667,7 @@ export function VersionUploadFlow({
         <Button
           type="submit"
           className={cn(surface === "page" ? "w-full sm:w-auto" : "")}
-          disabled={!canSubmit || isBusy || !selectedFile || !isVersionNoValid || hasVersionConflict || readingFileMetadata || selectedFileDurationSec === null}
+          disabled={!canSubmit || isBusy || !selectedFile || versionTitle.trim().length === 0 || readingFileMetadata || selectedFileDurationSec === null}
         >
           {primaryButtonLabel}
         </Button>

@@ -115,10 +115,13 @@ export class AuthService {
   }
 
   async signup(data: SignupInput): Promise<SignupResult> {
-    const { email, password, firstName, lastName, workspaceName, inviteToken, tenantName, tenantSlug } = data;
+    const { email, password, workspaceName, inviteToken, tenantName, tenantSlug } = data;
+    const workspaceLabel = workspaceName ?? tenantName;
+    const firstName = data.firstName?.trim() || workspaceLabel?.trim() || "Workspace Owner";
+    const lastName = data.lastName?.trim() || "";
 
-    if (!email || !password || !firstName || !lastName) {
-      throw new Error("Email, password, firstName and lastName are required");
+    if (!email || !password) {
+      throw new Error("Email and password are required");
     }
 
     if (password.length < 8) {
@@ -198,7 +201,6 @@ export class AuthService {
           return { user: createdUser, tenant: inviteTenant };
         }
 
-        const workspaceLabel = workspaceName ?? tenantName;
         if (!workspaceLabel || workspaceLabel.trim().length === 0) {
           throw new Error("workspaceName is required");
         }

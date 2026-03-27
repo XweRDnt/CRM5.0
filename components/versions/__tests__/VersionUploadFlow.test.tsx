@@ -78,10 +78,10 @@ function getFileInput(container: HTMLElement): HTMLInputElement {
   return input;
 }
 
-function getVersionNumberInput(container: HTMLElement): HTMLInputElement {
-  const input = container.querySelector('input[type="number"]');
+function getVersionTitleInput(container: HTMLElement): HTMLInputElement {
+  const input = container.querySelector('input[id^="versionTitle-"]');
   if (!(input instanceof HTMLInputElement)) {
-    throw new Error("Version number input not found");
+    throw new Error("Version title input not found");
   }
   return input;
 }
@@ -179,6 +179,7 @@ describe("VersionUploadFlow", () => {
         return {
           id: "version-1",
           versionNumber: 3,
+          title: "Версия 3",
         };
       }
       throw new Error(`Unexpected request: ${url}`);
@@ -190,40 +191,32 @@ describe("VersionUploadFlow", () => {
     vi.restoreAllMocks();
   });
 
-  it("auto-fills next version number from meta", async () => {
+  it("auto-fills next version title from meta", async () => {
     const rendered = renderFlow();
 
     await waitFor(() => {
-      expect(getVersionNumberInput(rendered.container).value).toBe("3");
+      expect(getVersionTitleInput(rendered.container).value).toBe("Версия 3");
     });
   });
 
-  it("shows instant conflict warning and applies suggested number", async () => {
+  it("lets the user override the auto-filled version title", async () => {
     const rendered = renderFlow();
-    const input = getVersionNumberInput(rendered.container);
+    const input = getVersionTitleInput(rendered.container);
 
     await waitFor(() => {
-      expect(input.value).toBe("3");
+      expect(input.value).toBe("Версия 3");
     });
 
-    fireEvent.change(input, { target: { value: "2" } });
+    fireEvent.change(input, { target: { value: "Монтаж для клиента" } });
 
-    expect(await screen.findByText("Этот номер уже используется.")).toBeTruthy();
-    const applyButton = screen.getAllByRole("button").find((button) => button.textContent?.includes("v3"));
-    if (!applyButton) {
-      throw new Error("Apply suggestion button not found");
-    }
-    fireEvent.click(applyButton);
-
-    await waitFor(() => {
-      expect(input.value).toBe("3");
-    });
+    expect(input.value).toBe("Монтаж для клиента");
   });
 
-  it("does not render duration and notes fields", async () => {
-    renderFlow();
+  it("does not render version number, duration and notes fields", async () => {
+    const rendered = renderFlow();
 
-    await screen.findByText("Подставляется автоматически, но вы можете изменить вручную.");
+    await screen.findByText("По умолчанию подставляется следующая версия, но вы можете назвать её по-своему.");
+    expect(rendered.container.querySelector('input[type="number"]')).toBeNull();
     expect(screen.queryByText("Длительность (сек, опционально)")).toBeNull();
     expect(screen.queryByText("Заметки (опционально)")).toBeNull();
   });
@@ -233,7 +226,7 @@ describe("VersionUploadFlow", () => {
     const rendered = renderFlow();
 
     await waitFor(() => {
-      expect(getVersionNumberInput(rendered.container).value).toBe("3");
+      expect(getVersionTitleInput(rendered.container).value).toBe("Версия 3");
     });
 
     await selectVideoFile(rendered.container, new File(["video"], "video.mp4", { type: "video/mp4" }));
@@ -277,6 +270,7 @@ describe("VersionUploadFlow", () => {
         return {
           id: "version-2",
           versionNumber: 2,
+          title: "Версия 2",
         };
       }
       throw new Error(`Unexpected request: ${url}`);
@@ -284,7 +278,7 @@ describe("VersionUploadFlow", () => {
 
     const rendered = renderFlow();
     await waitFor(() => {
-      expect(getVersionNumberInput(rendered.container).value).toBe("2");
+      expect(getVersionTitleInput(rendered.container).value).toBe("Версия 2");
     });
 
     await selectVideoFile(rendered.container, new File(["video"], "video.mp4", { type: "video/mp4" }));
@@ -296,9 +290,10 @@ describe("VersionUploadFlow", () => {
     await waitFor(() => {
       const postCall = apiFetchMock.mock.calls.find((call) => String(call[0]).endsWith("/versions") && call[1]?.method === "POST");
       expect(postCall).toBeTruthy();
-      const payload = JSON.parse(postCall?.[1]?.body as string) as { processingStatus: string; durationSec: number };
+      const payload = JSON.parse(postCall?.[1]?.body as string) as { processingStatus: string; durationSec: number; title: string };
       expect(payload.processingStatus).toBe("PROCESSING");
       expect(payload.durationSec).toBe(120);
+      expect(payload.title).toBe("Версия 2");
     });
 
     expect(routerReplaceMock).toHaveBeenCalledWith("/projects/project-1/versions");
@@ -307,7 +302,7 @@ describe("VersionUploadFlow", () => {
   it("sends detected durationSec to /api/upload", async () => {
     const rendered = renderFlow();
     await waitFor(() => {
-      expect(getVersionNumberInput(rendered.container).value).toBe("3");
+      expect(getVersionTitleInput(rendered.container).value).toBe("Версия 3");
     });
 
     await selectVideoFile(rendered.container, new File(["video"], "video.mp4", { type: "video/mp4" }));
@@ -325,7 +320,7 @@ describe("VersionUploadFlow", () => {
     videoMetadataMode = "error";
     const rendered = renderFlow();
     await waitFor(() => {
-      expect(getVersionNumberInput(rendered.container).value).toBe("3");
+      expect(getVersionTitleInput(rendered.container).value).toBe("Версия 3");
     });
 
     fireEvent.change(getFileInput(rendered.container), { target: { files: [new File(["video"], "broken.mp4", { type: "video/mp4" })] } });

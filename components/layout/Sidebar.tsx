@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FolderOpen, Shield, Users, UserPlus, X } from "lucide-react";
+import { FolderOpen, Shield, UserPlus, X } from "lucide-react";
 import { getMessages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils/cn";
 import type { AuthUser } from "@/lib/hooks/use-auth-guard";
 
 const navItems = [
   { href: "/projects", key: "projects" as const, icon: FolderOpen, onlyOwnerOrPm: false, onlyAdmin: false },
-  { href: "/clients", key: "clients" as const, icon: Users, onlyOwnerOrPm: true, onlyAdmin: false },
   { href: "/team", key: "team" as const, icon: UserPlus, onlyOwnerOrPm: true, onlyAdmin: false },
   { href: "/admin", key: "admin" as const, icon: Shield, onlyOwnerOrPm: false, onlyAdmin: true },
 ];
@@ -70,7 +69,7 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
                 )}
                 >
                 <Icon className="h-4 w-4" />
-                {item.key === "projects" ? m.nav.projects : item.key === "clients" ? m.nav.clients : item.key === "team" ? m.nav.team : "Admin"}
+                {item.key === "projects" ? m.nav.projects : item.key === "team" ? m.nav.team : "Admin"}
               </Link>
             );
           })}

@@ -163,7 +163,6 @@ model Tenant {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   users         User[]
-  clients       ClientAccount[]
   projects      Project[]
   notifications Notification[]
   subscriptions Subscription[]
@@ -258,24 +257,9 @@ model InviteLink {
   @@map("invite_links")
 }
 
-model ClientAccount {
-  id          String   @id @default(cuid())
-  tenantId    String
-  companyName String
-  contactName String
-  email       String
-  phone       String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  projects    Project[]
-}
-
 model Project {
   id                   String         @id @default(cuid())
   tenantId             String
-  clientAccountId      String
   portalToken          String         @unique @default(cuid())
   name                 String
   description          String?
@@ -288,7 +272,6 @@ model Project {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
   tenant               Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client               ClientAccount  @relation(fields: [clientAccountId], references: [id], onDelete: Restrict)
   versions             AssetVersion[]
   members              ProjectMember[]
   tasks                AITask[]
@@ -319,6 +302,7 @@ model AssetVersion {
   id               String         @id @default(cuid())
   projectId        String
   versionNo        Int
+  title            String?
   fileUrl          String
   fileKey          String
   fileName         String

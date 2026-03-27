@@ -7,7 +7,6 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
   return {
     id: "project_test",
     tenantId: "tenant_test",
-    clientAccountId: "client_test",
     name: "Promo Video",
     status: ProjectStatus.DRAFT,
     createdAt: now,
@@ -16,12 +15,13 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
   };
 }
 
-export async function createTestProject(tenantId: string, clientAccountId: string, name: string) {
+export async function createTestProject(tenantId: string, legacyClientIdOrName: string, maybeName?: string) {
+  const name = maybeName ?? legacyClientIdOrName;
   return prisma.project.create({
     data: {
       tenantId,
-      clientAccountId,
       name,
+      portalToken: `portal-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       status: PrismaProjectStatus.DRAFT,
     },
   });
