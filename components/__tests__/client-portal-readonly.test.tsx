@@ -64,10 +64,10 @@ vi.mock("swr", () => ({
 }));
 
 vi.mock("@/lib/hooks/use-demo-project-overlay", () => ({
-  useDemoProjectOverlay: () => ({
-    overlay: { feedback: [], threadMessages: [] },
-    setOverlay: vi.fn(),
-  }),
+  useDemoProjectOverlay: () => {
+    const [overlay, setOverlay] = React.useState({ feedback: [], threadMessages: [] });
+    return { overlay, setOverlay };
+  },
 }));
 
 vi.mock("@/lib/i18n/messages", () => ({
@@ -125,9 +125,10 @@ vi.mock("@/components/video/KinescopePlayer", () => ({
   }),
 }));
 
-describe("Client portal readonly mode", () => {
+describe("Client portal demo mode", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -137,16 +138,52 @@ describe("Client portal readonly mode", () => {
     );
   });
 
-  it("treats demo portal token as local demo mode even without readonly query", async () => {
+  it("keeps replies local for demo threads without readonly query", async () => {
     render(<ClientPortalPage />);
 
     expect(screen.queryByText("Утвердить")).toBeNull();
-    expect(screen.getByText("Демо-режим: локальные правки")).not.toBeNull();
+    expect(screen.getAllByPlaceholderText("Добавить правку...").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Рисовать").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByText("Please tighten the intro pacing"));
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText("Ответить команде...")).not.toBeNull();
+      expect(screen.getByPlaceholderText("Ответить...")).not.toBeNull();
     });
+  });
+
+  it("creates local demo feedback without calling the public feedback API and keeps drawing available", async () => {
+    const { container } = render(<ClientPortalPage />);
+
+    fireEvent.change(screen.getAllByPlaceholderText("Имя")[0], { target: { value: "Pasha" } });
+    fireEvent.click(screen.getAllByLabelText("Рисовать")[0]);
+
+    const overlay = container.querySelector(".absolute.inset-x-0.top-0.bottom-12");
+    if (!(overlay instanceof HTMLElement)) {
+      throw new Error("Annotation overlay not found");
+    }
+
+    await waitFor(() => {
+      expect(overlay.className).toContain("pointer-events-auto");
+    });
+
+    fireEvent.change(screen.getAllByPlaceholderText("Добавить правку...")[0], {
+      target: { value: "Проверка локальной правки" },
+    });
+    fireEvent.submit(
+      screen.getAllByPlaceholderText("Добавить правку...")[0].closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Pasha")).not.toBeNull();
+      expect(screen.getByText("Проверка локальной правки")).not.toBeNull();
+    });
+
+    expect(fetch).not.toHaveBeenCalledWith(
+      "/api/public/feedback",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
   });
 });

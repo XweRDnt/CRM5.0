@@ -1433,15 +1433,10 @@ export default function ClientPortalPage(): JSX.Element {
             </div>
           </div>
 
-          {isDemoReadonly ? (
-            <div className="hidden rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/48 backdrop-blur-xl lg:block">
-              Демо-режим: отправка комментариев и утверждение отключены.
-            </div>
-          ) : (
-            <form
-              onSubmit={submitFeedback}
-              className="hidden items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2.5 backdrop-blur-xl lg:flex"
-            >
+          <form
+            onSubmit={submitFeedback}
+            className="hidden items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-2.5 backdrop-blur-xl lg:flex"
+          >
               <button
                 type="button"
                 onClick={() => setCapturedTimecodeSec(null)}
@@ -1494,8 +1489,7 @@ export default function ClientPortalPage(): JSX.Element {
               >
                 <Send className="h-4 w-4" />
               </Button>
-            </form>
-          )}
+          </form>
 
           {activeVersion && activeVersion.processingStatus !== "READY" ? (
             <p className="text-xs text-white/50">
@@ -1954,15 +1948,10 @@ export default function ClientPortalPage(): JSX.Element {
             </div>
           </div>
 
-          {isDemoReadonly ? (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-[13px] text-white/48 backdrop-blur-xl">
-              Демо-режим: отправка комментариев и утверждение отключены.
-            </div>
-          ) : (
-            <form
-              onSubmit={submitFeedback}
-              className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2.5 backdrop-blur-xl"
-            >
+          <form
+            onSubmit={submitFeedback}
+            className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2.5 backdrop-blur-xl"
+          >
               <button
                 type="button"
                 onClick={() => setCapturedTimecodeSec(null)}
@@ -2015,8 +2004,7 @@ export default function ClientPortalPage(): JSX.Element {
               >
                 <Send className="h-4 w-4" />
               </Button>
-            </form>
-          )}
+          </form>
         </div>
       </div>
 

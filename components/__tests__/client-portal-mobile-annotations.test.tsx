@@ -1,4 +1,4 @@
-﻿/** @vitest-environment jsdom */
+/** @vitest-environment jsdom */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -127,54 +127,47 @@ describe("Client portal mobile annotations", () => {
     document.body.style.overflow = "";
   });
 
-  it("opens mobile annotation fullscreen and locks scroll", async () => {
-    render(<ClientPortalPage />);
+  it("enables drawing mode on mobile", async () => {
+    const { container } = render(<ClientPortalPage />);
 
-    const pencil = await screen.findByText("Рисовать");
+    const pencil = (await screen.findAllByLabelText("Рисовать"))[1];
     fireEvent.click(pencil);
 
     await waitFor(() => {
-      expect(screen.getByTestId("mobile-annotation-fullscreen")).toBeTruthy();
-      expect(document.body.style.overflow).toBe("hidden");
+      const overlay = container.querySelector(".absolute.inset-x-0.top-0.bottom-12");
+      expect(overlay).toBeTruthy();
+      expect((overlay as HTMLElement).className).toContain("pointer-events-auto");
     });
   });
 
-  it("closes fullscreen on cancel and restores scroll", async () => {
-    render(<ClientPortalPage />);
+  it("turns drawing mode off on second tap", async () => {
+    const { container } = render(<ClientPortalPage />);
 
-    const pencil = await screen.findByText("Рисовать");
+    const pencil = (await screen.findAllByLabelText("Рисовать"))[1];
     fireEvent.click(pencil);
-
-    await waitFor(() => expect(screen.getByTestId("mobile-annotation-fullscreen")).toBeTruthy());
-
-    const cancel = await screen.findByText("Отмена");
-    fireEvent.click(cancel);
 
     await waitFor(() => {
-      expect(screen.queryByTestId("mobile-annotation-fullscreen")).toBeNull();
-      expect(document.body.style.overflow).toBe("");
+      const overlay = container.querySelector(".absolute.inset-x-0.top-0.bottom-12");
+      expect((overlay as HTMLElement).className).toContain("pointer-events-auto");
+    });
+
+    fireEvent.click((await screen.findAllByLabelText("Закрыть рисование"))[0]);
+
+    await waitFor(() => {
+      const overlay = container.querySelector(".absolute.inset-x-0.top-0.bottom-12");
+      expect((overlay as HTMLElement).className).toContain("pointer-events-none");
     });
   });
 
-  it("does not drag the widget on tiny touch movement", async () => {
+  it("keeps the mobile feedback form available while drawing", async () => {
     render(<ClientPortalPage />);
 
-    const pencil = await screen.findByText("Рисовать");
+    const pencil = (await screen.findAllByLabelText("Рисовать"))[1];
     fireEvent.click(pencil);
 
-    const widget = await screen.findByTestId("mobile-annotation-widget");
-    expect(widget.style.transform).toContain("translate(12px, 56px)");
-
-    fireEvent.touchStart(widget, {
-      touches: [{ clientX: 20, clientY: 20 }],
+    await waitFor(() => {
+      expect(screen.getAllByPlaceholderText("Добавить правку...").length).toBeGreaterThan(0);
+      expect(screen.getAllByLabelText("Закрыть рисование").length).toBeGreaterThan(0);
     });
-    fireEvent.touchMove(widget, {
-      touches: [{ clientX: 22, clientY: 22 }],
-    });
-    fireEvent.touchEnd(widget, {
-      changedTouches: [{ clientX: 22, clientY: 22 }],
-    });
-
-    expect(widget.style.transform).toContain("translate(12px, 56px)");
   });
 });
