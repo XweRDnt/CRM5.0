@@ -79,7 +79,7 @@ export default function SignupPage(): JSX.Element {
       localStorage.setItem("tenantId", payload.tenant.id);
 
       toast.success("Аккаунт создан");
-      router.push("/projects/new");
+      router.push("/projects?create=1");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось зарегистрироваться");
     }

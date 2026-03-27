@@ -309,7 +309,7 @@ export function VersionUploadFlow({
     processing: continueInBackgroundRequested
       ? "Готовим создание версии в фоновом режиме..."
       : `Ожидание обработки видео ${processingAttempt}/${MAX_CONFIRM_ATTEMPTS}`,
-    submitting: "Создаем версию",
+    submitting: "Создаём версию",
     done: "Готово",
     canceled: "Загрузка отменена. Можно повторить.",
   };
@@ -549,20 +549,33 @@ export function VersionUploadFlow({
 
   const primaryButtonLabel = stage === "canceled" ? "Повторить загрузку" : "Загрузить версию";
 
-  const isLightTheme = appTheme === "light";
+  const isLightTheme = surface === "page" && appTheme === "light";
   const inputClassName = isLightTheme
     ? "!border-neutral-300 !bg-white !text-neutral-900 !placeholder:text-neutral-400 focus:!ring-blue-500"
-    : "!border-slate-700 !bg-slate-900/90 !text-slate-100 !placeholder:text-slate-500 focus:!ring-blue-500";
+    : "!border-white/10 !bg-slate-950/80 !text-slate-100 !placeholder:text-slate-500 focus:!ring-blue-500";
   const outlineButtonClassName = isLightTheme
     ? "!border-neutral-300 !bg-white !text-neutral-700 hover:!bg-neutral-100"
-    : "!border-slate-700 !bg-slate-900/90 !text-slate-200 hover:!bg-slate-800";
+    : "!border-white/10 !bg-white/[0.04] !text-slate-200 hover:!bg-white/[0.08]";
   const labelClassName = isLightTheme ? "text-neutral-700" : "text-neutral-300";
   const mutedTextClassName = isLightTheme ? "text-neutral-500" : "text-neutral-400";
   const bodyTextClassName = isLightTheme ? "text-neutral-700" : "text-neutral-300";
+  const sectionCardClassName = isLightTheme
+    ? "rounded-[24px] border border-neutral-200 bg-white/90 p-4 shadow-sm"
+    : "rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl";
+  const dropzoneClassName = cn(
+    "version-upload-dropzone rounded-[28px] border border-dashed transition-colors",
+    surface === "dialog" ? "min-h-[520px] p-5 sm:min-h-[560px] sm:p-8" : "min-h-[420px] p-6 sm:min-h-[480px] sm:p-8",
+    isLightTheme ? "border-neutral-300 bg-white" : "border-white/10 bg-slate-950/35",
+    isDragActive && (isLightTheme ? "version-upload-dropzone-active border-blue-500 bg-blue-50" : "version-upload-dropzone-active border-blue-400 bg-blue-500/10"),
+  );
+  const statusCardClassName = cn(
+    "version-upload-status rounded-[22px] border px-4 py-3",
+    isLightTheme ? "border-neutral-200 bg-white" : "border-white/10 bg-white/[0.03]",
+  );
 
   return (
-    <form className="version-upload-form space-y-5" onSubmit={handleSubmit}>
-      <div className="space-y-2">
+    <form className={cn("version-upload-form space-y-5", surface === "dialog" ? "min-h-[620px]" : "")} onSubmit={handleSubmit}>
+      <div className={cn("space-y-2", sectionCardClassName)}>
         <label htmlFor={`versionTitle-${projectId}`} className={cn("block text-sm font-medium", labelClassName)}>
           Название версии
         </label>
@@ -580,14 +593,10 @@ export function VersionUploadFlow({
         </p>
       </div>
 
-      <div className="space-y-2">
+      <div className={cn("space-y-2", sectionCardClassName)}>
         <label className={cn("block text-sm font-medium", labelClassName)}>Видеофайл</label>
         <div
-          className={cn(
-            "version-upload-dropzone min-h-[420px] rounded-[28px] border border-dashed p-6 transition-colors sm:min-h-[480px] sm:p-8",
-            isLightTheme ? "border-neutral-300 bg-white" : "border-neutral-700 bg-neutral-900/40",
-            isDragActive && (isLightTheme ? "version-upload-dropzone-active border-blue-500 bg-blue-50" : "version-upload-dropzone-active border-blue-400 bg-blue-950/20"),
-          )}
+          className={dropzoneClassName}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -600,7 +609,7 @@ export function VersionUploadFlow({
             onChange={(event) => applyFileSelection(event.target.files?.[0] ?? null)}
             disabled={isBusy}
           />
-          <div className="flex min-h-[360px] flex-col items-center justify-center gap-5 text-center sm:min-h-[392px]">
+          <div className={cn("flex flex-col items-center justify-center gap-5 text-center", surface === "dialog" ? "min-h-[440px] sm:min-h-[470px]" : "min-h-[360px] sm:min-h-[392px]")}>
             <div>
               <p className={cn("text-lg font-semibold", bodyTextClassName)}>Перетащите видео в это окно</p>
               <p className={cn("mt-2 text-sm", mutedTextClassName)}>
@@ -634,10 +643,7 @@ export function VersionUploadFlow({
         </div>
       </div>
 
-      <div
-        className={cn("version-upload-status rounded-md border px-3 py-2", isLightTheme ? "border-neutral-200 bg-white" : "border-neutral-700 bg-neutral-900/40")}
-        aria-live="polite"
-      >
+      <div className={statusCardClassName} aria-live="polite">
         <p className={cn("text-sm", bodyTextClassName)}>Статус: {statusLabel[stage]}</p>
         {progressValue !== null ? (
           <div className={cn("mt-2 h-2 rounded", isLightTheme ? "bg-neutral-200" : "bg-neutral-700")} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressValue}>

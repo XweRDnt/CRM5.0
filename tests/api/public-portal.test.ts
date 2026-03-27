@@ -1,6 +1,6 @@
 import request from "supertest";
 import { afterEach, describe, expect, it } from "vitest";
-import { API_URL, createClient, createProject, createVersion, signupAndLogin } from "@/tests/api/helpers";
+import { API_URL, createProject, createVersion, signupAndLogin } from "@/tests/api/helpers";
 import { prisma } from "@/lib/utils/db";
 
 async function getProjectPortalToken(token: string, projectId: string): Promise<string> {
@@ -22,8 +22,7 @@ describe("Public Portal API", () => {
 
   it("GET /api/public/portal/[token] returns versions and active IN_REVIEW version", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version1 = await createVersion(session.token, project.id, { versionNo: 1 });
     await createVersion(session.token, project.id, { versionNo: 2 });
 
@@ -42,8 +41,7 @@ describe("Public Portal API", () => {
 
   it("GET /api/public/portal/[token] supports versionId query", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version1 = await createVersion(session.token, project.id, { versionNo: 1 });
     const version2 = await createVersion(session.token, project.id, { versionNo: 2 });
     const portalToken = await getProjectPortalToken(session.token, project.id);
@@ -57,8 +55,7 @@ describe("Public Portal API", () => {
 
   it("POST /api/public/portal/[token]/approve approves selected version", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id, { versionNo: 1 });
     const portalToken = await getProjectPortalToken(session.token, project.id);
 
@@ -72,8 +69,7 @@ describe("Public Portal API", () => {
 
   it("POST /api/public/portal/[token]/approve rejects demo token writes", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id, { versionNo: 1 });
     const portalToken = await getProjectPortalToken(session.token, project.id);
 
@@ -89,9 +85,8 @@ describe("Public Portal API", () => {
 
   it("POST /api/public/portal/[token]/approve rejects version from another project", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project1 = await createProject(session.token, client.id);
-    const project2 = await createProject(session.token, client.id);
+    const project1 = await createProject(session.token, "Portal Project 1");
+    const project2 = await createProject(session.token, "Portal Project 2");
     const foreignVersion = await createVersion(session.token, project2.id, { versionNo: 1 });
     const portalToken = await getProjectPortalToken(session.token, project1.id);
 
@@ -104,8 +99,7 @@ describe("Public Portal API", () => {
 
   it("POST /api/projects/[id]/portal-token/reset rotates token", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
 
     const previousToken = await getProjectPortalToken(session.token, project.id);
 
@@ -126,8 +120,7 @@ describe("Public Portal API", () => {
 
   it("POST /api/public/feedback rejects writes for the demo portal project", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id, { versionNo: 1 });
     const portalToken = await getProjectPortalToken(session.token, project.id);
 
@@ -146,8 +139,7 @@ describe("Public Portal API", () => {
 
   it("POST /api/public/feedback/[id]/thread rejects replies for the demo token", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id, { versionNo: 1 });
     const portalToken = await getProjectPortalToken(session.token, project.id);
 
@@ -176,8 +168,7 @@ describe("Public Portal API", () => {
 
   it("POST /api/public/feedback/[id]/thread/read rejects read markers for the demo token", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id, { versionNo: 1 });
     const portalToken = await getProjectPortalToken(session.token, project.id);
 

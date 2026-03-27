@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { AlertCircle } from "lucide-react";
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog";
@@ -32,6 +33,8 @@ function ProjectGridSkeleton(): JSX.Element {
 }
 
 export default function ProjectsPage(): JSX.Element {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: projects, error, isLoading, mutate } = useSWR("/api/projects", fetcher);
   const { user } = useAuthGuard();
   const [pendingDeleteProject, setPendingDeleteProject] = useState<{ id: string; name: string } | null>(null);
@@ -39,6 +42,15 @@ export default function ProjectsPage(): JSX.Element {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const isEditor = user?.role === "EDITOR";
   const canDelete = !user?.isDemo && (user?.role === "OWNER" || user?.role === "PM");
+
+  useEffect(() => {
+    if (searchParams.get("create") !== "1") {
+      return;
+    }
+
+    setIsCreateDialogOpen(true);
+    router.replace("/projects");
+  }, [router, searchParams]);
 
   const handleDeleteProject = async (projectId: string): Promise<void> => {
     setDeletingProject(true);
@@ -55,7 +67,9 @@ export default function ProjectsPage(): JSX.Element {
   };
 
   const handleProjectCreated = (project: ProjectResponse): void => {
-    void mutate((prev) => (prev ? [project, ...prev.filter((item) => item.id !== project.id)] : [project]), { revalidate: false });
+    void mutate((prev) => (prev ? [project, ...prev.filter((item) => item.id !== project.id)] : [project]), {
+      revalidate: false,
+    });
   };
 
   return (
@@ -99,11 +113,7 @@ export default function ProjectsPage(): JSX.Element {
                 open={isCreateDialogOpen}
                 onOpenChange={setIsCreateDialogOpen}
                 onCreated={handleProjectCreated}
-                trigger={
-                  <Button type="button">
-                    Создать первый проект
-                  </Button>
-                }
+                trigger={<Button type="button">Создать первый проект</Button>}
               />
             ) : null}
           </CardContent>
@@ -131,11 +141,7 @@ export default function ProjectsPage(): JSX.Element {
           }
         }}
         title="Вы точно уверены?"
-        description={
-          pendingDeleteProject
-            ? `Проект "${pendingDeleteProject.name}" будет удалён без возможности восстановления.`
-            : ""
-        }
+        description={pendingDeleteProject ? `Проект "${pendingDeleteProject.name}" будет удалён без возможности восстановления.` : ""}
         loading={deletingProject}
         onConfirm={() => {
           if (!pendingDeleteProject) {

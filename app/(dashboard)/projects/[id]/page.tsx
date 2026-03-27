@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import useSWR from "swr";
-import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,20 @@ const fetcher = (url: string) => apiFetch<AssetVersionResponse[]>(url);
 export default function ProjectDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuthGuard();
   const projectId = params.id;
   const { data, isLoading, error } = useSWR(`/api/projects/${projectId}/versions`, fetcher);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("upload") !== "1") {
+      return;
+    }
+
+    setIsUploadOpen(true);
+    router.replace(`/projects/${projectId}`);
+  }, [projectId, router, searchParams]);
 
   useEffect(() => {
     if (!data || data.length === 0) {
@@ -62,7 +73,14 @@ export default function ProjectDetailPage(): JSX.Element {
       <Card>
         <CardContent className="space-y-3 py-6">
           <p className="text-sm text-neutral-400">У проекта пока нет версий. Добавьте первую версию.</p>
-          {user?.isDemo ? null : <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" />}
+          {user?.isDemo ? null : (
+            <VersionUploadDialog
+              projectId={projectId}
+              triggerText="+ Добавить версию"
+              open={isUploadOpen}
+              onOpenChange={setIsUploadOpen}
+            />
+          )}
         </CardContent>
       </Card>
     );

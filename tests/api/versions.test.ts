@@ -1,7 +1,7 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/utils/db";
-import { API_URL, createClient, createProject, createVersion, signupAndLogin } from "@/tests/api/helpers";
+import { API_URL, createProject, createVersion, signupAndLogin } from "@/tests/api/helpers";
 
 async function createUploadSession(projectId: string, kinescopeVideoId: string, fileName: string, fileSize: number) {
   const project = await prisma.project.findUnique({
@@ -26,8 +26,7 @@ async function createUploadSession(projectId: string, kinescopeVideoId: string, 
 describe("API Version Control", () => {
   it("GET /api/projects/[id]/versions/meta returns used versions and next number", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     await createVersion(session.token, project.id, { versionNo: 1 });
     await createVersion(session.token, project.id, { versionNo: 2 });
 
@@ -45,8 +44,7 @@ describe("API Version Control", () => {
   it("GET /api/projects/[id]/versions/meta enforces project access", async () => {
     const ownerSession = await signupAndLogin();
     const foreignSession = await signupAndLogin();
-    const client = await createClient(ownerSession.token);
-    const project = await createProject(ownerSession.token, client.id);
+    const project = await createProject(ownerSession.token);
 
     const res = await request(API_URL)
       .get(`/api/projects/${project.id}/versions/meta`)
@@ -57,8 +55,7 @@ describe("API Version Control", () => {
 
   it("POST /api/projects/[id]/versions auto-assigns version number when omitted", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const kinescopeVideoId1 = "video_auto_1";
     const kinescopeVideoId2 = "video_auto_2";
 
@@ -93,8 +90,7 @@ describe("API Version Control", () => {
 
   it("POST /api/projects/[id]/versions returns suggestedVersionNo on version conflict", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     await createVersion(session.token, project.id, { versionNo: 1 });
     const kinescopeVideoId = "video_conflict";
 
@@ -123,8 +119,7 @@ describe("API Version Control", () => {
 
   it("PATCH /api/projects/[id]/versions/[versionId]/status updates status", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id);
 
     const res = await request(API_URL)
@@ -138,8 +133,7 @@ describe("API Version Control", () => {
 
   it("PATCH /api/projects/[id]/versions/[versionId]/status validates transition", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id);
 
     const res = await request(API_URL)
@@ -153,8 +147,7 @@ describe("API Version Control", () => {
 
   it("PATCH /api/projects/[id]/versions/[versionId]/status supports CHANGES_REQUESTED -> IN_REVIEW", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id);
 
     await request(API_URL)
@@ -194,8 +187,7 @@ describe("API Version Control", () => {
 
   it("POST /api/projects/[id]/versions/[versionId]/approve approves version", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id);
 
     await request(API_URL)
@@ -215,8 +207,7 @@ describe("API Version Control", () => {
 
   it("POST /api/projects/[id]/versions/[versionId]/approve works from DRAFT", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const version = await createVersion(session.token, project.id);
 
     const res = await request(API_URL)
@@ -229,8 +220,7 @@ describe("API Version Control", () => {
 
   it("POST /api/projects/[id]/versions/[versionId]/approve returns 404 for unknown version", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
 
     const res = await request(API_URL)
       .post(`/api/projects/${project.id}/versions/does-not-exist/approve`)

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { API_URL, createClient, createProject, createTask, signupAndLogin } from "@/tests/api/helpers";
+import { API_URL, createProject, createTask, signupAndLogin } from "@/tests/api/helpers";
 
 describe("API Tasks", () => {
   it("GET /api/tasks requires auth", async () => {
@@ -11,8 +11,7 @@ describe("API Tasks", () => {
 
   it("POST /api/tasks creates task", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
 
     const res = await request(API_URL).post("/api/tasks").set("Authorization", `Bearer ${session.token}`).send({
       projectId: project.id,
@@ -27,8 +26,7 @@ describe("API Tasks", () => {
 
   it("GET /api/tasks lists tasks with filters", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     await createTask(session.token, project.id);
 
     const res = await request(API_URL)
@@ -42,8 +40,7 @@ describe("API Tasks", () => {
 
   it("PATCH /api/tasks/[id] updates task status", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const task = await createTask(session.token, project.id);
 
     const res = await request(API_URL)
@@ -57,8 +54,7 @@ describe("API Tasks", () => {
 
   it("DELETE /api/tasks/[id] removes task", async () => {
     const session = await signupAndLogin();
-    const client = await createClient(session.token);
-    const project = await createProject(session.token, client.id);
+    const project = await createProject(session.token);
     const task = await createTask(session.token, project.id);
 
     const res = await request(API_URL).delete(`/api/tasks/${task.id}`).set("Authorization", `Bearer ${session.token}`);
