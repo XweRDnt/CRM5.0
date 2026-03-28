@@ -37,14 +37,17 @@ describe("Sidebar", () => {
       />,
     );
 
-    const aside = screen.getByText("ProdStudio").closest("aside");
-    const nav = screen.getByRole("navigation");
-    const profileCard = screen.getByText("OWNER").closest("div");
+    const asides = screen.getAllByText("ProdStudio").map((element) => element.closest("aside"));
+    const mobileAside = asides[0];
+    const desktopAside = asides[1];
+    const nav = screen.getAllByRole("navigation")[0];
+    const profileCard = screen.getAllByText("OWNER")[0]?.closest("div");
 
-    expect(aside?.className).toContain("sidebar-shell-macos");
-    expect(aside?.className).toContain("w-72");
-    expect(aside?.className).toContain("lg:w-64");
-    expect(aside?.className).toContain("z-[60]");
+    expect(mobileAside?.className).toContain("sidebar-shell-macos");
+    expect(mobileAside?.className).toContain("w-72");
+    expect(desktopAside?.className).toContain("sidebar-shell-macos");
+    expect(desktopAside?.className).toContain("w-64");
+    expect(desktopAside?.className).toContain("lg:flex");
     expect(nav.className).toContain("glass-item");
     expect(nav.className).toContain("sidebar-nav-frosted");
     expect(nav.className).toContain("sidebar-nav-macos");
@@ -81,7 +84,7 @@ describe("Sidebar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /команда/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /команда/i })[0]);
 
     expect(pushMock).toHaveBeenCalledWith("/team");
     expect(onClose).toHaveBeenCalled();
