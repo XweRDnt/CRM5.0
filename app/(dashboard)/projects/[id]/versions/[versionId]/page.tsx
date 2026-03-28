@@ -17,6 +17,7 @@ import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
 import { appendDemoProjectThreadMessage, mergeDemoProjectThreadMessages, mergeWorkspaceFeedbackWithDemoOverlay } from "@/lib/utils/demo-project-overlay";
 import { getVersionMemberRequestKeys } from "@/lib/utils/version-detail-page";
+import { getVersionDetailLayoutMode } from "@/lib/utils/version-detail-layout";
 import { getVersionLabel } from "@/lib/utils/version-label";
 import { canReplyInWorkspaceThread } from "@/lib/utils/workspace-demo-thread";
 import { strokeToSvg } from "@/lib/annotations/render";
@@ -255,6 +256,7 @@ export default function VersionDetailPage(): JSX.Element {
     typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false,
   );
   const [employeesModalOpen, setEmployeesModalOpen] = useState(false);
+  const { showMobileLayout, showDesktopLayout } = getVersionDetailLayoutMode(isDesktopViewport);
   const { workspaceMembersKey, projectMembersKey } = getVersionMemberRequestKeys({
     isOwnerOrPm,
     employeesModalOpen,
@@ -1045,92 +1047,97 @@ export default function VersionDetailPage(): JSX.Element {
     <main className="pm-etalon min-h-[100dvh] overflow-x-hidden text-white lg:h-[100dvh] lg:overflow-hidden">
       <div className="mx-auto flex min-h-full w-full max-w-[1760px] flex-col gap-3 px-4 py-4 lg:h-full lg:min-h-0 xl:px-6 xl:py-5">
         <section className="shrink-0 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:px-6">
-          <div className="flex items-start gap-3 lg:hidden">
-            <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 pt-1">
-                  <h1 className="truncate text-[clamp(22px,6vw,30px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    ref={shareButtonRef}
-                    type="button"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-                    onClick={() => {
-                      setEmployeesModalOpen(false);
-                      setShareMenuOpen((current) => !current);
-                    }}
-                    aria-label="Поделиться"
-                  >
-                    <Share2 className="h-[18px] w-[18px]" strokeWidth={2.2} />
-                  </button>
-                  {isOwnerOrPm ? (
+          {showMobileLayout ? (
+            <div className="flex items-start gap-3 lg:hidden">
+              <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 pt-1">
+                    <h1 className="truncate text-[clamp(22px,6vw,30px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
                     <button
+                      ref={shareButtonRef}
                       type="button"
                       className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
                       onClick={() => {
-                        setShareMenuOpen(false);
-                        setEmployeesModalOpen(true);
+                        setEmployeesModalOpen(false);
+                        setShareMenuOpen((current) => !current);
                       }}
-                      aria-label="Сотрудники"
+                      aria-label="Поделиться"
                     >
-                      <Users className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                      <Share2 className="h-[18px] w-[18px]" strokeWidth={2.2} />
                     </button>
-                  ) : null}
-                  <VersionUploadDialog
-                    projectId={projectId}
-                    triggerText=""
-                    triggerClassName="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.18))] text-white shadow-[0_10px_24px_rgba(67,87,255,0.18)]"
-                    triggerContent={<Plus className="h-[24px] w-[24px]" strokeWidth={3.2} />}
-                  />
+                    {isOwnerOrPm ? (
+                      <button
+                        type="button"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                        onClick={() => {
+                          setShareMenuOpen(false);
+                          setEmployeesModalOpen(true);
+                        }}
+                        aria-label="Сотрудники"
+                      >
+                        <Users className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                      </button>
+                    ) : null}
+                    <VersionUploadDialog
+                      projectId={projectId}
+                      triggerText=""
+                      triggerClassName="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.18))] text-white shadow-[0_10px_24px_rgba(67,87,255,0.18)]"
+                      triggerContent={<Plus className="h-[24px] w-[24px]" strokeWidth={3.2} />}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className="hidden flex-col gap-3 xl:flex-row xl:items-center xl:justify-between lg:flex">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-[clamp(24px,2.4vw,32px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
+          {showDesktopLayout ? (
+            <div className="hidden flex-col gap-3 xl:flex-row xl:items-center xl:justify-between lg:flex">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="text-[clamp(24px,2.4vw,32px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
+                </div>
               </div>
-            </div>
 
-            <div className="relative flex flex-wrap gap-2 xl:justify-end">
-              <button
-                ref={shareButtonRef}
-                type="button"
-                aria-label="Поделиться"
-                className="pm-btn pm-btn-muted inline-flex h-12 w-12 items-center justify-center px-0"
-                onClick={() => {
-                  setEmployeesModalOpen(false);
-                  setShareMenuOpen((current) => !current);
-                }}
-              >
-                <Share2 className="h-[22px] w-[22px]" strokeWidth={2.35} />
-              </button>
-              {isOwnerOrPm ? (
+              <div className="relative flex flex-wrap gap-2 xl:justify-end">
                 <button
+                  ref={shareButtonRef}
                   type="button"
-                  aria-label="Сотрудники"
-                  className="pm-btn pm-btn-muted hidden h-12 w-12 items-center justify-center px-0 lg:inline-flex"
+                  aria-label="Поделиться"
+                  className="pm-btn pm-btn-muted inline-flex h-12 w-12 items-center justify-center px-0"
                   onClick={() => {
-                    setShareMenuOpen(false);
-                    setEmployeesModalOpen(true);
+                    setEmployeesModalOpen(false);
+                    setShareMenuOpen((current) => !current);
                   }}
                 >
-                  <Users className="h-[22px] w-[22px]" strokeWidth={2.35} />
+                  <Share2 className="h-[22px] w-[22px]" strokeWidth={2.35} />
                 </button>
-              ) : null}
-              <VersionUploadDialog
-                projectId={projectId}
-                triggerText="+ Новая версия"
-                triggerClassName="pm-btn inline-flex h-12 items-center justify-center px-5 text-[14px] font-semibold"
-              />
+                {isOwnerOrPm ? (
+                  <button
+                    type="button"
+                    aria-label="Сотрудники"
+                    className="pm-btn pm-btn-muted hidden h-12 w-12 items-center justify-center px-0 lg:inline-flex"
+                    onClick={() => {
+                      setShareMenuOpen(false);
+                      setEmployeesModalOpen(true);
+                    }}
+                  >
+                    <Users className="h-[22px] w-[22px]" strokeWidth={2.35} />
+                  </button>
+                ) : null}
+                <VersionUploadDialog
+                  projectId={projectId}
+                  triggerText="+ Новая версия"
+                  triggerClassName="pm-btn inline-flex h-12 items-center justify-center px-5 text-[14px] font-semibold"
+                />
+              </div>
             </div>
-          </div>
+          ) : null}
         </section>
 
+        {showDesktopLayout ? (
         <section className="hidden shrink-0 rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl lg:block">
           <div className="flex shrink-0 items-center gap-2 overflow-x-auto scrollbar-none">
             {versions.map((version) => {
@@ -1158,7 +1165,9 @@ export default function VersionDetailPage(): JSX.Element {
             })}
           </div>
         </section>
+        ) : null}
 
+        {showMobileLayout ? (
         <section className={cn("space-y-3 pb-8 lg:hidden", activeThreadItem && "hidden")}>
           <div className="rounded-[20px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-3 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -1293,8 +1302,9 @@ export default function VersionDetailPage(): JSX.Element {
             {feedbackListContent}
           </div>
         </section>
+        ) : null}
 
-        {activeThreadItem ? (
+        {showMobileLayout && activeThreadItem ? (
           <div className="fixed inset-0 z-50 flex flex-col bg-[radial-gradient(ellipse_at_top,rgba(80,70,210,0.18),transparent_42%),#09090f] backdrop-blur-xl lg:hidden">
             {(() => {
               const isExpanded = expandedThreadCardIds[activeThreadItem.id] ?? false;
@@ -1437,6 +1447,7 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
         ) : null}
 
+        {showDesktopLayout ? (
         <section className="hidden min-h-0 flex-1 gap-4 overflow-hidden lg:grid xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
           <div className="left-col flex min-w-0 min-h-0 flex-col gap-3 overflow-hidden">
             <div className="flex min-h-0 flex-1 flex-col">
@@ -1552,6 +1563,7 @@ export default function VersionDetailPage(): JSX.Element {
             </div>
           </aside>
         </section>
+        ) : null}
       </div>
       {shareMenuOpen ? (
         <div className="pm-share-modal-backdrop">

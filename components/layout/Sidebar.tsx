@@ -30,11 +30,11 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
         <div
           aria-hidden="true"
           onClick={onClose}
-        className={cn("fixed inset-0 z-30 bg-black/28 backdrop-blur-[3px] lg:hidden", open ? "block" : "hidden")}
+        className={cn("fixed inset-0 z-[55] bg-black/28 backdrop-blur-[3px] lg:hidden", open ? "block" : "hidden")}
         />
       <aside
         className={cn(
-          "glass-sidebar sidebar-shell-macos fixed inset-y-0 left-0 z-40 flex w-72 flex-col p-4 backdrop-blur transition-transform lg:static lg:w-64 lg:translate-x-0",
+          "glass-sidebar sidebar-shell-macos fixed inset-y-0 left-0 z-[60] flex w-72 flex-col p-4 backdrop-blur transition-transform lg:static lg:w-64 lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
