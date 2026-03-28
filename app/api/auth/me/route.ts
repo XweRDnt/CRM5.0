@@ -8,10 +8,11 @@ export const GET = withAuth(async (request) => {
     const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
     const user = await authService.getCurrentUser(token);
     const isAdmin = isPlatformAdminEmail(user.email);
+    const { passwordHash: _passwordHash, ...safeUser } = user;
 
     return Response.json(
       {
-        ...user,
+        ...safeUser,
         isAdmin,
         isDemo: request.user.isDemo === true,
       },
