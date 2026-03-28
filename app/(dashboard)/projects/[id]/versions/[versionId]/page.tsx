@@ -16,6 +16,7 @@ import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
 import { appendDemoProjectThreadMessage, mergeDemoProjectThreadMessages, mergeWorkspaceFeedbackWithDemoOverlay } from "@/lib/utils/demo-project-overlay";
+import { getVersionLabel } from "@/lib/utils/version-label";
 import { canReplyInWorkspaceThread } from "@/lib/utils/workspace-demo-thread";
 import { strokeToSvg } from "@/lib/annotations/render";
 import { getOverlaySvgProps } from "@/lib/annotations/svg";
@@ -1120,7 +1121,7 @@ export default function VersionDetailPage(): JSX.Element {
                   onPointerCancel={clearLongPressTimer}
                   onPointerLeave={clearLongPressTimer}
                 >
-                  Версия {version.versionNumber}
+                  {getVersionLabel(version)}
                 </button>
               );
             })}
@@ -1149,7 +1150,7 @@ export default function VersionDetailPage(): JSX.Element {
                     onPointerCancel={clearLongPressTimer}
                     onPointerLeave={clearLongPressTimer}
                   >
-                    Версия {version.versionNumber}
+                    {getVersionLabel(version)}
                   </button>
                 );
               })}
@@ -1678,7 +1679,7 @@ export default function VersionDetailPage(): JSX.Element {
         open={confirmDeleteVersionOpen}
         onOpenChange={setConfirmDeleteVersionOpen}
         title="Вы точно уверены?"
-        description={activeVersion ? `Версия ${activeVersion.versionNumber} будет удалена без возможности восстановления.` : ""}
+        description={activeVersion ? `${getVersionLabel(activeVersion)} будет удалена без возможности восстановления.` : ""}
         loading={deletingVersion}
         confirmLabel="Удалить версию"
         onConfirm={() => void handleDeleteVersion()}

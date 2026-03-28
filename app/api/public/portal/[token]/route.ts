@@ -120,6 +120,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         versions: project.versions.map((version) => ({
           id: version.id,
           versionNumber: version.versionNo,
+          title: version.title ?? `Версия ${version.versionNo}`,
           fileUrl: version.fileUrl,
           fileName: version.fileName,
           videoProvider: version.videoProvider,

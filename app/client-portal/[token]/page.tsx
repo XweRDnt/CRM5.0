@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils/cn";
 import { useDemoProjectOverlay } from "@/lib/hooks/use-demo-project-overlay";
 import { getMessages } from "@/lib/i18n/messages";
 import { formatTimecode } from "@/lib/utils/time";
+import { getVersionLabel } from "@/lib/utils/version-label";
 import {
   appendDemoProjectThreadMessage,
   createDemoProjectFeedback,
@@ -56,6 +57,7 @@ const PORTAL_FEEDBACK_CARD_CLASSES: Record<FeedbackStatus, string> = {
 type PortalVersion = {
   id: string;
   versionNumber: number;
+  title: string;
   fileUrl: string;
   fileName: string;
   videoProvider: "KINESCOPE";
@@ -1207,7 +1209,7 @@ export default function ClientPortalPage(): JSX.Element {
                         )}
                         onClick={() => selectVersion(version.id)}
                       >
-                        Версия {version.versionNumber}
+                        {getVersionLabel(version)}
                       </button>
                     );
                   })}
@@ -1231,7 +1233,7 @@ export default function ClientPortalPage(): JSX.Element {
                           )}
                           onClick={() => selectVersion(version.id)}
                         >
-                          Версия {version.versionNumber}
+                          {getVersionLabel(version)}
                         </button>
                       );
                     })}
