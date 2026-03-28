@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { DashboardUserProvider } from "@/components/auth/dashboard-user-context";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import type { AuthUser } from "@/lib/hooks/use-auth-guard";
@@ -57,9 +58,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }): 
   return (
     <AuthGuard>
       {({ user }) => (
-        <DashboardShell user={user} pathname={pathname} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
-          {children}
-        </DashboardShell>
+        <DashboardUserProvider user={user}>
+          <DashboardShell user={user} pathname={pathname} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
+            {children}
+          </DashboardShell>
+        </DashboardUserProvider>
       )}
     </AuthGuard>
   );

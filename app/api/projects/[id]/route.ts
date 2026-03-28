@@ -5,6 +5,7 @@ import { projectService } from "@/lib/services/project.service";
 import { assertOwnerOrPm, buildAccessibleProjectsWhere } from "@/lib/services/access-control.service";
 import { prisma } from "@/lib/utils/db";
 import { APIError, handleAPIError } from "@/lib/utils/api-error";
+import { withServerTiming } from "@/lib/utils/server-timing";
 
 const paramsSchema = z.object({
   id: z.string().min(1),
@@ -18,15 +19,17 @@ const updateProjectSchema = z.object({
   revisionsLimit: z.number().int().min(1).max(10).optional(),
 });
 
-export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
-  try {
-    const { id } = paramsSchema.parse(await context.params);
-    const project = await projectService.getProjectById(id, req.user.tenantId, req.user);
-    return Response.json(project, { status: 200 });
-  } catch (error) {
-    return handleAPIError(error);
-  }
-});
+export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) =>
+  withServerTiming("api-project-detail", async () => {
+    try {
+      const { id } = paramsSchema.parse(await context.params);
+      const project = await projectService.getProjectById(id, req.user.tenantId, req.user);
+      return Response.json(project, { status: 200 });
+    } catch (error) {
+      return handleAPIError(error);
+    }
+  }),
+);
 
 export const PATCH = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {

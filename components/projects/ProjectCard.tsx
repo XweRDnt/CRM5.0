@@ -3,7 +3,6 @@
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import {
-  type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -20,22 +19,6 @@ import { VERSION_STATUS_BADGE_CLASSES, VERSION_STATUS_LABELS, toVersionUiStatus,
 import type { AssetVersionResponse, FeedbackResponse, ProjectResponse } from "@/types";
 
 type ApiWrapped<T> = T | { data: T };
-type AppTheme = "light" | "dark";
-
-const STATUS_BADGE_STYLES: Record<AppTheme, Record<VersionUiStatus, CSSProperties>> = {
-  light: {
-    DRAFT: { borderColor: "#6b7280", backgroundColor: "#e5e7eb", color: "#111827" },
-    IN_REVIEW: { borderColor: "#b45309", backgroundColor: "#fde68a", color: "#78350f" },
-    CHANGES_REQUESTED: { borderColor: "#b91c1c", backgroundColor: "#fecaca", color: "#7f1d1d" },
-    APPROVED: { borderColor: "#047857", backgroundColor: "#bbf7d0", color: "#064e3b" },
-  },
-  dark: {
-    DRAFT: { borderColor: "#6b7280", backgroundColor: "rgba(55, 65, 81, 0.7)", color: "#f3f4f6" },
-    IN_REVIEW: { borderColor: "#d97706", backgroundColor: "rgba(217, 119, 6, 0.25)", color: "#fde68a" },
-    CHANGES_REQUESTED: { borderColor: "#dc2626", backgroundColor: "rgba(220, 38, 38, 0.25)", color: "#fecaca" },
-    APPROVED: { borderColor: "#059669", backgroundColor: "rgba(5, 150, 105, 0.25)", color: "#bbf7d0" },
-  },
-};
 
 function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
@@ -57,7 +40,6 @@ type ProjectCardProps = {
 
 export function ProjectCard({ project, latestVersionStatus, canDelete = false, onDelete }: ProjectCardProps): JSX.Element {
   const router = useRouter();
-  const [appTheme, setAppTheme] = useState<AppTheme>("light");
   const [deleteMenuPosition, setDeleteMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const deleteMenuRef = useRef<HTMLDivElement | null>(null);
@@ -71,22 +53,6 @@ export function ProjectCard({ project, latestVersionStatus, canDelete = false, o
     shouldHydrateStatus ? `/api/projects/${project.id}/feedback` : null,
     apiFetch<FeedbackResponse[]>,
   );
-
-  useEffect(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-
-    const root = document.documentElement;
-    const readTheme = (): void => {
-      setAppTheme(root.getAttribute("data-app-theme") === "dark" ? "dark" : "light");
-    };
-
-    readTheme();
-    const observer = new MutationObserver(readTheme);
-    observer.observe(root, { attributes: true, attributeFilter: ["data-app-theme"] });
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent): void => {
@@ -217,7 +183,6 @@ export function ProjectCard({ project, latestVersionStatus, canDelete = false, o
               "inline-flex rounded-full border px-2.5 py-1 text-xs font-medium",
               VERSION_STATUS_BADGE_CLASSES[uiStatus],
             )}
-            style={STATUS_BADGE_STYLES[appTheme][uiStatus]}
           >
             {VERSION_STATUS_LABELS[uiStatus]}
           </span>

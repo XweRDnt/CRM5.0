@@ -6,6 +6,7 @@ import { FeedbackService } from "@/lib/services/feedback.service";
 import { prisma } from "@/lib/utils/db";
 import { z } from "zod";
 import { handleAPIError } from "@/lib/utils/api-error";
+import { withServerTiming } from "@/lib/utils/server-timing";
 
 const paramsSchema = z.object({
   id: z.string().min(1),
@@ -28,16 +29,18 @@ const createVersionSchema = z.object({
   processingError: z.string().max(2000).optional(),
 });
 
-export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
-  try {
-    const { id } = paramsSchema.parse(await context.params);
-    await assertProjectAccess(req.user, id);
-    const versions = await assetService.listVersionsByProject(id, req.user.tenantId);
-    return Response.json(versions, { status: 200 });
-  } catch (error) {
-    return handleAPIError(error);
-  }
-});
+export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) =>
+  withServerTiming("api-project-versions", async () => {
+    try {
+      const { id } = paramsSchema.parse(await context.params);
+      await assertProjectAccess(req.user, id);
+      const versions = await assetService.listVersionsByProject(id, req.user.tenantId);
+      return Response.json(versions, { status: 200 });
+    } catch (error) {
+      return handleAPIError(error);
+    }
+  }),
+);
 
 export const POST = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<{ id: string }> }) => {
   try {

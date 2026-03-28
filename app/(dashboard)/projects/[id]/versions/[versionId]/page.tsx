@@ -7,12 +7,12 @@ import { ArrowLeft, Check, ChevronDown, Copy, Loader2, Plus, Search, Send, Share
 import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
 import { VersionDetailMobileSidebar } from "@/components/layout/VersionDetailMobileSidebar";
 import type { FeedbackStatus } from "@prisma/client";
+import { useDashboardUser } from "@/components/auth/dashboard-user-context";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { toast } from "@/components/ui/toast";
 import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
 import { useDemoProjectOverlay } from "@/lib/hooks/use-demo-project-overlay";
-import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
 import { appendDemoProjectThreadMessage, mergeDemoProjectThreadMessages, mergeWorkspaceFeedbackWithDemoOverlay } from "@/lib/utils/demo-project-overlay";
@@ -239,8 +239,8 @@ export default function VersionDetailPage(): JSX.Element {
   const router = useRouter();
   const mobileKinescopeRef = useRef<KinescopePlayerRef>(null);
   const desktopKinescopeRef = useRef<KinescopePlayerRef>(null);
-  const { user } = useAuthGuard();
-  const isOwnerOrPm = !user?.isDemo && (user?.role === "OWNER" || user?.role === "PM");
+  const user = useDashboardUser();
+  const isOwnerOrPm = !user.isDemo && (user.role === "OWNER" || user.role === "PM");
 
   const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
   const { data: versionsResponse, isLoading: versionsLoading, mutate: mutateVersions } = useSWR(

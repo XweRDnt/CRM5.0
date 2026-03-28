@@ -33,7 +33,7 @@ jobs:
             git reset --hard "origin/${CURRENT_BRANCH}"
 
             echo "[deploy] installing dependencies"
-            npm install
+            npm ci
 
             echo "[deploy] prisma generate"
             npx prisma generate
@@ -41,20 +41,23 @@ jobs:
             echo "[deploy] prisma migrate deploy"
             npx prisma migrate deploy
 
-            echo "[deploy] clearing stale next build lock"
-            rm -f .next/lock
+            echo "[deploy] stopping app before build"
+            pm2 stop video-crm-mvp || true
+
+            echo "[deploy] clearing previous next build output"
+            rm -rf .next
 
             echo "[deploy] building app"
             npm run build
 
             echo "[deploy] restarting pm2 processes"
-            pm2 restart video-crm-mvp --update-env
+            pm2 restart video-crm-mvp --update-env || pm2 start npm --name video-crm-mvp -- start
             pm2 restart video-crm-worker --update-env || (cd "$APP_DIR" && pm2 start npx --name video-crm-worker -- tsx lib/jobs/index.ts)
             pm2 save
 
             echo "[deploy] waiting for app health"
             for i in $(seq 1 20); do
-              if curl -fsS http://127.0.0.1:3000 >/dev/null; then
+              if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
                 echo "[deploy] app is healthy"
                 exit 0
               fi

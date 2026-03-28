@@ -240,6 +240,35 @@ export class AssetService {
     return versions.map((version) => this.mapAssetVersionResponse(version));
   }
 
+  async getLatestVersionByProject(projectId: string, tenantId: string): Promise<AssetVersionResponse | null> {
+    const project = await this.prismaClient.project.findFirst({
+      where: {
+        id: projectId,
+        tenantId,
+      },
+      select: { id: true },
+    });
+    if (!project) {
+      throw new Error("Project not found in this tenant");
+    }
+
+    const latestVersion = await this.prismaClient.assetVersion.findFirst({
+      where: { projectId },
+      orderBy: { versionNo: "desc" },
+      include: {
+        uploadedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return latestVersion ? this.mapAssetVersionResponse(latestVersion) : null;
+  }
+
   async getVersionMeta(projectId: string, tenantId: string): Promise<ProjectVersionMeta> {
     const project = await this.prismaClient.project.findFirst({
       where: {

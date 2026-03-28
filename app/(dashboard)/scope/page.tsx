@@ -1,50 +1,36 @@
-"use client";
+import { ScopeDecisionsPageClient } from "@/components/scope/ScopeDecisionsPageClient";
+import { isOwnerOrPm } from "@/lib/services/access-control.service";
+import { requireServerSession } from "@/lib/server/session";
+import { prisma } from "@/lib/utils/db";
 
-import useSWR from "swr";
-import { ScopeDecisionCard } from "@/components/scope/scope-decision-card";
-import { Card, CardContent } from "@/components/ui/card";
-import { apiFetch } from "@/lib/utils/client-api";
-import type { ScopeDecisionResponse } from "@/types";
+export default async function ScopeDecisionsPage(): Promise<JSX.Element> {
+  const session = await requireServerSession("/scope");
+  const initialDecisions = await prisma.scopeDecision.findMany({
+    where: {
+      project: {
+        tenantId: session.payload.tenantId,
+        ...(isOwnerOrPm(session.payload.role)
+          ? {}
+          : {
+              members: {
+                some: {
+                  userId: session.payload.userId,
+                },
+              },
+            }),
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      pmUser: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+  });
 
-const fetcher = (url: string) => apiFetch<ScopeDecisionResponse[]>(url);
-
-export default function ScopeDecisionsPage(): JSX.Element {
-  const { data, error, isLoading, mutate } = useSWR("/api/scope/decisions", fetcher);
-
-  return (
-    <section className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Scope Guard</h1>
-        <p className="text-sm text-neutral-500">Approve or reject out-of-scope feedback requests.</p>
-      </header>
-
-      {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Card key={`scope-skeleton-${index}`} className="animate-pulse">
-              <CardContent className="h-48 p-6" />
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {error && !isLoading && (
-        <Card>
-          <CardContent className="py-6 text-sm text-red-600">Failed to load scope decisions.</CardContent>
-        </Card>
-      )}
-
-      {!isLoading && !error && (data?.length ?? 0) === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-neutral-500">No scope decisions found.</CardContent>
-        </Card>
-      )}
-
-      <div className="space-y-3">
-        {data?.map((decision) => (
-          <ScopeDecisionCard key={decision.id} decision={decision} onUpdated={() => void mutate()} />
-        ))}
-      </div>
-    </section>
-  );
+  return <ScopeDecisionsPageClient initialDecisions={initialDecisions} />;
 }

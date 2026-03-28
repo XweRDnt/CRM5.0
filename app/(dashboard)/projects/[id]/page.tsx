@@ -16,10 +16,9 @@ export default async function ProjectDetailPage({
   const session = await requireServerSession(`/projects/${projectId}`);
   await assertProjectAccess(session.payload, projectId);
 
-  const versions = await assetService.listVersionsByProject(projectId, session.payload.tenantId);
-  if (versions.length > 0) {
-    const latest = [...versions].sort((a, b) => b.versionNumber - a.versionNumber)[0];
-    redirect(`/projects/${projectId}/versions/${latest.id}`);
+  const latestVersion = await assetService.getLatestVersionByProject(projectId, session.payload.tenantId);
+  if (latestVersion) {
+    redirect(`/projects/${projectId}/versions/${latestVersion.id}`);
   }
 
   return (
