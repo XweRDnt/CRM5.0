@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown, Copy, Download, Loader2, Plus, Search, Send, Share2, Users } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Copy, Loader2, Plus, Search, Send, Share2, Users } from "lucide-react";
 import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
 import { VersionDetailMobileSidebar } from "@/components/layout/VersionDetailMobileSidebar";
 import type { FeedbackStatus } from "@prisma/client";
@@ -1225,8 +1225,7 @@ export default function VersionDetailPage(): JSX.Element {
               disabled={xmlExporting}
               className="inline-flex items-center gap-2 rounded-[11px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-3.5 py-2 text-[13px] font-semibold text-indigo-100"
             >
-              <Download className="h-3.5 w-3.5" />
-              Выгрузить XML для монтажёра
+              Взять в работу
             </button>
           </div>
 
@@ -1477,8 +1476,7 @@ export default function VersionDetailPage(): JSX.Element {
                 disabled={xmlExporting}
                 className="inline-flex items-center gap-2 rounded-[11px] border border-indigo-300/20 bg-[linear-gradient(135deg,rgba(52,65,202,0.22),rgba(56,189,248,0.12))] px-3.5 py-2 text-[13px] font-semibold text-indigo-100"
               >
-                <Download className="h-3.5 w-3.5" />
-                Выгрузить XML для монтажёра
+                Взять в работу
               </button>
               <p className="mt-1.5 text-[10px] leading-tight text-white/36">Все «Новые» и «Просмотренные» можно быстро перевести в производственный контур.</p>
             </div>
