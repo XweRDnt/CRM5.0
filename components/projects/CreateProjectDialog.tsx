@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/utils/client-api";
 import type { ProjectResponse } from "@/types";
@@ -62,7 +62,7 @@ export function CreateProjectDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="!max-w-xl !overflow-hidden !rounded-[30px] !border-white/10 !bg-[linear-gradient(180deg,rgba(16,18,29,0.96),rgba(10,12,20,0.96))] !p-0 !text-white !shadow-[0_34px_120px_rgba(0,0,0,0.5)] !backdrop-blur-2xl">
+      <DialogContent className="!max-w-[520px] !overflow-hidden !rounded-[30px] !border-white/10 !bg-[linear-gradient(180deg,rgba(16,18,29,0.96),rgba(10,12,20,0.96))] !p-0 !text-white !shadow-[0_34px_120px_rgba(0,0,0,0.5)] !backdrop-blur-2xl">
         <div className="relative overflow-hidden">
           <div
             aria-hidden="true"
@@ -70,17 +70,13 @@ export function CreateProjectDialog({
           />
 
           <div className="relative p-6 sm:p-7">
-            <DialogHeader className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300/80">First Project</p>
-              <DialogTitle className="text-[28px] font-semibold tracking-[-0.04em] text-white">
-                Создайте проект за несколько секунд
+            <DialogHeader className="space-y-2">
+              <DialogTitle className="text-[24px] font-semibold tracking-[-0.04em] text-white">
+                Создать проект
               </DialogTitle>
-              <DialogDescription className="max-w-md text-sm leading-6 text-white/62">
-                Только название проекта. Сразу после этого вы сможете загрузить первую версию видео в том же потоке.
-              </DialogDescription>
             </DialogHeader>
 
-            <form className="mt-6 space-y-5" onSubmit={form.handleSubmit(createProject)}>
+            <form className="mt-5 space-y-5" onSubmit={form.handleSubmit(createProject)}>
               <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
                 <div className="space-y-2">
                   <label htmlFor="project-name" className="text-sm font-medium text-white/88">
@@ -93,13 +89,7 @@ export function CreateProjectDialog({
                     autoFocus
                     {...form.register("name")}
                   />
-                  {form.formState.errors.name ? (
-                    <p className="text-xs text-red-400">{form.formState.errors.name.message}</p>
-                  ) : (
-                    <p className="text-xs text-white/45">
-                      Без клиента, брифа и лишних шагов. Их можно добавить позже, если вообще понадобится.
-                    </p>
-                  )}
+                  {form.formState.errors.name ? <p className="text-xs text-red-400">{form.formState.errors.name.message}</p> : null}
                 </div>
               </div>
 
