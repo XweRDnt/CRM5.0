@@ -564,7 +564,7 @@ export function VersionUploadFlow({
     : "rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl";
   const dropzoneClassName = cn(
     "version-upload-dropzone rounded-[28px] border border-dashed transition-colors",
-    surface === "dialog" ? "min-h-[520px] p-5 sm:min-h-[560px] sm:p-8" : "min-h-[420px] p-6 sm:min-h-[480px] sm:p-8",
+    surface === "dialog" ? "min-h-[380px] p-5 sm:min-h-[420px] sm:p-7" : "min-h-[420px] p-6 sm:min-h-[480px] sm:p-8",
     isLightTheme ? "border-neutral-300 bg-white" : "border-white/10 bg-slate-950/35",
     isDragActive && (isLightTheme ? "version-upload-dropzone-active border-blue-500 bg-blue-50" : "version-upload-dropzone-active border-blue-400 bg-blue-500/10"),
   );
@@ -575,7 +575,7 @@ export function VersionUploadFlow({
 
   const layoutClassName =
     surface === "dialog"
-      ? "grid h-full min-h-0 gap-5 lg:grid-cols-[320px,minmax(0,1fr)]"
+      ? "grid h-full min-h-0 gap-4 lg:grid-cols-[260px,minmax(0,1fr)]"
       : "space-y-5";
 
   const fieldsSection = (
@@ -615,7 +615,7 @@ export function VersionUploadFlow({
             onChange={(event) => applyFileSelection(event.target.files?.[0] ?? null)}
             disabled={isBusy}
           />
-          <div className={cn("flex flex-col items-center justify-center gap-5 text-center", surface === "dialog" ? "min-h-[520px] flex-1 sm:min-h-[560px]" : "min-h-[360px] sm:min-h-[392px]")}>
+          <div className={cn("flex flex-col items-center justify-center gap-5 text-center", surface === "dialog" ? "min-h-[380px] flex-1 sm:min-h-[420px]" : "min-h-[360px] sm:min-h-[392px]")}>
             <div>
               <p className={cn("text-xl font-semibold tracking-[-0.03em]", bodyTextClassName)}>Перетащите видео в это окно</p>
               <p className={cn("mt-2 text-sm", mutedTextClassName)}>

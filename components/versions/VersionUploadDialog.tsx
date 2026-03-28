@@ -48,6 +48,7 @@ export function VersionUploadDialog({
   }, []);
 
   const hasTrigger = Boolean(triggerContent ?? triggerText);
+  const titleClassName = appTheme === "dark" ? "text-neutral-100" : "text-neutral-100";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -59,56 +60,26 @@ export function VersionUploadDialog({
         </DialogTrigger>
       ) : null}
 
-      <DialogContent
-        className={
-          appTheme === "dark"
-            ? "!h-[min(92vh,920px)] !w-[min(1320px,97vw)] !max-w-[1320px] !overflow-hidden !rounded-[36px] !border-white/10 !bg-[linear-gradient(180deg,rgba(10,12,20,0.98),rgba(6,9,16,0.98))] !p-0 !text-neutral-100 !shadow-[0_40px_140px_rgba(0,0,0,0.58)] !backdrop-blur-[34px]"
-            : "!h-[min(92vh,920px)] !w-[min(1320px,97vw)] !max-w-[1320px] !overflow-hidden !rounded-[36px] !border-neutral-200/70 !bg-white/96 !p-0 !text-neutral-900 !shadow-[0_34px_120px_rgba(15,23,42,0.18)] !backdrop-blur-[30px]"
-        }
-      >
-        <div className="relative flex h-full flex-col overflow-hidden">
+      <DialogContent className="!w-[min(960px,94vw)] !max-w-[960px] !overflow-hidden !rounded-[30px] !border-white/10 !bg-[linear-gradient(180deg,rgba(16,18,29,0.98),rgba(9,11,19,0.98))] !p-0 !text-neutral-100 !shadow-[0_34px_120px_rgba(0,0,0,0.52)] !backdrop-blur-[30px]">
+        <div className="relative overflow-hidden">
           <div
             aria-hidden="true"
-            className={
-              appTheme === "dark"
-                ? "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(67,87,255,0.2),transparent_28%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.14),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_18%)]"
-                : "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.1),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.7),transparent_18%)]"
-            }
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(67,87,255,0.18),transparent_28%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.12),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_18%)]"
           />
 
-          <div className="relative border-b border-white/10 px-6 pb-5 pt-6 sm:px-8">
+          <div className="relative border-b border-white/10 px-5 pb-4 pt-5 sm:px-6">
             <DialogHeader className="space-y-3">
-              <p
-                className={
-                  appTheme === "dark"
-                    ? "text-xs font-semibold uppercase tracking-[0.24em] text-blue-300/80"
-                    : "text-xs font-semibold uppercase tracking-[0.24em] text-blue-600/80"
-                }
-              >
-                Upload Flow
-              </p>
-              <DialogTitle
-                className={
-                  appTheme === "dark"
-                    ? "text-[32px] font-semibold tracking-[-0.05em] text-neutral-100"
-                    : "text-[32px] font-semibold tracking-[-0.05em] text-neutral-900"
-                }
-              >
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300/80">Upload Flow</p>
+              <DialogTitle className={`text-[28px] font-semibold tracking-[-0.04em] ${titleClassName}`}>
                 Загрузить новую версию
               </DialogTitle>
-              <DialogDescription
-                className={
-                  appTheme === "dark"
-                    ? "max-w-2xl text-sm leading-6 text-white/62"
-                    : "max-w-2xl text-sm leading-6 text-neutral-600"
-                }
-              >
-                Большая зона перетаскивания, автоназвание версии и быстрый путь до готового review-flow без лишних шагов.
+              <DialogDescription className="max-w-xl text-sm leading-6 text-white/62">
+                Тёмная компактная модалка с быстрым названием версии и удобной drag-and-drop зоной без лишнего шума.
               </DialogDescription>
             </DialogHeader>
           </div>
 
-          <div className="relative min-h-0 flex-1 p-4 sm:p-6">
+          <div className="relative min-h-0 p-4 sm:p-5">
             <VersionUploadFlow
               projectId={projectId}
               surface="dialog"
