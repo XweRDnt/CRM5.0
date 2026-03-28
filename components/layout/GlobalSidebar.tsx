@@ -36,6 +36,15 @@ export function GlobalSidebar({ user, open, onClose }: GlobalSidebarProps): JSX.
           key={item.href}
           type="button"
           onClick={() => {
+            console.log("[sidebar] nav item click", {
+              currentPath: pathname,
+              targetHref: item.href,
+              itemKey: item.key,
+            });
+            console.log("[sidebar] before router.push", {
+              from: pathname,
+              to: item.href,
+            });
             router.push(item.href);
             onClose();
           }}
