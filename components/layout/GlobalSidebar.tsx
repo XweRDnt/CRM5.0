@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { FolderOpen, Shield, UserPlus, X } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { getMessages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils/cn";
 import type { AuthUser } from "@/lib/hooks/use-auth-guard";
@@ -20,7 +21,6 @@ type GlobalSidebarProps = {
 
 export function GlobalSidebar({ user, open, onClose }: GlobalSidebarProps): JSX.Element {
   const pathname = usePathname();
-  const router = useRouter();
   const m = getMessages();
   const isOwnerOrPm = user.role === "OWNER" || user.role === "PM";
   const visibleNavItems = user.isDemo ? navItems.filter((item) => item.key === "projects") : navItems;
@@ -32,20 +32,19 @@ export function GlobalSidebar({ user, open, onClose }: GlobalSidebarProps): JSX.
       const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
       return (
-        <button
+        <Link
           key={item.href}
-          type="button"
+          href={item.href}
           onClick={() => {
             console.log("[sidebar] nav item click", {
               currentPath: pathname,
               targetHref: item.href,
               itemKey: item.key,
             });
-            console.log("[sidebar] before router.push", {
+            console.log("[sidebar] before link navigation", {
               from: pathname,
               to: item.href,
             });
-            router.push(item.href);
             onClose();
           }}
           className={cn(
@@ -55,7 +54,7 @@ export function GlobalSidebar({ user, open, onClose }: GlobalSidebarProps): JSX.
         >
           <Icon className="h-4 w-4 shrink-0" />
           <span>{item.key === "projects" ? m.nav.projects : item.key === "team" ? m.nav.team : "Admin"}</span>
-        </button>
+        </Link>
       );
     });
 
