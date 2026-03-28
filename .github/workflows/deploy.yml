@@ -36,10 +36,10 @@ jobs:
             npm ci
 
             echo "[deploy] prisma generate"
-            npx prisma generate
+            ./node_modules/.bin/prisma generate
 
             echo "[deploy] prisma migrate deploy"
-            npx prisma migrate deploy
+            ./node_modules/.bin/prisma migrate deploy
 
             echo "[deploy] stopping app before build"
             pm2 stop video-crm-mvp || true

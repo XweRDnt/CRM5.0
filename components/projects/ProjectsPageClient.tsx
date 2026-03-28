@@ -65,10 +65,10 @@ export function ProjectsPageClient({
     try {
       await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
       await mutate((prev) => (prev ?? []).filter((project) => project.id !== projectId), { revalidate: true });
-      toast.success("РџСЂРѕРµРєС‚ СѓРґР°Р»С‘РЅ");
+      toast.success("Проект удален");
       setPendingDeleteProject(null);
     } catch {
-      toast.error("РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РїСЂРѕРµРєС‚");
+      toast.error("Не удалось удалить проект");
     } finally {
       setDeletingProject(false);
     }
@@ -84,15 +84,15 @@ export function ProjectsPageClient({
     <section className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">РџСЂРѕРµРєС‚С‹</h1>
-          <p className="text-sm glass-muted">РЈРїСЂР°РІР»СЏР№С‚Рµ РІРµСЂСЃРёСЏРјРё РІРёРґРµРѕ Рё Р±С‹СЃС‚СЂРѕ Р·Р°РїСѓСЃРєР°Р№С‚Рµ РЅРѕРІС‹Рµ СЃРѕРіР»Р°СЃРѕРІР°РЅРёСЏ.</p>
+          <h1 className="text-2xl font-semibold">Проекты</h1>
+          <p className="text-sm glass-muted">Управляйте версиями видео и быстро запускайте новые согласования.</p>
         </div>
         {user.isDemo ? null : (
           <CreateProjectDialog
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
             onCreated={handleProjectCreated}
-            trigger={<Button type="button">+ РќРѕРІС‹Р№ РїСЂРѕРµРєС‚</Button>}
+            trigger={<Button type="button">+ Новый проект</Button>}
           />
         )}
       </header>
@@ -103,7 +103,7 @@ export function ProjectsPageClient({
         <Card className="glass-card border-red-500/40 bg-red-500/10">
           <CardContent className="flex items-center gap-2 py-6 text-red-200">
             <AlertCircle className="h-4 w-4" />
-            РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РїСЂРѕРµРєС‚С‹.
+            Не удалось загрузить проекты.
           </CardContent>
         </Card>
       )}
@@ -113,15 +113,15 @@ export function ProjectsPageClient({
           <CardContent className="space-y-5 py-10 text-center">
             <p className="text-sm glass-muted">
               {isEditor
-                ? "Р’Р»Р°РґРµР»РµС† РµС‰С‘ РЅРµ РґРѕР±Р°РІРёР» РІР°СЃ РЅРё РІ РѕРґРёРЅ РїСЂРѕРµРєС‚."
-                : "РџРѕРєР° РЅРµС‚ РїСЂРѕРµРєС‚РѕРІ. РЎРѕР·РґР°Р№С‚Рµ РїРµСЂРІС‹Р№ РїСЂРѕРµРєС‚ Р·Р° РЅРµСЃРєРѕР»СЊРєРѕ СЃРµРєСѓРЅРґ."}
+                ? "Владелец еще не добавил вас ни в один проект."
+                : "Пока нет проектов. Создайте первый проект за несколько секунд."}
             </p>
             {!isEditor && !user.isDemo ? (
               <CreateProjectDialog
                 open={isCreateDialogOpen}
                 onOpenChange={setIsCreateDialogOpen}
                 onCreated={handleProjectCreated}
-                trigger={<Button type="button">РЎРѕР·РґР°С‚СЊ РїРµСЂРІС‹Р№ РїСЂРѕРµРєС‚</Button>}
+                trigger={<Button type="button">Создать первый проект</Button>}
               />
             ) : null}
           </CardContent>
@@ -148,8 +148,8 @@ export function ProjectsPageClient({
             setPendingDeleteProject(null);
           }
         }}
-        title="Р’С‹ С‚РѕС‡РЅРѕ СѓРІРµСЂРµРЅС‹?"
-        description={pendingDeleteProject ? `РџСЂРѕРµРєС‚ "${pendingDeleteProject.name}" Р±СѓРґРµС‚ СѓРґР°Р»С‘РЅ Р±РµР· РІРѕР·РјРѕР¶РЅРѕСЃС‚Рё РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ.` : ""}
+        title="Вы точно уверены?"
+        description={pendingDeleteProject ? `Проект "${pendingDeleteProject.name}" будет удален без возможности восстановления.` : ""}
         loading={deletingProject}
         onConfirm={() => {
           if (!pendingDeleteProject) {

@@ -24,15 +24,10 @@ export default async function ProjectVersionsPage({
   return (
     <Card>
       <CardContent className="space-y-3 py-6">
-        <p className="text-sm text-neutral-400">РџРѕРєР° РЅРµС‚ РІРµСЂСЃРёР№. Р”РѕР±Р°РІСЊС‚Рµ РїРµСЂРІСѓСЋ РІРµСЂСЃРёСЋ.</p>
-        {session.user.isDemo ? null : (
-          <VersionUploadDialog
-            projectId={projectId}
-            triggerText="+ Р”РѕР±Р°РІРёС‚СЊ РІРµСЂСЃРёСЋ"
-          />
-        )}
+        <p className="text-sm text-neutral-400">Пока нет версий. Добавьте первую версию.</p>
+        {session.user.isDemo ? null : <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" />}
         <Button asChild variant="outline">
-          <Link href={`/projects/${projectId}`}>Р’РµСЂРЅСѓС‚СЊСЃСЏ РІ РїСЂРѕРµРєС‚</Link>
+          <Link href={`/projects/${projectId}`}>Вернуться в проект</Link>
         </Button>
       </CardContent>
     </Card>
