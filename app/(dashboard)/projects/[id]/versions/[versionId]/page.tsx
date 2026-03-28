@@ -4,10 +4,8 @@ import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronDown, Copy, Loader2, Plus, Search, Send, Share2, Users } from "lucide-react";
-import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
 import type { FeedbackStatus } from "@prisma/client";
 import { useDashboardUser } from "@/components/auth/dashboard-user-context";
-import { useDashboardSidebar } from "@/components/layout/dashboard-sidebar-context";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { toast } from "@/components/ui/toast";
@@ -246,7 +244,6 @@ export default function VersionDetailPage(): JSX.Element {
   const router = useRouter();
   const kinescopeRef = useRef<KinescopePlayerRef>(null);
   const user = useDashboardUser();
-  const { openSidebar } = useDashboardSidebar();
   const isOwnerOrPm = !user.isDemo && (user.role === "OWNER" || user.role === "PM");
   const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false,
@@ -1042,46 +1039,43 @@ export default function VersionDetailPage(): JSX.Element {
       <div className="mx-auto flex min-h-full w-full max-w-[1760px] flex-col gap-3 px-4 py-4 lg:h-full lg:min-h-0 xl:px-6 xl:py-5">
         <section className="shrink-0 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:px-6">
           {showMobileLayout ? (
-            <div className="flex items-start gap-3 lg:hidden">
-              <MobileMenuButton onClick={openSidebar} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 pt-1">
-                    <h1 className="truncate text-[clamp(22px,6vw,30px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
+            <div className="lg:hidden">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 pt-1">
+                  <h1 className="truncate text-[clamp(22px,6vw,30px)] font-bold leading-none tracking-[-0.04em]">{project.name}</h1>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    ref={shareButtonRef}
+                    type="button"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                    onClick={() => {
+                      setEmployeesModalOpen(false);
+                      setShareMenuOpen((current) => !current);
+                    }}
+                    aria-label="Поделиться"
+                  >
+                    <Share2 className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                  </button>
+                  {isOwnerOrPm ? (
                     <button
-                      ref={shareButtonRef}
                       type="button"
                       className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
                       onClick={() => {
-                        setEmployeesModalOpen(false);
-                        setShareMenuOpen((current) => !current);
+                        setShareMenuOpen(false);
+                        setEmployeesModalOpen(true);
                       }}
-                      aria-label="Поделиться"
+                      aria-label="Сотрудники"
                     >
-                      <Share2 className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                      <Users className="h-[18px] w-[18px]" strokeWidth={2.2} />
                     </button>
-                    {isOwnerOrPm ? (
-                      <button
-                        type="button"
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-white/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-                        onClick={() => {
-                          setShareMenuOpen(false);
-                          setEmployeesModalOpen(true);
-                        }}
-                        aria-label="Сотрудники"
-                      >
-                        <Users className="h-[18px] w-[18px]" strokeWidth={2.2} />
-                      </button>
-                    ) : null}
-                    <VersionUploadDialog
-                      projectId={projectId}
-                      triggerText=""
-                      triggerClassName="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.18))] text-white shadow-[0_10px_24px_rgba(67,87,255,0.18)]"
-                      triggerContent={<Plus className="h-[24px] w-[24px]" strokeWidth={3.2} />}
-                    />
-                  </div>
+                  ) : null}
+                  <VersionUploadDialog
+                    projectId={projectId}
+                    triggerText=""
+                    triggerClassName="inline-flex h-11 w-11 items-center justify-center rounded-[14px] border border-indigo-300/35 bg-[linear-gradient(135deg,rgba(67,87,255,0.34),rgba(56,189,248,0.18))] text-white shadow-[0_10px_24px_rgba(67,87,255,0.18)]"
+                    triggerContent={<Plus className="h-[24px] w-[24px]" strokeWidth={3.2} />}
+                  />
                 </div>
               </div>
             </div>

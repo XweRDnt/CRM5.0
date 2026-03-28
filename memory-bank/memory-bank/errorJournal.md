@@ -113,3 +113,15 @@ ode .\node_modules\....
 **Решение:** Мобильную часть `Sidebar` перевели на portal в `document.body`; добавлен регрессионный тест, который проверяет, что mobile drawer больше не живет внутри dashboard container.
 
 **Вывод:** Для full-screen project/version экранов мобильные overlay/drawer лучше сразу рендерить через portal, а не внутри route subtree.
+
+---
+
+## [2026-03-28] Sidebar-логика расползлась между layout и page-level UI
+
+**Симптом:** Sidebar ломался именно на странице версии проекта, а dashboard shell содержал route-specific исключение (`hideHeader`), из-за чего проектный экран жил по отдельным правилам и тянул локальный menu flow.
+
+**Причина:** Архитектура sidebar была не глобальной: часть поведения жила в общем layout, часть в header, часть в самой странице версии проекта, плюс оставались legacy-обертки вроде `VersionDetailMobileSidebar`.
+
+**Решение:** Вынесли единый `DashboardShell`, убрали скрытие global header на version route, убрали page-level sidebar control из `projects/[id]/versions/[versionId]`, удалили мертвую `VersionDetailMobileSidebar`.
+
+**Вывод:** Для dashboard-навигации нельзя держать route-specific sidebar режимы; shell должен быть единственным владельцем header/sidebar state и структуры.

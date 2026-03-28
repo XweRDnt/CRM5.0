@@ -43,6 +43,7 @@
 - [x] Удалён legacy `ios` shell / светлый theme override, конфликтовавший с тёмным dashboard
 - [x] Sidebar dashboard переведён на более тёмные состояния без белёсой подложки
 - [x] Мобильный sidebar внутри страницы версии проекта вынесен в portal, чтобы не ломаться из-за project page layering
+- [x] Dashboard переведен на единый глобальный sidebar shell без special-case sidebar логики на странице версии проекта
 
 ### Команда и доступ
 - [x] Роли OWNER / EDITOR

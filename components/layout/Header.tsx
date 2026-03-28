@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut, Menu } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { mutate } from "swr";
 import { Button } from "@/components/ui/button";
 import { getMessages } from "@/lib/i18n/messages";
 import { clearWorkspaceDemoToken } from "@/lib/utils/client-api";
 import type { AuthUser } from "@/lib/hooks/use-auth-guard";
+import { MobileMenuButton } from "./MobileMenuButton";
 
 type HeaderProps = {
   user: AuthUser;
@@ -28,9 +29,7 @@ export function Header({ user, onOpenSidebar }: HeaderProps): JSX.Element {
   return (
     <header className="glass-topbar flex h-16 items-center justify-between px-4 lg:px-6">
       <div className="flex items-center gap-3">
-        <Button type="button" variant="ghost" size="sm" onClick={onOpenSidebar} className="lg:hidden">
-          <Menu className="h-4 w-4" />
-        </Button>
+        <MobileMenuButton onClick={onOpenSidebar} />
         <div>
           <p className="text-sm font-semibold">{m.header.welcome}</p>
           <p className="text-xs glass-muted">
