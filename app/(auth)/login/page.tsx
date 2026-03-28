@@ -10,9 +10,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { mutate } from "swr";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { getMessages } from "@/lib/i18n/messages";
 
 const loginSchema = z.object({
@@ -86,6 +84,7 @@ export default function LoginPage(): JSX.Element {
       await mutate(() => true, undefined, { revalidate: false });
       localStorage.setItem("token", payload.token);
       localStorage.setItem("tenantId", payload.tenant.id);
+
       if (inviteToken) {
         await fetch(`/api/invite/${encodeURIComponent(inviteToken)}/accept`, {
           method: "POST",
@@ -94,6 +93,7 @@ export default function LoginPage(): JSX.Element {
           },
         });
       }
+
       toast.success("Вход выполнен");
       router.push(next);
     } catch (error) {
@@ -140,45 +140,67 @@ export default function LoginPage(): JSX.Element {
     };
   }, [router]);
 
+  const fieldClassName =
+    "h-12 rounded-2xl border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500 focus-visible:ring-blue-400";
+
   if (isCheckingSession) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-neutral-100 p-4">
-        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+      <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#060b16] px-4">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.22),transparent_36%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.14),transparent_42%)]"
+        />
+        <Loader2 className="relative h-6 w-6 animate-spin text-blue-400" />
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-neutral-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-3 text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-500">{m.appName}</p>
-          <CardTitle>{m.auth.loginTitle}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@company.com" {...register("email")} />
-              {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="******" {...register("password")} />
-              {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
-            </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : m.auth.loginButton}
-            </Button>
-            <p className="text-center text-sm text-neutral-500">
-              {`${m.auth.noAccount} `}
-              <Link href={inviteToken ? `/signup?inviteToken=${encodeURIComponent(inviteToken)}` : "/signup"} className="text-blue-500 hover:underline">
-                {m.auth.toSignup}
-              </Link>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#060b16] px-4">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.22),transparent_36%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.14),transparent_42%)]"
+      />
+
+      <section className="relative w-full max-w-[460px] rounded-[30px] border border-white/12 bg-white/[0.04] p-6 shadow-[0_24px_80px_rgba(5,10,25,0.3)] backdrop-blur-[24px] sm:p-8">
+        <div className="space-y-3 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300/80">{m.appName}</p>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white">{m.auth.loginTitle}</h1>
+          <p className="text-sm leading-relaxed text-slate-300">Войдите в рабочее пространство и продолжайте работу с проектами.</p>
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-7 space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium text-slate-200">
+              Email
+            </label>
+            <Input id="email" type="email" placeholder="you@company.com" className={fieldClassName} {...register("email")} />
+            {errors.email ? <p className="text-xs text-red-400">{errors.email.message}</p> : null}
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium text-slate-200">
+              Password
+            </label>
+            <Input id="password" type="password" placeholder="******" className={fieldClassName} {...register("password")} />
+            {errors.password ? <p className="text-xs text-red-400">{errors.password.message}</p> : null}
+          </div>
+
+          <Button type="submit" className="h-11 w-full rounded-2xl" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : m.auth.loginButton}
+          </Button>
+
+          <p className="text-center text-sm text-slate-400">
+            {`${m.auth.noAccount} `}
+            <Link
+              href={inviteToken ? `/signup?inviteToken=${encodeURIComponent(inviteToken)}` : "/signup"}
+              className="font-medium text-blue-300 hover:text-blue-200"
+            >
+              {m.auth.toSignup}
+            </Link>
+          </p>
+        </form>
+      </section>
     </main>
   );
 }

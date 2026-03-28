@@ -86,25 +86,23 @@ export default function SignupPage(): JSX.Element {
   };
 
   const fieldClassName =
-    "border-white/10 bg-slate-950/50 text-white placeholder:text-slate-500 focus-visible:ring-blue-400";
+    "h-12 rounded-2xl border-white/10 bg-slate-950/60 text-white placeholder:text-slate-500 focus-visible:ring-blue-400";
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#060b16] px-4 py-10">
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#060b16] px-4">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.22),transparent_36%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.14),transparent_42%)]"
       />
 
-      <section className="relative w-full max-w-xl rounded-[30px] border border-white/12 bg-white/[0.04] p-6 shadow-[0_24px_80px_rgba(5,10,25,0.3)] backdrop-blur-[24px] sm:p-8">
+      <section className="relative w-full max-w-[460px] rounded-[30px] border border-white/12 bg-white/[0.04] p-6 shadow-[0_24px_80px_rgba(5,10,25,0.3)] backdrop-blur-[24px] sm:p-8">
         <div className="space-y-3 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300/80">Workspace Setup</p>
-          <h1 className="text-3xl font-semibold text-white">{m.auth.signupTitle}</h1>
-          <p className="text-sm leading-relaxed text-slate-300">
-            Создайте рабочее пространство и сразу перейдите к первому проекту.
-          </p>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-white">{m.auth.signupTitle}</h1>
+          <p className="text-sm leading-relaxed text-slate-300">Создайте рабочее пространство и сразу перейдите к первому проекту.</p>
         </div>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-7 space-y-4">
           <div className="space-y-2">
             <label htmlFor="workspaceName" className="text-sm font-medium text-slate-200">
               Workspace name
@@ -134,12 +132,10 @@ export default function SignupPage(): JSX.Element {
               className={fieldClassName}
               {...form.register("password")}
             />
-            {form.formState.errors.password ? (
-              <p className="text-xs text-red-400">{form.formState.errors.password.message}</p>
-            ) : null}
+            {form.formState.errors.password ? <p className="text-xs text-red-400">{form.formState.errors.password.message}</p> : null}
           </div>
 
-          <Button type="submit" className="h-11 w-full" disabled={form.formState.isSubmitting}>
+          <Button type="submit" className="h-11 w-full rounded-2xl" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : m.auth.signupButton}
           </Button>
 
