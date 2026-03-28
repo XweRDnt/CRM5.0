@@ -51,9 +51,15 @@ describe("Sidebar", () => {
     expect(profileCard?.className).toContain("glass-item");
   });
 
-  it("navigates with router.push and closes the drawer when a nav item is pressed", () => {
+  it("starts navigation before closing the drawer when a nav item is pressed", () => {
     usePathnameMock.mockReturnValue("/projects/project-1/versions/version-1");
-    const onClose = vi.fn();
+    const callOrder: string[] = [];
+    const onClose = vi.fn(() => {
+      callOrder.push("close");
+    });
+    pushMock.mockImplementation(() => {
+      callOrder.push("push");
+    });
 
     render(
       <Sidebar
@@ -75,9 +81,10 @@ describe("Sidebar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Команда" }));
+    fireEvent.click(screen.getByRole("button", { name: /команда/i }));
 
     expect(pushMock).toHaveBeenCalledWith("/team");
     expect(onClose).toHaveBeenCalled();
+    expect(callOrder).toEqual(["push", "close"]);
   });
 });

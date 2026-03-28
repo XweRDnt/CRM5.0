@@ -1,6 +1,4 @@
 "use client";
-
-import { startTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { FolderOpen, Shield, UserPlus, X } from "lucide-react";
 import { getMessages } from "@/lib/i18n/messages";
@@ -64,10 +62,8 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
                 key={item.href}
                 type="button"
                 onClick={() => {
+                  router.push(item.href);
                   onClose();
-                  startTransition(() => {
-                    router.push(item.href);
-                  });
                 }}
                 className={cn(
                   "sidebar-nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition",
