@@ -62,6 +62,13 @@
 - [x] KinescopeUsageSnapshot (кэш использования)
 - [x] AuditLog
 - [x] Scope Guard backend + UI контур (не в активном продуктовом фокусе)
+- [x] User perf/stability pass: server-first routes for `/projects`, `/team`, `/scope`, `/settings`
+- [x] Быстрый redirect на latest version без загрузки полного списка версий
+- [x] Dependency-aware health-check (`database` + `redis`)
+- [x] `Server-Timing` на ключевых user API
+- [x] Продовая build-схема переведена на webpack для стабильности
+- [x] Deploy flow переведен на локальный Prisma CLI и более безопасный app restart path
+- [x] Исправлена битая кириллица в user project flow после server-first рефактора
 
 ## Бэклог (не реализовано)
 
@@ -82,3 +89,4 @@
 ## Известные баги
 - trafficGb всегда сохраняется как 0 в KinescopeUsageSnapshot
 - Сломан rollover подписки при смене периода
+- Страница версии проекта остается самым тяжелым клиентским маршрутом и еще требует отдельного perf-pass

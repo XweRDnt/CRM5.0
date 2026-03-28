@@ -1,11 +1,11 @@
 ﻿"use client";
 
+import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronDown, Copy, Loader2, Plus, Search, Send, Share2, Users } from "lucide-react";
 import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
-import { VersionDetailMobileSidebar } from "@/components/layout/VersionDetailMobileSidebar";
 import type { FeedbackStatus } from "@prisma/client";
 import { useDashboardUser } from "@/components/auth/dashboard-user-context";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
@@ -16,6 +16,7 @@ import { useDemoProjectOverlay } from "@/lib/hooks/use-demo-project-overlay";
 import { apiFetch } from "@/lib/utils/client-api";
 import { cn } from "@/lib/utils/cn";
 import { appendDemoProjectThreadMessage, mergeDemoProjectThreadMessages, mergeWorkspaceFeedbackWithDemoOverlay } from "@/lib/utils/demo-project-overlay";
+import { getVersionMemberRequestKeys } from "@/lib/utils/version-detail-page";
 import { getVersionLabel } from "@/lib/utils/version-label";
 import { canReplyInWorkspaceThread } from "@/lib/utils/workspace-demo-thread";
 import { strokeToSvg } from "@/lib/annotations/render";
@@ -100,6 +101,11 @@ const PROJECT_ROLE_LABELS: Record<ProjectMemberRole, string> = {
   pm: "PM",
   editor: "EDITOR",
 };
+
+const VersionDetailMobileSidebar = dynamic(
+  () => import("@/components/layout/VersionDetailMobileSidebar").then((module) => module.VersionDetailMobileSidebar),
+  { ssr: false },
+);
 
 function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
@@ -248,6 +254,12 @@ export default function VersionDetailPage(): JSX.Element {
   const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false,
   );
+  const [employeesModalOpen, setEmployeesModalOpen] = useState(false);
+  const { workspaceMembersKey, projectMembersKey } = getVersionMemberRequestKeys({
+    isOwnerOrPm,
+    employeesModalOpen,
+    projectId,
+  });
 
   const { data: project, isLoading: projectLoading } = useSWR(
     `/api/projects/${projectId}`,
@@ -264,16 +276,8 @@ export default function VersionDetailPage(): JSX.Element {
     isLoading: feedbackLoading,
     mutate: mutateFeedback,
   } = useSWR(`/api/projects/${projectId}/feedback`, apiFetch<FeedbackResponse[]>, STATIC_SWR_OPTIONS);
-  const { data: workspaceMembers = [], isLoading: workspaceMembersLoading } = useSWR(
-    isOwnerOrPm ? "/api/team/members" : null,
-    apiFetch<WorkspaceMember[]>,
-    STATIC_SWR_OPTIONS,
-  );
-  const { data: projectMembers = [], mutate: mutateProjectMembers } = useSWR(
-    isOwnerOrPm ? `/api/projects/${projectId}/members` : null,
-    apiFetch<ProjectMember[]>,
-    STATIC_SWR_OPTIONS,
-  );
+  const { data: workspaceMembers = [], isLoading: workspaceMembersLoading } = useSWR(workspaceMembersKey, apiFetch<WorkspaceMember[]>, STATIC_SWR_OPTIONS);
+  const { data: projectMembers = [], mutate: mutateProjectMembers } = useSWR(projectMembersKey, apiFetch<ProjectMember[]>, STATIC_SWR_OPTIONS);
 
   const versions = useMemo(
     () => (versionsResponse ? [...unwrap(versionsResponse)].sort((a, b) => a.versionNumber - b.versionNumber) : []),
@@ -294,7 +298,6 @@ export default function VersionDetailPage(): JSX.Element {
   const [confirmDeleteVersionOpen, setConfirmDeleteVersionOpen] = useState(false);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
-  const [employeesModalOpen, setEmployeesModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [deleteMenuPosition, setDeleteMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [memberSearch, setMemberSearch] = useState("");
