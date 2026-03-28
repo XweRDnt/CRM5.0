@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import * as tus from "tus-js-client";
 import type { VideoProcessingStatus } from "@prisma/client";
+import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/utils/client-api";
@@ -564,7 +565,7 @@ export function VersionUploadFlow({
     : "rounded-[24px] border border-white/10 bg-white/[0.03] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl";
   const dropzoneClassName = cn(
     "version-upload-dropzone rounded-[28px] border border-dashed transition-colors",
-    surface === "dialog" ? "min-h-[380px] p-5 sm:min-h-[420px] sm:p-7" : "min-h-[420px] p-6 sm:min-h-[480px] sm:p-8",
+    surface === "dialog" ? "min-h-[250px] p-5 sm:min-h-[270px] sm:p-5" : "min-h-[420px] p-6 sm:min-h-[480px] sm:p-8",
     isLightTheme ? "border-neutral-300 bg-white" : "border-white/10 bg-slate-950/35",
     isDragActive && (isLightTheme ? "version-upload-dropzone-active border-blue-500 bg-blue-50" : "version-upload-dropzone-active border-blue-400 bg-blue-500/10"),
   );
@@ -575,32 +576,38 @@ export function VersionUploadFlow({
 
   const layoutClassName =
     surface === "dialog"
-      ? "grid h-full min-h-0 gap-4 lg:grid-cols-[260px,minmax(0,1fr)]"
+      ? "grid h-full min-h-0 gap-4 lg:grid-cols-[220px,minmax(0,1fr)]"
       : "space-y-5";
 
   const fieldsSection = (
-    <div className={cn("space-y-2", sectionCardClassName)}>
+    <div className={cn("space-y-2", sectionCardClassName, surface === "dialog" ? "p-3.5" : "")}>
         <label htmlFor={`versionTitle-${projectId}`} className={cn("block text-sm font-medium", labelClassName)}>
           Название версии
         </label>
         <Input
           id={`versionTitle-${projectId}`}
-          className={inputClassName}
+          className={cn(inputClassName, surface === "dialog" ? "h-11 rounded-2xl text-[15px]" : "")}
           value={versionTitle}
           onChange={(event) => handleVersionTitleChange(event.target.value)}
           disabled={isBusy || metaLoading}
           aria-invalid={versionTitle.trim().length === 0}
           aria-describedby={`versionTitleHelp-${projectId}`}
+          placeholder="Версия 1"
         />
-        <p id={`versionTitleHelp-${projectId}`} className={cn("text-xs", mutedTextClassName)}>
-          По умолчанию подставляется следующая версия, но вы можете назвать её по-своему.
-        </p>
+        {surface === "dialog" ? (
+          <p id={`versionTitleHelp-${projectId}`} className="sr-only">
+            По умолчанию подставляется следующая версия, но вы можете назвать её по-своему.
+          </p>
+        ) : (
+          <p id={`versionTitleHelp-${projectId}`} className={cn("text-xs", mutedTextClassName)}>
+            По умолчанию подставляется следующая версия, но вы можете назвать её по-своему.
+          </p>
+        )}
       </div>
   );
 
   const uploadSection = (
-      <div className={cn("space-y-2", sectionCardClassName, surface === "dialog" ? "flex h-full min-h-0 flex-col" : "")}>
-        <label className={cn("block text-sm font-medium", labelClassName)}>Видеофайл</label>
+      <div className={cn("space-y-2", sectionCardClassName, surface === "dialog" ? "flex h-full min-h-0 flex-col p-3.5" : "")}>
         <div
           className={dropzoneClassName}
           onDrop={handleDrop}
@@ -615,14 +622,14 @@ export function VersionUploadFlow({
             onChange={(event) => applyFileSelection(event.target.files?.[0] ?? null)}
             disabled={isBusy}
           />
-          <div className={cn("flex flex-col items-center justify-center gap-5 text-center", surface === "dialog" ? "min-h-[380px] flex-1 sm:min-h-[420px]" : "min-h-[360px] sm:min-h-[392px]")}>
+          <div className={cn("flex flex-col items-center justify-center gap-3 text-center", surface === "dialog" ? "min-h-[250px] flex-1 sm:min-h-[270px]" : "min-h-[360px] sm:min-h-[392px]")}>
             <div>
-              <p className={cn("text-xl font-semibold tracking-[-0.03em]", bodyTextClassName)}>Перетащите видео в это окно</p>
-              <p className={cn("mt-2 text-sm", mutedTextClassName)}>
-                Зона загрузки занимает всё окно, чтобы файл было удобно бросить сразу. Форматы: MP4, MOV, WEBM, AVI. Максимум 5GB.
-              </p>
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
+                <UploadCloud className="h-6 w-6 text-blue-300" />
+              </div>
+              <p className={cn("text-[17px] font-semibold tracking-[-0.03em]", bodyTextClassName)}>Перетащите видео сюда</p>
               {selectedFile ? (
-                <div className="mt-4 space-y-1">
+                <div className="mt-3 space-y-1">
                   <p className={cn("text-sm font-medium", isLightTheme ? "text-neutral-900" : "text-neutral-100")}>
                     {selectedFile.name} ({formatFileSize(selectedFile.size)})
                   </p>
@@ -639,19 +646,20 @@ export function VersionUploadFlow({
             <Button
               type="button"
               variant="outline"
-              className={cn("min-w-44 rounded-2xl", outlineButtonClassName)}
+              className={cn("min-w-40 rounded-2xl", outlineButtonClassName)}
               onClick={() => fileInputRef.current?.click()}
               disabled={isBusy}
             >
               Выбрать файл
             </Button>
+            <p className={cn("text-xs", mutedTextClassName)}>Форматы: MP4, MOV, WEBM, AVI. Максимум 5GB.</p>
           </div>
         </div>
       </div>
   );
 
   const statusSection = (
-      <div className={statusCardClassName} aria-live="polite">
+      <div className={cn(statusCardClassName, surface === "dialog" ? "px-3.5 py-3" : "")} aria-live="polite">
         <p className={cn("text-sm", bodyTextClassName)}>Статус: {statusLabel[stage]}</p>
         {progressValue !== null ? (
           <div className={cn("mt-2 h-2 rounded", isLightTheme ? "bg-neutral-200" : "bg-neutral-700")} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressValue}>
@@ -664,23 +672,23 @@ export function VersionUploadFlow({
   const actionsSection = (
       <div className={cn("flex flex-col gap-2", surface === "dialog" ? "" : "sm:flex-row")}>
         {surface === "dialog" && onCancel ? (
-          <Button type="button" variant="outline" className={cn("rounded-2xl", outlineButtonClassName)} onClick={onCancel} disabled={isBusy}>
+          <Button type="button" variant="outline" className={cn("h-10 rounded-2xl", outlineButtonClassName)} onClick={onCancel} disabled={isBusy}>
             Закрыть
           </Button>
         ) : null}
         {stage === "uploading" ? (
-          <Button type="button" variant="outline" className={cn("rounded-2xl", outlineButtonClassName)} onClick={handleCancelUpload}>
+          <Button type="button" variant="outline" className={cn("h-10 rounded-2xl", outlineButtonClassName)} onClick={handleCancelUpload}>
             Отменить загрузку
           </Button>
         ) : null}
         {stage === "processing" ? (
-          <Button type="button" variant="outline" className={cn("rounded-2xl", outlineButtonClassName)} onClick={handleContinueInBackground} disabled={continueInBackgroundRequested}>
+          <Button type="button" variant="outline" className={cn("h-10 rounded-2xl", outlineButtonClassName)} onClick={handleContinueInBackground} disabled={continueInBackgroundRequested}>
             Продолжить в фоне
           </Button>
         ) : null}
         <Button
           type="submit"
-          className={cn("rounded-2xl", surface === "page" ? "w-full sm:w-auto" : "w-full")}
+          className={cn("h-10 rounded-2xl", surface === "page" ? "w-full sm:w-auto" : "w-full")}
           disabled={!canSubmit || isBusy || !selectedFile || versionTitle.trim().length === 0 || readingFileMetadata || selectedFileDurationSec === null}
         >
           {primaryButtonLabel}
@@ -692,14 +700,6 @@ export function VersionUploadFlow({
     return (
       <form className={cn("version-upload-form min-h-0", layoutClassName)} onSubmit={handleSubmit}>
         <div className="flex min-h-0 flex-col gap-4">
-          <div className={cn(sectionCardClassName, "space-y-3")}>
-            <div className="space-y-1">
-              <p className={cn("text-xs font-semibold uppercase tracking-[0.22em]", mutedTextClassName)}>Version Setup</p>
-              <p className={cn("text-sm leading-6", bodyTextClassName)}>
-                Подготовьте название, затем просто бросьте файл в большую зону справа.
-              </p>
-            </div>
-          </div>
           {fieldsSection}
           {statusSection}
           {errorMessage ? <p className={cn("px-1 text-sm", isLightTheme ? "text-red-600" : "text-red-400")}>{errorMessage}</p> : null}
