@@ -50,7 +50,7 @@ export function Hero({
               <div className="grid min-h-72 place-items-center bg-gradient-to-br from-cyan-100 to-emerald-100 p-10">
                 <div className="w-full max-w-sm rounded-xl border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur">
                   <p className="text-sm font-medium text-neutral-900">Новый фидбек от клиента</p>
-                  <p className="mt-2 text-sm text-neutral-700">"Сделайте вступление динамичнее и добавьте субтитры"</p>
+                  <p className="mt-2 text-sm text-neutral-700">&quot;Сделайте вступление динамичнее и добавьте субтитры&quot;</p>
                 </div>
               </div>
             )}

@@ -4,6 +4,7 @@ import { withAuth } from "@/lib/middleware/auth";
 import { assertProjectAccess, getAccessibleProjectIds, isOwnerOrPm } from "@/lib/services/access-control.service";
 import { taskService } from "@/lib/services/task.service";
 import { handleAPIError } from "@/lib/utils/api-error";
+import { withServerTiming } from "@/lib/utils/server-timing";
 
 const listTasksSchema = z.object({
   projectId: z.string().min(1).optional(),
@@ -27,32 +28,34 @@ const createTaskSchema = z.object({
 });
 
 export const GET = withAuth(async (request) => {
-  try {
-    const url = new URL(request.url);
-    const filters = listTasksSchema.parse({
-      projectId: url.searchParams.get("projectId") ?? undefined,
-      assignedToUserId: url.searchParams.get("assignedToUserId") ?? undefined,
-      status: url.searchParams.get("status") ?? undefined,
-      priority: url.searchParams.get("priority") ?? undefined,
-      category: url.searchParams.get("category") ?? undefined,
-    });
+  return withServerTiming("tasks-list", async () => {
+    try {
+      const url = new URL(request.url);
+      const filters = listTasksSchema.parse({
+        projectId: url.searchParams.get("projectId") ?? undefined,
+        assignedToUserId: url.searchParams.get("assignedToUserId") ?? undefined,
+        status: url.searchParams.get("status") ?? undefined,
+        priority: url.searchParams.get("priority") ?? undefined,
+        category: url.searchParams.get("category") ?? undefined,
+      });
 
-    if (filters.projectId) {
-      await assertProjectAccess(request.user, filters.projectId);
+      if (filters.projectId) {
+        await assertProjectAccess(request.user, filters.projectId);
+      }
+
+      const accessibleProjectIds = isOwnerOrPm(request.user.role) ? undefined : await getAccessibleProjectIds(request.user);
+      if (accessibleProjectIds && accessibleProjectIds.length === 0) {
+        return Response.json([], { status: 200 });
+      }
+
+      const tasks = await taskService.listTasks(request.user.tenantId, filters, {
+        accessibleProjectIds,
+      });
+      return Response.json(tasks, { status: 200 });
+    } catch (error) {
+      return handleAPIError(error);
     }
-
-    const accessibleProjectIds = isOwnerOrPm(request.user.role) ? undefined : await getAccessibleProjectIds(request.user);
-    if (accessibleProjectIds && accessibleProjectIds.length === 0) {
-      return Response.json([], { status: 200 });
-    }
-
-    const tasks = await taskService.listTasks(request.user.tenantId, filters, {
-      accessibleProjectIds,
-    });
-    return Response.json(tasks, { status: 200 });
-  } catch (error) {
-    return handleAPIError(error);
-  }
+  });
 });
 
 export const POST = withAuth(async (request) => {

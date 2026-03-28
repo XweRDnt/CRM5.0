@@ -1,98 +1,35 @@
-"use client";
-
 import Link from "next/link";
-import useSWR from "swr";
-import { useEffect, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { redirect } from "next/navigation";
 import { VersionUploadDialog } from "@/components/versions/VersionUploadDialog";
-import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
-import { apiFetch } from "@/lib/utils/client-api";
-import type { AssetVersionResponse } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { assertProjectAccess } from "@/lib/services/access-control.service";
+import { assetService } from "@/lib/services/asset.service";
+import { requireServerSession } from "@/lib/server/session";
 
-const fetcher = (url: string) => apiFetch<AssetVersionResponse[]>(url);
+export default async function ProjectDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<JSX.Element> {
+  const { id: projectId } = await params;
+  const session = await requireServerSession(`/projects/${projectId}`);
+  await assertProjectAccess(session.payload, projectId);
 
-export default function ProjectDetailPage(): JSX.Element {
-  const params = useParams<{ id: string }>();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { user } = useAuthGuard();
-  const projectId = params.id;
-  const { data, isLoading, error } = useSWR(`/api/projects/${projectId}/versions`, fetcher);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
-
-  useEffect(() => {
-    if (searchParams.get("upload") !== "1") {
-      return;
-    }
-
-    setIsUploadOpen(true);
-    router.replace(`/projects/${projectId}`);
-  }, [projectId, router, searchParams]);
-
-  useEffect(() => {
-    if (!data || data.length === 0) {
-      return;
-    }
-
-    const latest = [...data].sort((a, b) => b.versionNumber - a.versionNumber)[0];
-    if (latest) {
-      router.replace(`/projects/${projectId}/versions/${latest.id}`);
-    }
-  }, [data, projectId, router]);
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="py-10">
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="space-y-3 py-6">
-          <p className="text-sm text-red-500">Не удалось открыть проект.</p>
-          <Button asChild variant="outline">
-            <Link href="/projects">Вернуться к проектам</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <Card>
-        <CardContent className="space-y-3 py-6">
-          <p className="text-sm text-neutral-400">У проекта пока нет версий. Добавьте первую версию.</p>
-          {user?.isDemo ? null : (
-            <VersionUploadDialog
-              projectId={projectId}
-              triggerText="+ Добавить версию"
-              open={isUploadOpen}
-              onOpenChange={setIsUploadOpen}
-            />
-          )}
-        </CardContent>
-      </Card>
-    );
+  const versions = await assetService.listVersionsByProject(projectId, session.payload.tenantId);
+  if (versions.length > 0) {
+    const latest = [...versions].sort((a, b) => b.versionNumber - a.versionNumber)[0];
+    redirect(`/projects/${projectId}/versions/${latest.id}`);
   }
 
   return (
     <Card>
-      <CardContent className="py-10">
-        <div className="flex items-center justify-center gap-2 text-sm text-neutral-400">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
-          Открываю последнюю версию...
-        </div>
+      <CardContent className="space-y-3 py-6">
+        <p className="text-sm text-neutral-400">У проекта пока нет версий. Добавьте первую версию.</p>
+        {session.user.isDemo ? null : <VersionUploadDialog projectId={projectId} triggerText="+ Добавить версию" />}
+        <Button asChild variant="outline">
+          <Link href="/projects">Вернуться к проектам</Link>
+        </Button>
       </CardContent>
     </Card>
   );

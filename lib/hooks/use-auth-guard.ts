@@ -3,37 +3,38 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { mutate } from "swr";
-import { clearWorkspaceDemoToken, getAuthTokenState } from "@/lib/utils/client-api";
+import type { AuthenticatedAppUser } from "@/lib/auth/types";
+import {
+  clearCachedAuthUser,
+  clearWorkspaceDemoToken,
+  getAuthTokenState,
+  readCachedAuthUser,
+  writeCachedAuthUser,
+} from "@/lib/utils/client-api";
 
 const AUTH_GUARD_TIMEOUT_MS = 8000;
 
-export type AuthUser = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: string;
-  isAdmin: boolean;
-  isDemo?: boolean;
-  tenant: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-};
+export type AuthUser = AuthenticatedAppUser;
 
 export function useAuthGuard(): { ready: boolean; user: AuthUser | null } {
   const router = useRouter();
   const pathname = usePathname();
-  const [ready, setReady] = useState(false);
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [state, setState] = useState<{ ready: boolean; user: AuthUser | null }>(() => {
+    const authTokenState = getAuthTokenState();
+    const cachedUser = authTokenState.token ? readCachedAuthUser() : null;
+
+    return {
+      ready: cachedUser !== null,
+      user: cachedUser,
+    };
+  });
 
   useEffect(() => {
     const authTokenState = getAuthTokenState();
     const token = authTokenState.token;
 
     if (!token) {
-      setReady(true);
+      setState({ ready: true, user: null });
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
@@ -56,20 +57,20 @@ export function useAuthGuard(): { ready: boolean; user: AuthUser | null } {
         }
 
         const currentUser = (await response.json()) as AuthUser;
+        writeCachedAuthUser(currentUser);
         if (!cancelled) {
-          setUser(currentUser);
-          setReady(true);
+          setState({ user: currentUser, ready: true });
         }
       } catch {
         await mutate(() => true, undefined, { revalidate: false });
         const hasPrimarySession = typeof window !== "undefined" && Boolean(localStorage.getItem("token"));
+        clearCachedAuthUser();
 
         if (authTokenState.source === "workspace-demo") {
           clearWorkspaceDemoToken();
           if (hasPrimarySession) {
             if (!cancelled) {
-              setUser(null);
-              setReady(true);
+              setState({ user: null, ready: true });
             }
             router.replace(pathname);
             return;
@@ -81,8 +82,7 @@ export function useAuthGuard(): { ready: boolean; user: AuthUser | null } {
         }
 
         if (!cancelled) {
-          setUser(null);
-          setReady(true);
+          setState({ user: null, ready: true });
         }
         router.replace(`/login?next=${encodeURIComponent(pathname)}`);
       } finally {
@@ -97,5 +97,5 @@ export function useAuthGuard(): { ready: boolean; user: AuthUser | null } {
     };
   }, [pathname, router]);
 
-  return { ready, user };
+  return state;
 }

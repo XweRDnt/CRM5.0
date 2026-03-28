@@ -4,6 +4,7 @@ import { z } from "zod";
 import { handleAPIError } from "@/lib/utils/api-error";
 import { assertOwnerOrPm } from "@/lib/services/access-control.service";
 import { billingGuardService } from "@/lib/services/billing-guard.service";
+import { withServerTiming } from "@/lib/utils/server-timing";
 import { ProjectStatus } from "@/types";
 
 const createProjectSchema = z.object({
@@ -15,20 +16,22 @@ const listProjectsSchema = z.object({
 });
 
 export const GET = withAuth(async (req) => {
-  try {
-    const tenantId = req.user.tenantId;
-    const url = new URL(req.url);
-    const parsed = listProjectsSchema.parse({
-      status: url.searchParams.get("status") ?? undefined,
-    });
+  return withServerTiming("projects-list", async () => {
+    try {
+      const tenantId = req.user.tenantId;
+      const url = new URL(req.url);
+      const parsed = listProjectsSchema.parse({
+        status: url.searchParams.get("status") ?? undefined,
+      });
 
-    const filters = parsed.status ? parsed : undefined;
-    const projects = await projectService.listProjects(tenantId, filters, req.user);
+      const filters = parsed.status ? parsed : undefined;
+      const projects = await projectService.listProjects(tenantId, filters, req.user);
 
-    return Response.json(projects);
-  } catch (error) {
-    return handleAPIError(error);
-  }
+      return Response.json(projects);
+    } catch (error) {
+      return handleAPIError(error);
+    }
+  });
 });
 
 export const POST = withAuth(async (req) => {

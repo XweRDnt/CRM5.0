@@ -251,6 +251,8 @@ export interface ProjectResponse {
   brief: string | null;
   revisionsLimit: number;
   revisionsUsed: number;
+  latestVersionStatus?: VersionStatus | null;
+  latestVersionHasClientFeedback?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

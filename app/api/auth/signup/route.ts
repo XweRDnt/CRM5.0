@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { buildSessionCookieHeaders } from "@/lib/auth/session";
 import { authService } from "@/lib/services/auth.service";
 import { handleAPIError } from "@/lib/utils/api-error";
 
@@ -18,7 +19,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validated = signupSchema.parse(body);
     const data = await authService.signup(validated);
-    return Response.json(data, { status: 201 });
+    const response = Response.json(data, { status: 201 });
+    for (const cookie of buildSessionCookieHeaders({ token: data.token, tenantId: data.tenant.id })) {
+      response.headers.append("Set-Cookie", cookie);
+    }
+    return response;
   } catch (error) {
     return handleAPIError(error);
   }

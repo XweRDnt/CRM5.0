@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -9,6 +9,9 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 const replaceMock = vi.fn();
 const clearWorkspaceDemoTokenMock = vi.fn();
 const getAuthTokenStateMock = vi.fn();
+const readCachedAuthUserMock = vi.fn();
+const writeCachedAuthUserMock = vi.fn();
+const clearCachedAuthUserMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/projects",
@@ -22,6 +25,9 @@ vi.mock("swr", () => ({
 vi.mock("@/lib/utils/client-api", () => ({
   clearWorkspaceDemoToken: () => clearWorkspaceDemoTokenMock(),
   getAuthTokenState: () => getAuthTokenStateMock(),
+  readCachedAuthUser: () => readCachedAuthUserMock(),
+  writeCachedAuthUser: (user: unknown) => writeCachedAuthUserMock(user),
+  clearCachedAuthUser: () => clearCachedAuthUserMock(),
 }));
 
 describe("useAuthGuard", () => {
@@ -29,8 +35,42 @@ describe("useAuthGuard", () => {
     replaceMock.mockReset();
     clearWorkspaceDemoTokenMock.mockReset();
     getAuthTokenStateMock.mockReset();
+    readCachedAuthUserMock.mockReset();
+    writeCachedAuthUserMock.mockReset();
+    clearCachedAuthUserMock.mockReset();
     localStorage.clear();
     vi.unstubAllGlobals();
+  });
+
+  it("renders immediately from cached auth user while background validation runs", () => {
+    getAuthTokenStateMock.mockReturnValue({ source: "auth", token: "cached-token" });
+    readCachedAuthUserMock.mockReturnValue({
+      id: "user_1",
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      role: "OWNER",
+      isAdmin: false,
+      tenant: {
+        id: "tenant_1",
+        name: "Agency",
+        slug: "agency",
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
+
+    render(
+      React.createElement(
+        AuthGuard as unknown as React.ComponentType<{
+          children: (args: { user: { email: string } }) => React.ReactNode;
+        }>,
+        null,
+        (({ user }: { user: { email: string } }) => React.createElement("div", null, user.email)) as unknown as React.ReactNode,
+      ),
+    );
+
+    expect(screen.getByText("jane@example.com")).not.toBeNull();
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it("stops infinite loading and redirects when auth request hangs", async () => {
@@ -85,12 +125,10 @@ describe("useAuthGuard", () => {
       ),
     );
 
-    await act(async () => {
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(clearWorkspaceDemoTokenMock).toHaveBeenCalled();
+      expect(localStorage.getItem("token")).toBe("real-user-token");
+      expect(localStorage.getItem("tenantId")).toBe("real-tenant");
     });
-
-    expect(clearWorkspaceDemoTokenMock).toHaveBeenCalled();
-    expect(localStorage.getItem("token")).toBe("real-user-token");
-    expect(localStorage.getItem("tenantId")).toBe("real-tenant");
   });
 });

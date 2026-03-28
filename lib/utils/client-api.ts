@@ -10,6 +10,22 @@ export class ApiRequestError<TPayload = unknown> extends Error {
 }
 
 const WORKSPACE_DEMO_STORAGE_KEY = "workspaceDemoToken";
+const AUTH_USER_STORAGE_KEY = "authUser";
+
+export type CachedAuthUser = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  isAdmin: boolean;
+  isDemo?: boolean;
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+};
 
 function getQueryValue(name: string): string {
   if (typeof window === "undefined") {
@@ -33,6 +49,14 @@ function setSessionStorageValue(key: string, value: string): void {
   }
 
   window.sessionStorage.setItem(key, value);
+}
+
+function setDocumentCookie(name: string, value: string, maxAgeSeconds: number): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAgeSeconds}; path=/; samesite=lax`;
 }
 
 function clearQueryValue(name: string): void {
@@ -70,8 +94,77 @@ export function persistWorkspaceDemoTokenFromQuery(): string {
   }
 
   setSessionStorageValue(WORKSPACE_DEMO_STORAGE_KEY, token);
+  setDocumentCookie("workspaceDemoToken", token, 60 * 60 * 24 * 365);
   clearQueryValue("workspaceDemoToken");
   return token;
+}
+
+export function readCachedAuthUser(): CachedAuthUser | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as CachedAuthUser;
+  } catch {
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    return null;
+  }
+}
+
+export function writeCachedAuthUser(user: CachedAuthUser): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
+}
+
+export function clearCachedAuthUser(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+}
+
+type PersistAuthSessionInput = {
+  token: string;
+  tenant: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+  };
+};
+
+export function persistAuthSession(input: PersistAuthSessionInput): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.setItem("token", input.token);
+  localStorage.setItem("tenantId", input.tenant.id);
+  writeCachedAuthUser({
+    id: input.user.id,
+    firstName: input.user.firstName,
+    lastName: input.user.lastName,
+    email: input.user.email,
+    role: input.user.role,
+    isAdmin: false,
+    tenant: input.tenant,
+  });
 }
 
 export type AuthTokenState =
