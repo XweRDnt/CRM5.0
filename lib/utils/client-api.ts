@@ -1,3 +1,5 @@
+import { AUTH_TOKEN_COOKIE, TENANT_ID_COOKIE } from "@/lib/auth/session";
+
 export class ApiRequestError<TPayload = unknown> extends Error {
   constructor(
     message: string,
@@ -57,6 +59,25 @@ function setDocumentCookie(name: string, value: string, maxAgeSeconds: number): 
   }
 
   document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAgeSeconds}; path=/; samesite=lax`;
+}
+
+function getDocumentCookie(name: string): string {
+  if (typeof document === "undefined") {
+    return "";
+  }
+
+  const cookies = document.cookie ? document.cookie.split("; ") : [];
+  const prefix = `${name}=`;
+  const match = cookies.find((entry) => entry.startsWith(prefix));
+  return match ? decodeURIComponent(match.slice(prefix.length)) : "";
+}
+
+function syncPrimarySessionCookies(token: string, tenantId: string): void {
+  setDocumentCookie(AUTH_TOKEN_COOKIE, token, 60 * 60 * 24 * 365);
+
+  if (tenantId) {
+    setDocumentCookie(TENANT_ID_COOKIE, tenantId, 60 * 60 * 24 * 365);
+  }
 }
 
 function clearQueryValue(name: string): void {
@@ -156,6 +177,7 @@ export function persistAuthSession(input: PersistAuthSessionInput): void {
 
   localStorage.setItem("token", input.token);
   localStorage.setItem("tenantId", input.tenant.id);
+  syncPrimarySessionCookies(input.token, input.tenant.id);
   writeCachedAuthUser({
     id: input.user.id,
     firstName: input.user.firstName,
@@ -184,6 +206,9 @@ export function getAuthTokenState(): AuthTokenState {
 
   const authToken = localStorage.getItem("token") || "";
   if (authToken) {
+    if (getDocumentCookie(AUTH_TOKEN_COOKIE) !== authToken) {
+      syncPrimarySessionCookies(authToken, localStorage.getItem("tenantId") ?? "");
+    }
     return { source: "auth", token: authToken };
   }
 

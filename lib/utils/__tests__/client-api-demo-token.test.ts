@@ -34,4 +34,13 @@ describe("client api demo token handling", () => {
     expect(getAuthToken()).toBe("real-user-token");
     expect(getAuthTokenState()).toEqual({ source: "auth", token: "real-user-token" });
   });
+
+  it("backfills the auth cookie from a legacy localStorage session", () => {
+    document.cookie = "authToken=; Max-Age=0; path=/";
+    localStorage.setItem("token", "real-user-token");
+
+    expect(document.cookie).not.toContain("authToken=real-user-token");
+    expect(getAuthTokenState()).toEqual({ source: "auth", token: "real-user-token" });
+    expect(document.cookie).toContain("authToken=real-user-token");
+  });
 });
