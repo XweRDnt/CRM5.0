@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { startTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { FolderOpen, Shield, UserPlus, X } from "lucide-react";
 import { getMessages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils/cn";
@@ -21,6 +21,7 @@ type SidebarProps = {
 
 export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
   const pathname = usePathname();
+  const router = useRouter();
   const m = getMessages();
   const isOwnerOrPm = user.role === "OWNER" || user.role === "PM";
   const visibleNavItems = user.isDemo ? navItems.filter((item) => item.key === "projects") : navItems;
@@ -59,18 +60,23 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
             const Icon = item.icon;
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
-              <Link
+              <button
                 key={item.href}
-                href={item.href}
-                onClick={onClose}
+                type="button"
+                onClick={() => {
+                  onClose();
+                  startTransition(() => {
+                    router.push(item.href);
+                  });
+                }}
                 className={cn(
                   "sidebar-nav-item flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition",
                   active ? "sidebar-nav-item-active" : "",
                 )}
-                >
+              >
                 <Icon className="h-4 w-4" />
                 {item.key === "projects" ? m.nav.projects : item.key === "team" ? m.nav.team : "Admin"}
-              </Link>
+              </button>
             );
           })}
         </nav>
