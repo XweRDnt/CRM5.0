@@ -35,9 +35,9 @@ export function DashboardShell({
   }
 
   return (
-    <section className="dashboard-shell flex min-h-screen overflow-x-hidden">
+    <section className="dashboard-shell isolate flex min-h-screen overflow-x-hidden">
       <GlobalSidebar user={user} open={sidebarOpen} onClose={closeSidebar} />
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden">
+      <div className="relative z-0 flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden">
         <Header user={user} onOpenSidebar={openSidebar} />
         <main className="flex-1 p-4 lg:p-6 lg:pt-7">{children}</main>
       </div>

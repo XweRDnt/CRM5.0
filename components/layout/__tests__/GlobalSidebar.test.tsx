@@ -41,6 +41,7 @@ describe("GlobalSidebar", () => {
     expect(mobileDrawer?.className).toContain("w-[min(86vw,320px)]");
     expect(desktopSidebar).toBeTruthy();
     expect(desktopSidebar?.className).toContain("lg:w-[280px]");
+    expect(desktopSidebar?.className).toContain("z-[30]");
   });
 
   it("keeps the interface visible behind the mobile drawer and closes after navigation", () => {

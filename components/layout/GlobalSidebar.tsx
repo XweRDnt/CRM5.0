@@ -99,7 +99,7 @@ export function GlobalSidebar({ user, open, onClose }: GlobalSidebarProps): JSX.
 
       <aside
         role="complementary"
-        className="glass-sidebar hidden min-h-screen shrink-0 flex-col border-r border-white/10 px-5 py-6 backdrop-blur-2xl lg:flex lg:w-[280px]"
+        className="glass-sidebar relative z-[30] hidden min-h-screen shrink-0 flex-col border-r border-white/10 px-5 py-6 backdrop-blur-2xl lg:flex lg:w-[280px]"
       >
         {sidebarBody}
       </aside>
