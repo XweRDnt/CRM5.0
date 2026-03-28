@@ -17,12 +17,23 @@ export function formatDate(value: string | null | undefined): string {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("ru-RU", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function formatMoney(minor: number | null | undefined, currency = "RUB"): string {
   if (minor === null || minor === undefined || !Number.isFinite(minor)) return "-";
-  return new Intl.NumberFormat("ru-RU", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100);
+  return new Intl.NumberFormat("ru-RU", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(minor / 100);
 }
 
 export function formatLimit(value: number | null, unit: string): string {
@@ -58,9 +69,9 @@ export function workspaceUsagePercent(workspace: WorkspaceRow): number {
 }
 
 export function usageToneClasses(percent: number): string {
-  if (percent >= 100) return "text-red-600";
-  if (percent >= 80) return "text-amber-600";
-  return "text-neutral-700";
+  if (percent >= 100) return "text-rose-300";
+  if (percent >= 80) return "text-amber-300";
+  return "text-emerald-300";
 }
 
 export function usageBarClasses(percent: number): string {
@@ -85,7 +96,7 @@ export function formatEventType(type: WorkspaceSubscriptionEventType): string {
     case WorkspaceSubscriptionEventType.PLAN_ASSIGNED:
       return "Тариф назначен";
     case WorkspaceSubscriptionEventType.PAYMENT_RECORDED:
-      return "Платеж зафиксирован";
+      return "Платёж зафиксирован";
     case WorkspaceSubscriptionEventType.WORKSPACE_BLOCKED:
       return "Workspace заблокирован";
     case WorkspaceSubscriptionEventType.WORKSPACE_UNBLOCKED:
@@ -119,10 +130,19 @@ export function formatUsageReason(reason: string | null | undefined): string | n
 export function sectionTitle(section: AdminSection): { title: string; description: string } {
   switch (section) {
     case "workspaces":
-      return { title: "Workspace", description: "Список клиентов, фильтры по usage и быстрые owner-действия." };
+      return {
+        title: "Workspace",
+        description: "Список клиентов, фильтры по usage и быстрые owner-действия.",
+      };
     case "plans":
-      return { title: "Тарифы", description: "Те же рабочие тарифы, но в более чистой и мобильной оболочке." };
+      return {
+        title: "Тарифы",
+        description: "Рабочие тарифы в более чистой и мобильной оболочке.",
+      };
     default:
-      return { title: "Admin", description: "Короткий owner-обзор: состояние бизнеса, риски и точки внимания." };
+      return {
+        title: "Обзор",
+        description: "Короткий owner-обзор: состояние бизнеса, риски и точки внимания.",
+      };
   }
 }

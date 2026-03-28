@@ -15,7 +15,7 @@ export function AdminTopNav(): JSX.Element {
 
   return (
     <nav className="-mx-1 overflow-x-auto">
-      <div className="inline-flex min-w-full gap-2 rounded-2xl border border-neutral-200/80 bg-white/85 p-1.5 shadow-sm">
+      <div className="inline-flex min-w-full gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 backdrop-blur-xl">
         {adminTabs.map((tab) => {
           const active = tab.href === "/admin" ? pathname === "/admin" : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
 
@@ -26,7 +26,9 @@ export function AdminTopNav(): JSX.Element {
               data-active={active ? "true" : "false"}
               className={cn(
                 "rounded-xl px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors",
-                active ? "bg-neutral-900 text-white shadow-sm" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900",
+                active
+                  ? "bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                  : "text-slate-300 hover:bg-white/[0.06] hover:text-white",
               )}
             >
               {tab.label}
