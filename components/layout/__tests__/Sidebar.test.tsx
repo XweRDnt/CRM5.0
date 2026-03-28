@@ -44,6 +44,7 @@ describe("Sidebar", () => {
 
     expect(mobileAside).toBeTruthy();
     expect(desktopAside).toBeTruthy();
+    expect(mobileAside?.closest(".dashboard-shell")).toBeTruthy();
     expect(mobileAside?.className).toContain("sidebar-shell-macos");
     expect(mobileAside?.className).toContain("w-72");
     expect(container.contains(mobileAside ?? null)).toBe(false);

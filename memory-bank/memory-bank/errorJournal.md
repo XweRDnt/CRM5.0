@@ -125,3 +125,15 @@ ode .\node_modules\....
 **Решение:** Вынесли единый `DashboardShell`, убрали скрытие global header на version route, убрали page-level sidebar control из `projects/[id]/versions/[versionId]`, удалили мертвую `VersionDetailMobileSidebar`.
 
 **Вывод:** Для dashboard-навигации нельзя держать route-specific sidebar режимы; shell должен быть единственным владельцем header/sidebar state и структуры.
+
+---
+
+## [2026-03-28] Portal sidebar терял dashboard-стили
+
+**Симптом:** После перевода mobile sidebar в portal визуально могло казаться, что ничего не изменилось: drawer открывался вне `.dashboard-shell` и не наследовал glass/dashboard styling.
+
+**Причина:** CSS sidebar завязана на селекторы вида `.dashboard-shell .glass-sidebar`; portal-root sidebar был вынесен в `document.body` без оболочки `.dashboard-shell`.
+
+**Решение:** Portal-root мобильного sidebar теперь сам помечается классом `dashboard-shell`; добавлен тест, который проверяет, что mobile drawer действительно находится под `.dashboard-shell`.
+
+**Вывод:** Если portal-контент зависит от ancestor-scoped theme CSS, theme-контекст нужно переносить в portal-root, иначе overlay может работать функционально, но выглядеть как будто “ничего не произошло”.

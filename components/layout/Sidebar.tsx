@@ -83,7 +83,7 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
     </>
   );
   const mobileSidebar = (
-    <div className={cn("fixed inset-0 z-[70] lg:hidden", open ? "block" : "hidden")}>
+    <div className={cn("dashboard-shell fixed inset-0 z-[70] lg:hidden", open ? "block" : "hidden")}>
       <div className="flex h-full">
         <aside className="glass-sidebar sidebar-shell-macos flex w-72 flex-col p-4 backdrop-blur">
           {sidebarBody}
