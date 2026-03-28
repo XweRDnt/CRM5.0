@@ -11,6 +11,7 @@ import { mutate } from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getMessages } from "@/lib/i18n/messages";
+import { persistAuthSession } from "@/lib/utils/client-api";
 
 const signupSchema = z.object({
   workspaceName: z.string().trim().min(1, "Workspace name is required"),
@@ -22,7 +23,8 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 type SignupResponse = {
   token: string;
-  tenant: { id: string };
+  tenant: { id: string; name: string; slug: string };
+  user: { id: string; firstName: string; lastName: string; email: string; role: string };
 };
 
 function extractSignupPayload(json: unknown): SignupResponse {
@@ -30,14 +32,35 @@ function extractSignupPayload(json: unknown): SignupResponse {
     throw new Error("Signup response is invalid");
   }
 
-  const payload = json as { token?: unknown; tenant?: { id?: unknown } };
-  if (typeof payload.token !== "string" || typeof payload.tenant?.id !== "string") {
+  const payload = json as {
+    token?: unknown;
+    tenant?: { id?: unknown; name?: unknown; slug?: unknown };
+    user?: { id?: unknown; firstName?: unknown; lastName?: unknown; email?: unknown; role?: unknown };
+  };
+  if (
+    typeof payload.token !== "string" ||
+    typeof payload.tenant?.id !== "string" ||
+    typeof payload.tenant?.name !== "string" ||
+    typeof payload.tenant?.slug !== "string" ||
+    typeof payload.user?.id !== "string" ||
+    typeof payload.user?.firstName !== "string" ||
+    typeof payload.user?.lastName !== "string" ||
+    typeof payload.user?.email !== "string" ||
+    typeof payload.user?.role !== "string"
+  ) {
     throw new Error("Signup response is missing token");
   }
 
   return {
     token: payload.token,
-    tenant: { id: payload.tenant.id },
+    tenant: { id: payload.tenant.id, name: payload.tenant.name, slug: payload.tenant.slug },
+    user: {
+      id: payload.user.id,
+      firstName: payload.user.firstName,
+      lastName: payload.user.lastName,
+      email: payload.user.email,
+      role: payload.user.role,
+    },
   };
 }
 
@@ -75,8 +98,7 @@ export default function SignupPage(): JSX.Element {
 
       const payload = extractSignupPayload(await response.json());
       await mutate(() => true, undefined, { revalidate: false });
-      localStorage.setItem("token", payload.token);
-      localStorage.setItem("tenantId", payload.tenant.id);
+      persistAuthSession(payload);
 
       toast.success("Аккаунт создан");
       router.push("/projects?create=1");

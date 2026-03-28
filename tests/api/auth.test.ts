@@ -16,6 +16,12 @@ describe("API Auth", () => {
 
     expect([200, 201]).toContain(res.status);
     expect(res.body.token).toBeTypeOf("string");
+    expect(res.headers["set-cookie"]).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("authToken="),
+        expect.stringContaining("tenantId="),
+      ]),
+    );
   });
 
   it("POST /api/auth/signup validates payload", async () => {
@@ -28,8 +34,30 @@ describe("API Auth", () => {
   });
 
   it("POST /api/auth/login returns token", async () => {
-    const session = await signupAndLogin();
-    expect(session.token).toBeTypeOf("string");
+    const nonce = Date.now().toString(36);
+    await request(API_URL).post("/api/auth/signup").send({
+      email: `login-${nonce}@example.com`,
+      password: "securePass123",
+      firstName: "Jane",
+      lastName: "Doe",
+      tenantName: "Agency Login",
+      tenantSlug: `agency-login-${nonce}`,
+    });
+
+    const res = await request(API_URL).post("/api/auth/login").send({
+      email: `login-${nonce}@example.com`,
+      password: "securePass123",
+      tenantSlug: `agency-login-${nonce}`,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeTypeOf("string");
+    expect(res.headers["set-cookie"]).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("authToken="),
+        expect.stringContaining("tenantId="),
+      ]),
+    );
   });
 
   it("POST /api/auth/login rejects invalid credentials", async () => {

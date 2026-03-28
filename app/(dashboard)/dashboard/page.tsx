@@ -1,22 +1,23 @@
-"use client";
-
 import Link from "next/link";
-import useSWR from "swr";
-import { AlertCircle } from "lucide-react";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { apiFetch } from "@/lib/utils/client-api";
-import type { ProjectResponse, TaskResponse } from "@/types";
+import { getAccessibleProjectIds } from "@/lib/services/access-control.service";
+import { projectService } from "@/lib/services/project.service";
+import { taskService } from "@/lib/services/task.service";
+import { requireServerSession } from "@/lib/server/session";
 
-const projectsFetcher = (url: string) => apiFetch<ProjectResponse[]>(url);
-const tasksFetcher = (url: string) => apiFetch<TaskResponse[]>(url);
+export default async function DashboardPage(): Promise<JSX.Element> {
+  const session = await requireServerSession("/dashboard");
+  const accessibleProjectIds =
+    session.payload.role === "OWNER" || session.payload.role === "PM" ? undefined : await getAccessibleProjectIds(session.payload);
 
-export default function DashboardPage(): JSX.Element {
-  const { data: projects, error: projectsError, isLoading: projectsLoading } = useSWR("/api/projects", projectsFetcher);
-  const { data: tasks, isLoading: tasksLoading } = useSWR("/api/tasks", tasksFetcher);
+  const [projects, tasks] = await Promise.all([
+    projectService.listProjects(session.payload.tenantId, undefined, session.payload),
+    taskService.listTasks(session.payload.tenantId, undefined, { accessibleProjectIds }),
+  ]);
 
-  const openTasks = tasks?.filter((task) => task.status !== "DONE" && task.status !== "CANCELLED").length ?? 0;
+  const openTasks = tasks.filter((task) => task.status !== "DONE" && task.status !== "CANCELLED").length;
 
   return (
     <div className="space-y-6">
@@ -33,7 +34,7 @@ export default function DashboardPage(): JSX.Element {
             <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">Projects</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pt-3">
-            <p className="text-3xl font-semibold">{projectsLoading ? "--" : (projects?.length ?? 0)}</p>
+            <p className="text-3xl font-semibold">{projects.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -41,35 +42,12 @@ export default function DashboardPage(): JSX.Element {
             <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">Open Tasks</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pt-3">
-            <p className="text-3xl font-semibold">{tasksLoading ? "--" : openTasks}</p>
+            <p className="text-3xl font-semibold">{openTasks}</p>
           </CardContent>
         </Card>
       </section>
 
-      {projectsLoading && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Card key={`dashboard-project-${index}`} className="animate-pulse">
-              <CardContent className="space-y-3 p-6">
-                <div className="h-5 w-1/2 rounded bg-neutral-200" />
-                <div className="h-4 w-1/3 rounded bg-neutral-200" />
-                <div className="h-4 w-1/4 rounded bg-neutral-200" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {projectsError && !projectsLoading && (
-        <Card>
-          <CardContent className="flex items-center gap-2 pt-6 text-sm text-red-600">
-            <AlertCircle className="h-4 w-4" />
-            Failed to load projects.
-          </CardContent>
-        </Card>
-      )}
-
-      {!projectsLoading && !projectsError && (projects?.length ?? 0) === 0 && (
+      {projects.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
             <p className="text-sm text-neutral-500">No projects yet.</p>
@@ -78,13 +56,13 @@ export default function DashboardPage(): JSX.Element {
             </Button>
           </CardContent>
         </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {projects.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+          ))}
+        </div>
       )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {projects?.map((project) => (
-          <ProjectCard key={project.id} project={project} />
-        ))}
-      </div>
     </div>
   );
 }

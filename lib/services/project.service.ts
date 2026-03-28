@@ -64,9 +64,15 @@ export class ProjectService {
     scopeDocUrl: string | null;
     maxRevisions: number;
     currentRevisionCount: number;
+    versions?: Array<{
+      status: ProjectResponse["latestVersionStatus"];
+      feedbackItems?: Array<{ id: string }>;
+    }>;
     createdAt: Date;
     updatedAt: Date;
   }): ProjectResponse {
+    const latestVersion = project.versions?.[0];
+
     return {
       id: project.id,
       tenantId: project.tenantId,
@@ -77,6 +83,8 @@ export class ProjectService {
       brief: project.scopeDocUrl,
       revisionsLimit: project.maxRevisions,
       revisionsUsed: project.currentRevisionCount,
+      latestVersionStatus: latestVersion?.status ?? null,
+      latestVersionHasClientFeedback: (latestVersion?.feedbackItems?.length ?? 0) > 0,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     };
@@ -128,6 +136,20 @@ export class ProjectService {
         id: projectId,
         ...(user ? buildAccessibleProjectsWhere(user) : { tenantId }),
       },
+      include: {
+        versions: {
+          orderBy: { versionNo: "desc" },
+          take: 1,
+          select: {
+            status: true,
+            feedbackItems: {
+              where: { authorType: "CLIENT" },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        },
+      },
     });
     if (!project) {
       throw new Error("Project not found");
@@ -147,6 +169,20 @@ export class ProjectService {
         status: filters?.status ? toPrismaProjectStatus(filters.status) : undefined,
       },
       orderBy: { createdAt: "desc" },
+      include: {
+        versions: {
+          orderBy: { versionNo: "desc" },
+          take: 1,
+          select: {
+            status: true,
+            feedbackItems: {
+              where: { authorType: "CLIENT" },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        },
+      },
     });
 
     return projects.map((project) => this.mapProjectResponse(project));

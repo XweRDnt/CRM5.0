@@ -50,19 +50,27 @@ function mapProjectToVersionUiStatus(projectStatus: ProjectStatus): VersionUiSta
 
 type ProjectCardProps = {
   project: ProjectResponse;
+  latestVersionStatus?: VersionUiStatus;
   canDelete?: boolean;
   onDelete?: (projectId: string, projectName: string) => void;
 };
 
-export function ProjectCard({ project, canDelete = false, onDelete }: ProjectCardProps): JSX.Element {
+export function ProjectCard({ project, latestVersionStatus, canDelete = false, onDelete }: ProjectCardProps): JSX.Element {
   const router = useRouter();
   const [appTheme, setAppTheme] = useState<AppTheme>("light");
   const [deleteMenuPosition, setDeleteMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const deleteMenuRef = useRef<HTMLDivElement | null>(null);
   const suppressNextClickRef = useRef(false);
-  const { data: versionsResponse } = useSWR(`/api/projects/${project.id}/versions`, apiFetch<ApiWrapped<AssetVersionResponse[]>>);
-  const { data: feedback = [] } = useSWR(`/api/projects/${project.id}/feedback`, apiFetch<FeedbackResponse[]>);
+  const shouldHydrateStatus = latestVersionStatus === undefined && project.latestVersionStatus === undefined;
+  const { data: versionsResponse } = useSWR(
+    shouldHydrateStatus ? `/api/projects/${project.id}/versions` : null,
+    apiFetch<ApiWrapped<AssetVersionResponse[]>>,
+  );
+  const { data: feedback = [] } = useSWR(
+    shouldHydrateStatus ? `/api/projects/${project.id}/feedback` : null,
+    apiFetch<FeedbackResponse[]>,
+  );
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -115,10 +123,17 @@ export function ProjectCard({ project, canDelete = false, onDelete }: ProjectCar
     latestVersion !== undefined &&
     feedback.some((item) => item.assetVersionId === latestVersion.id && item.authorType === "CLIENT");
 
+  const initialUiStatus =
+    project.latestVersionStatus !== undefined && project.latestVersionStatus !== null
+      ? toVersionUiStatus(project.latestVersionStatus, project.latestVersionHasClientFeedback === true)
+      : undefined;
+
   const uiStatus =
-    latestVersion !== undefined
+    latestVersionStatus ??
+    initialUiStatus ??
+    (latestVersion !== undefined
       ? toVersionUiStatus(latestVersion.status, latestHasClientFeedback)
-      : mapProjectToVersionUiStatus(project.status);
+      : mapProjectToVersionUiStatus(project.status));
 
   const openDeleteMenu = (x: number, y: number): void => {
     if (typeof window === "undefined") {

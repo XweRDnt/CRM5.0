@@ -12,6 +12,7 @@ import { mutate } from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getMessages } from "@/lib/i18n/messages";
+import { persistAuthSession } from "@/lib/utils/client-api";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -22,7 +23,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 type LoginResponse = {
   token: string;
-  tenant: { id: string };
+  tenant: { id: string; name: string; slug: string };
+  user: { id: string; firstName: string; lastName: string; email: string; role: string };
 };
 
 function extractLoginPayload(json: unknown): LoginResponse {
@@ -36,14 +38,35 @@ function extractLoginPayload(json: unknown): LoginResponse {
     throw new Error("Login response is invalid");
   }
 
-  const payload = raw as { token?: unknown; tenant?: { id?: unknown } };
-  if (typeof payload.token !== "string" || typeof payload.tenant?.id !== "string") {
+  const payload = raw as {
+    token?: unknown;
+    tenant?: { id?: unknown; name?: unknown; slug?: unknown };
+    user?: { id?: unknown; firstName?: unknown; lastName?: unknown; email?: unknown; role?: unknown };
+  };
+  if (
+    typeof payload.token !== "string" ||
+    typeof payload.tenant?.id !== "string" ||
+    typeof payload.tenant?.name !== "string" ||
+    typeof payload.tenant?.slug !== "string" ||
+    typeof payload.user?.id !== "string" ||
+    typeof payload.user?.firstName !== "string" ||
+    typeof payload.user?.lastName !== "string" ||
+    typeof payload.user?.email !== "string" ||
+    typeof payload.user?.role !== "string"
+  ) {
     throw new Error("Login response is missing token");
   }
 
   return {
     token: payload.token,
-    tenant: { id: payload.tenant.id },
+    tenant: { id: payload.tenant.id, name: payload.tenant.name, slug: payload.tenant.slug },
+    user: {
+      id: payload.user.id,
+      firstName: payload.user.firstName,
+      lastName: payload.user.lastName,
+      email: payload.user.email,
+      role: payload.user.role,
+    },
   };
 }
 
@@ -82,15 +105,11 @@ export default function LoginPage(): JSX.Element {
       const payload = extractLoginPayload(json);
 
       await mutate(() => true, undefined, { revalidate: false });
-      localStorage.setItem("token", payload.token);
-      localStorage.setItem("tenantId", payload.tenant.id);
+      persistAuthSession(payload);
 
       if (inviteToken) {
         await fetch(`/api/invite/${encodeURIComponent(inviteToken)}/accept`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${payload.token}`,
-          },
         });
       }
 

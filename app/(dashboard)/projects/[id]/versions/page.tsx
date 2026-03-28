@@ -21,16 +21,16 @@ export default function ProjectVersionsPage(): JSX.Element {
   const { user } = useAuthGuard();
   const projectId = params.id;
   const { data, isLoading, error } = useSWR(`/api/projects/${projectId}/versions`, fetcher);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const shouldAutoOpenUpload = searchParams.get("upload") === "1";
+  const [isUploadOpen, setIsUploadOpen] = useState(shouldAutoOpenUpload);
 
   useEffect(() => {
-    if (searchParams.get("upload") !== "1") {
+    if (!shouldAutoOpenUpload) {
       return;
     }
 
-    setIsUploadOpen(true);
     router.replace(`/projects/${projectId}/versions`);
-  }, [projectId, router, searchParams]);
+  }, [projectId, router, shouldAutoOpenUpload]);
 
   useEffect(() => {
     if (!data || data.length === 0) {

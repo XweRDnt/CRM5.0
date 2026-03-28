@@ -157,6 +157,7 @@ describe("ProjectService", () => {
       expect(result.length).toBeGreaterThanOrEqual(1);
       expect(result.every((project) => project.status === ProjectStatus.DRAFT)).toBe(true);
     });
+
   });
 
   describe("deleteProject", () => {
