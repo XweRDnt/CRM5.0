@@ -126,6 +126,22 @@ function formatDateTime(value: string | Date): string {
   }).format(date);
 }
 
+function ThreadDateTime({ value }: { value: string | Date }): JSX.Element {
+  const [mounted, setMounted] = useState(false);
+  const date = value instanceof Date ? value : new Date(value);
+  const dateTime = Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  return (
+    <time dateTime={dateTime} suppressHydrationWarning>
+      {mounted ? formatDateTime(value) : ""}
+    </time>
+  );
+}
+
 const isValidAnnotationData = (value: unknown): value is AnnotationData => {
   return validateAnnotationData(value).ok;
 };
@@ -918,7 +934,7 @@ export default function VersionDetailPage(): JSX.Element {
                           >
                             <div className={cn("mb-1.5 flex items-center gap-2 text-[10px]", isMine ? "text-white/72" : "text-white/35")}>
                               <span>{isMine ? "Вы" : message.author.name}</span>
-                              <span>{formatDateTime(message.createdAt)}</span>
+                              <ThreadDateTime value={message.createdAt} />
                             </div>
                             <p className="text-[13px] leading-6">{message.text}</p>
                           </div>
@@ -1394,7 +1410,7 @@ export default function VersionDetailPage(): JSX.Element {
                             >
                               <div className={cn("mb-1 flex items-center gap-2 text-[10px]", isMine ? "text-white/72" : "text-white/35")}>
                                 <span>{isMine ? "Вы" : message.author.name}</span>
-                                <span>{formatDateTime(message.createdAt)}</span>
+                                <ThreadDateTime value={message.createdAt} />
                               </div>
                               <p className="text-xs leading-relaxed">{message.text}</p>
                             </div>
