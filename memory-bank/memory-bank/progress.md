@@ -44,6 +44,7 @@
 - [x] Sidebar dashboard переведён на более тёмные состояния без белёсой подложки
 - [x] Мобильный sidebar внутри страницы версии проекта вынесен в portal, чтобы не ломаться из-за project page layering
 - [x] Dashboard переведен на единый глобальный sidebar shell без special-case sidebar логики на странице версии проекта
+- [x] Старый sidebar-контур удален; новый `GlobalSidebar` и `SidebarToggleButton` написаны с нуля под общий dashboard контракт
 
 ### Команда и доступ
 - [x] Роли OWNER / EDITOR

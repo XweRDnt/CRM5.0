@@ -22,8 +22,8 @@ vi.mock("../Header", () => ({
   ),
 }));
 
-vi.mock("../Sidebar", () => ({
-  Sidebar: ({ open, onClose }: { open: boolean; onClose: () => void }) => (
+vi.mock("../GlobalSidebar", () => ({
+  GlobalSidebar: ({ open, onClose }: { open: boolean; onClose: () => void }) => (
     <div>
       <span data-testid="sidebar-state">{open ? "open" : "closed"}</span>
       <button type="button" onClick={onClose}>

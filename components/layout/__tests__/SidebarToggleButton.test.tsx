@@ -1,19 +1,18 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { MobileMenuButton } from "../MobileMenuButton";
+import { SidebarToggleButton } from "../SidebarToggleButton";
 
-describe("MobileMenuButton", () => {
-  it("renders the shared ghost menu button contract for mobile headers", () => {
+describe("SidebarToggleButton", () => {
+  it("renders a compact mobile-only dashboard menu trigger", () => {
     const handleOpen = vi.fn();
 
-    render(<MobileMenuButton onClick={handleOpen} />);
+    render(<SidebarToggleButton onClick={handleOpen} />);
 
     const button = screen.getByRole("button", { name: "Открыть меню" });
-    expect(button.getAttribute("data-variant")).toBe("ghost");
-    expect(button.className).toContain("ui-btn");
     expect(button.className).toContain("lg:hidden");
-    expect(button.className).toContain("h-9");
+    expect(button.className).toContain("h-10");
+    expect(button.className).toContain("w-10");
 
     fireEvent.click(button);
     expect(handleOpen).toHaveBeenCalledTimes(1);

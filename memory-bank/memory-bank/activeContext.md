@@ -31,6 +31,7 @@
 - Исправлен мобильный баг dashboard sidebar внутри страницы версии проекта: мобильный drawer теперь рендерится через portal в `document.body`, чтобы не зависеть от stacking context тяжелого project/version UI.
 - Полностью убран special-case sidebar flow: dashboard переведен на единый глобальный `DashboardShell`, общий header больше не скрывается на странице версии проекта, а сама страница версии больше не управляет sidebar локально.
 - После первого push найден и исправлен остаточный баг нового global sidebar: mobile portal sidebar должен жить под `.dashboard-shell`, иначе portal теряет glass/dashboard-стили.
+- Старый `Sidebar.tsx` и `MobileMenuButton.tsx` удалены; вместо них собран новый `GlobalSidebar` и `SidebarToggleButton` с отдельным контрактом на desktop/mobile поведение.
 - Текущий следующий приоритет: облегчить страницу версии проекта, так как она остается самым тяжелым маршрутом и вероятным источником мобильных микро-фризов.
 
 ## Критические фичи (блокеры для правильного ICP)
