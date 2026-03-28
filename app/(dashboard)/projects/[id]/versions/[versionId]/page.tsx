@@ -43,6 +43,11 @@ type ProjectMember = {
   roleOnProject: ProjectMemberRole;
 };
 
+const STATIC_SWR_OPTIONS = {
+  revalidateOnFocus: false,
+  revalidateIfStale: false,
+} as const;
+
 const STATUS_BADGE_LABELS: Record<FeedbackStatus, string> = {
   NEW: "Новая",
   VIEWED: "Просмотрено",
@@ -237,28 +242,37 @@ export default function VersionDetailPage(): JSX.Element {
   const params = useParams<{ id: string; versionId: string }>();
   const { id: projectId, versionId } = params;
   const router = useRouter();
-  const mobileKinescopeRef = useRef<KinescopePlayerRef>(null);
-  const desktopKinescopeRef = useRef<KinescopePlayerRef>(null);
+  const kinescopeRef = useRef<KinescopePlayerRef>(null);
   const user = useDashboardUser();
   const isOwnerOrPm = !user.isDemo && (user.role === "OWNER" || user.role === "PM");
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false,
+  );
 
-  const { data: project, isLoading: projectLoading } = useSWR(`/api/projects/${projectId}`, apiFetch<ProjectResponse>);
+  const { data: project, isLoading: projectLoading } = useSWR(
+    `/api/projects/${projectId}`,
+    apiFetch<ProjectResponse>,
+    STATIC_SWR_OPTIONS,
+  );
   const { data: versionsResponse, isLoading: versionsLoading, mutate: mutateVersions } = useSWR(
     `/api/projects/${projectId}/versions`,
     apiFetch<ApiWrapped<AssetVersionResponse[]>>,
+    STATIC_SWR_OPTIONS,
   );
   const {
     data: feedbackResponse = [],
     isLoading: feedbackLoading,
     mutate: mutateFeedback,
-  } = useSWR(`/api/projects/${projectId}/feedback`, apiFetch<FeedbackResponse[]>);
+  } = useSWR(`/api/projects/${projectId}/feedback`, apiFetch<FeedbackResponse[]>, STATIC_SWR_OPTIONS);
   const { data: workspaceMembers = [], isLoading: workspaceMembersLoading } = useSWR(
     isOwnerOrPm ? "/api/team/members" : null,
     apiFetch<WorkspaceMember[]>,
+    STATIC_SWR_OPTIONS,
   );
   const { data: projectMembers = [], mutate: mutateProjectMembers } = useSWR(
     isOwnerOrPm ? `/api/projects/${projectId}/members` : null,
     apiFetch<ProjectMember[]>,
+    STATIC_SWR_OPTIONS,
   );
 
   const versions = useMemo(
@@ -297,6 +311,24 @@ export default function VersionDetailPage(): JSX.Element {
       setActiveVersionId(versionId);
     }
   }, [versionId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const updateViewport = (event?: MediaQueryListEvent): void => {
+      setIsDesktopViewport(event?.matches ?? mediaQuery.matches);
+    };
+
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateViewport);
+    };
+  }, []);
 
   useEffect(() => {
     setActiveAnnotation(null);
@@ -410,11 +442,7 @@ export default function VersionDetailPage(): JSX.Element {
   );
 
   const getActiveKinescopeRef = (): React.RefObject<KinescopePlayerRef | null> => {
-    if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
-      return desktopKinescopeRef;
-    }
-
-    return mobileKinescopeRef;
+    return kinescopeRef;
   };
 
   const seekToTimecode = (timecodeSec: number | null, annotation: FeedbackResponse["annotationData"]): void => {
@@ -1159,17 +1187,19 @@ export default function VersionDetailPage(): JSX.Element {
 
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
             <div className="relative aspect-video overflow-hidden rounded-[20px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)]">
-              <KinescopePlayer
-                ref={mobileKinescopeRef}
-                className="h-full w-full"
-                videoId={activeVersion.kinescopeVideoId}
-                videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
-                onPlay={() => {
-                  if (playbackPolicy.hideOnPlay) {
-                    setActiveAnnotation(null);
-                  }
-                }}
-              />
+              {!isDesktopViewport ? (
+                <KinescopePlayer
+                  ref={kinescopeRef}
+                  className="h-full w-full"
+                  videoId={activeVersion.kinescopeVideoId}
+                  videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
+                  onPlay={() => {
+                    if (playbackPolicy.hideOnPlay) {
+                      setActiveAnnotation(null);
+                    }
+                  }}
+                />
+              ) : null}
               {overlayStrokes.length > 0 ? (
                 <div className="pointer-events-none absolute inset-0">
                   <svg {...getOverlaySvgProps()} className="h-full w-full">
@@ -1409,17 +1439,19 @@ export default function VersionDetailPage(): JSX.Element {
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="mx-auto w-full max-w-[1040px]">
                 <div className="relative aspect-video min-h-[340px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#05070d] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_26px_60px_rgba(0,0,0,0.42)] xl:min-h-[420px] 2xl:min-h-[470px]">
-                  <KinescopePlayer
-                    ref={desktopKinescopeRef}
-                    className="h-full w-full"
-                    videoId={activeVersion.kinescopeVideoId}
-                    videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
-                    onPlay={() => {
-                      if (playbackPolicy.hideOnPlay) {
-                        setActiveAnnotation(null);
-                      }
-                    }}
-                  />
+                  {isDesktopViewport ? (
+                    <KinescopePlayer
+                      ref={kinescopeRef}
+                      className="h-full w-full"
+                      videoId={activeVersion.kinescopeVideoId}
+                      videoUrl={activeVersion.streamUrl ?? activeVersion.fileUrl}
+                      onPlay={() => {
+                        if (playbackPolicy.hideOnPlay) {
+                          setActiveAnnotation(null);
+                        }
+                      }}
+                    />
+                  ) : null}
                   {overlayStrokes.length > 0 ? (
                     <div className="pointer-events-none absolute inset-0">
                       <svg {...getOverlaySvgProps()} className="h-full w-full">
