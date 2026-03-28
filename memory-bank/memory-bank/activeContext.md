@@ -28,6 +28,7 @@
 - Production build переведен на `next build --webpack`, потому что turbopack build на VPS давал нестабильные артефакты и 502.
 - Во время этой сессии уже был реальный продовый инцидент `502 Bad Gateway`, успешно восстановлен.
 - Исправлена битая кириллица на user-страницах проектов после server-first рефактора.
+- Исправлен мобильный баг dashboard sidebar внутри страницы версии проекта: мобильный drawer теперь рендерится через portal в `document.body`, чтобы не зависеть от stacking context тяжелого project/version UI.
 - Текущий следующий приоритет: облегчить страницу версии проекта, так как она остается самым тяжелым маршрутом и вероятным источником мобильных микро-фризов.
 
 ## Критические фичи (блокеры для правильного ICP)
@@ -75,6 +76,7 @@
 - Выполнен prod recovery после 502, связанного с server-first scope mapping и нестабильной turbopack build-схемой
 - Переведен production build на webpack path для стабильных выкладок
 - Исправлена кодировка UI-копира на страницах проектов
+- Исправлен mobile sidebar внутри project version page через portal-рендер мобильного drawer
 - Реализован public internal workspace demo без логина: `/workspace-demo/[token]` с read-only экранами Projects + Version review
 - Реализован сброс ссылки гостевого портала из рабочего интерфейса версии
 - Реализованы треды/обсуждения по каждой правке (feedback threads + read state)

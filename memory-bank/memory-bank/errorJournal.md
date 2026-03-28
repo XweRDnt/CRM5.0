@@ -101,3 +101,15 @@ ode .\node_modules\....
 **Решение:** Убрали route-based `ios` shell, удалили связанные CSS override-блоки и затемнили sidebar/dashboard navigation.
 
 **Вывод:** Не держать параллельно два глобальных theme-layer для одного и того же dashboard UI — старые оболочки нужно удалять целиком, а не частично переопределять.
+
+---
+
+## [2026-03-28] Mobile sidebar ломался внутри project version page
+
+**Симптом:** На обычных dashboard-страницах sidebar открывался, а внутри страницы версии проекта мобильное меню визуально/по тапу не работало стабильно.
+
+**Причина:** Мобильный drawer sidebar рендерился внутри dashboard tree и зависел от layering/staking context тяжелого project/version UI.
+
+**Решение:** Мобильную часть `Sidebar` перевели на portal в `document.body`; добавлен регрессионный тест, который проверяет, что mobile drawer больше не живет внутри dashboard container.
+
+**Вывод:** Для full-screen project/version экранов мобильные overlay/drawer лучше сразу рендерить через portal, а не внутри route subtree.

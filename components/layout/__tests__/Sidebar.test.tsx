@@ -14,10 +14,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Sidebar", () => {
-  it("renders the sidebar with the macos glass treatment", () => {
+  it("renders the mobile drawer outside the dashboard tree to avoid project layout stacking issues", () => {
     usePathnameMock.mockReturnValue("/projects");
 
-    render(
+    const { container } = render(
       <Sidebar
         user={{
           id: "user-1",
@@ -37,14 +37,17 @@ describe("Sidebar", () => {
       />,
     );
 
-    const asides = screen.getAllByText("ProdStudio").map((element) => element.closest("aside"));
-    const mobileAside = asides[0];
-    const desktopAside = asides[1];
+    const desktopAside = container.querySelector("aside");
+    const mobileAside = Array.from(document.body.querySelectorAll("aside")).find((aside) => !container.contains(aside));
     const nav = screen.getAllByRole("navigation")[0];
     const profileCard = screen.getAllByText("OWNER")[0]?.closest("div");
 
+    expect(mobileAside).toBeTruthy();
+    expect(desktopAside).toBeTruthy();
     expect(mobileAside?.className).toContain("sidebar-shell-macos");
     expect(mobileAside?.className).toContain("w-72");
+    expect(container.contains(mobileAside ?? null)).toBe(false);
+    expect(document.body.contains(mobileAside ?? null)).toBe(true);
     expect(desktopAside?.className).toContain("sidebar-shell-macos");
     expect(desktopAside?.className).toContain("w-64");
     expect(desktopAside?.className).toContain("lg:flex");

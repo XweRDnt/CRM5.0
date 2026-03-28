@@ -1,6 +1,8 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
 import { FolderOpen, Shield, UserPlus, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { getMessages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils/cn";
 import type { AuthUser } from "@/lib/hooks/use-auth-guard";
@@ -21,8 +23,14 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
   const m = getMessages();
+  const [portalReady, setPortalReady] = useState(false);
   const isOwnerOrPm = user.role === "OWNER" || user.role === "PM";
   const visibleNavItems = user.isDemo ? navItems.filter((item) => item.key === "projects") : navItems;
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
   const navigation = visibleNavItems
     .filter((item) => (!item.onlyOwnerOrPm || isOwnerOrPm) && (!item.onlyAdmin || user.isAdmin))
     .map((item) => {
@@ -74,22 +82,25 @@ export function Sidebar({ user, open, onClose }: SidebarProps): JSX.Element {
       </div>
     </>
   );
+  const mobileSidebar = (
+    <div className={cn("fixed inset-0 z-[70] lg:hidden", open ? "block" : "hidden")}>
+      <div className="flex h-full">
+        <aside className="glass-sidebar sidebar-shell-macos flex w-72 flex-col p-4 backdrop-blur">
+          {sidebarBody}
+        </aside>
+        <button
+          type="button"
+          aria-label={m.nav.closeMenu}
+          onClick={onClose}
+          className="min-w-0 flex-1 bg-black/28 backdrop-blur-[3px]"
+        />
+      </div>
+    </div>
+  );
 
   return (
     <>
-      <div className={cn("fixed inset-0 z-[70] lg:hidden", open ? "block" : "hidden")}>
-        <div className="flex h-full">
-          <aside className="glass-sidebar sidebar-shell-macos flex w-72 flex-col p-4 backdrop-blur">
-            {sidebarBody}
-          </aside>
-          <button
-            type="button"
-            aria-label={m.nav.closeMenu}
-            onClick={onClose}
-            className="min-w-0 flex-1 bg-black/28 backdrop-blur-[3px]"
-          />
-        </div>
-      </div>
+      {portalReady ? createPortal(mobileSidebar, document.body) : null}
       <aside className="glass-sidebar sidebar-shell-macos hidden w-64 flex-col p-4 backdrop-blur lg:flex">
         {sidebarBody}
       </aside>
