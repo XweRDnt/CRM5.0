@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -8,6 +7,7 @@ import { ArrowLeft, Check, ChevronDown, Copy, Loader2, Plus, Search, Send, Share
 import { MobileMenuButton } from "@/components/layout/MobileMenuButton";
 import type { FeedbackStatus } from "@prisma/client";
 import { useDashboardUser } from "@/components/auth/dashboard-user-context";
+import { useDashboardSidebar } from "@/components/layout/dashboard-sidebar-context";
 import { KinescopePlayer, type KinescopePlayerRef } from "@/components/video/KinescopePlayer";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { toast } from "@/components/ui/toast";
@@ -102,11 +102,6 @@ const PROJECT_ROLE_LABELS: Record<ProjectMemberRole, string> = {
   pm: "PM",
   editor: "EDITOR",
 };
-
-const VersionDetailMobileSidebar = dynamic(
-  () => import("@/components/layout/VersionDetailMobileSidebar").then((module) => module.VersionDetailMobileSidebar),
-  { ssr: false },
-);
 
 function unwrap<T>(payload: ApiWrapped<T>): T {
   return "data" in (payload as { data?: T }) ? (payload as { data: T }).data : (payload as T);
@@ -251,6 +246,7 @@ export default function VersionDetailPage(): JSX.Element {
   const router = useRouter();
   const kinescopeRef = useRef<KinescopePlayerRef>(null);
   const user = useDashboardUser();
+  const { openSidebar } = useDashboardSidebar();
   const isOwnerOrPm = !user.isDemo && (user.role === "OWNER" || user.role === "PM");
   const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false,
@@ -300,7 +296,6 @@ export default function VersionDetailPage(): JSX.Element {
   const [confirmDeleteVersionOpen, setConfirmDeleteVersionOpen] = useState(false);
   const [activeAnnotation, setActiveAnnotation] = useState<AnnotationData | null>(null);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [deleteMenuPosition, setDeleteMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [memberSearch, setMemberSearch] = useState("");
   const [memberRoleDrafts, setMemberRoleDrafts] = useState<Record<string, ProjectMemberRole>>({});
@@ -349,7 +344,6 @@ export default function VersionDetailPage(): JSX.Element {
     setDeleteMenuPosition(null);
     setShareMenuOpen(false);
     setEmployeesModalOpen(false);
-    setMobileMenuOpen(false);
   }, [activeVersionId]);
 
   useEffect(() => {
@@ -1049,7 +1043,7 @@ export default function VersionDetailPage(): JSX.Element {
         <section className="shrink-0 rounded-[22px] border border-white/10 bg-[linear-gradient(180deg,rgba(16,18,29,0.88)_0%,rgba(10,12,20,0.92)_100%)] px-4 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:px-6">
           {showMobileLayout ? (
             <div className="flex items-start gap-3 lg:hidden">
-              <MobileMenuButton onClick={() => setMobileMenuOpen(true)} />
+              <MobileMenuButton onClick={openSidebar} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 pt-1">
@@ -1697,8 +1691,6 @@ export default function VersionDetailPage(): JSX.Element {
           </div>
         </div>
       ) : null}
-
-      {user ? <VersionDetailMobileSidebar user={user} open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} /> : null}
 
       {deleteMenuPosition ? (
         <div
