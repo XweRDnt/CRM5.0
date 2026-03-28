@@ -15,8 +15,8 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
   };
 }
 
-export async function createTestProject(tenantId: string, legacyClientIdOrName: string, maybeName?: string) {
-  const name = maybeName ?? legacyClientIdOrName;
+export async function createTestProject(tenantId: string, nameOrIgnoredValue: string, explicitName?: string) {
+  const name = explicitName ?? nameOrIgnoredValue;
   return prisma.project.create({
     data: {
       tenantId,

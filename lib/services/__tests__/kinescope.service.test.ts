@@ -17,7 +17,7 @@ async function createClient(tenantId: string, email: string) {
   return { id: `client-${tenantId}-${email}` };
 }
 
-async function createProject(tenantId: string, clientAccountId: string, name: string) {
+async function createProject(tenantId: string, _ignoredLegacyValue: string, name: string) {
   return prisma.project.create({
     data: {
       tenantId,

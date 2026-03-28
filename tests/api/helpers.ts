@@ -41,15 +41,8 @@ export async function signupAndLogin(): Promise<AuthSession> {
   };
 }
 
-export async function createClient(_token: string): Promise<{ id: string }> {
-  return { id: "client-removed" };
-}
-
-export async function createProject(token: string, legacyClientIdOrName?: string, maybeName?: string): Promise<{ id: string }> {
-  const name =
-    maybeName ??
-    (legacyClientIdOrName && !legacyClientIdOrName.startsWith("client-") ? legacyClientIdOrName : undefined) ??
-    `Project ${Date.now()}`;
+export async function createProject(token: string, projectName?: string): Promise<{ id: string }> {
+  const name = projectName ?? `Project ${Date.now()}`;
 
   const response = await request(API_URL)
     .post("/api/projects")

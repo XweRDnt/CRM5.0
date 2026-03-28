@@ -392,7 +392,7 @@ export interface VersionConflictResponse {
 
 export type CreateAssetVersionInput = {
   projectId: string;
-  versionNo: number;
+  versionNo?: number;
   fileUrl: string;
   fileName: string;
   fileSize: number;
