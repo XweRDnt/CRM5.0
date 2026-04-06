@@ -295,6 +295,10 @@ export function VersionUploadFlow({
     };
 
     readTheme();
+    if (typeof MutationObserver !== "function") {
+      return;
+    }
+
     const observer = new MutationObserver(readTheme);
     observer.observe(root, { attributes: true, attributeFilter: ["data-app-theme"] });
     return () => observer.disconnect();

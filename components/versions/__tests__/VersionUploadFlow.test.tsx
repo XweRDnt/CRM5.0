@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SWRConfig } from "swr";
 import { VersionUploadFlow } from "@/components/versions/VersionUploadFlow";
 
@@ -328,5 +328,28 @@ describe("VersionUploadFlow", () => {
     expect(await screen.findByText("Не удалось прочитать метаданные видео. Выберите другой файл.")).toBeTruthy();
     expect(getSubmitButton(rendered.container).disabled).toBe(true);
     expect(apiFetchMock.mock.calls.some((call) => call[0] === "/api/upload")).toBe(false);
+  });
+
+  it("renders without crashing when MutationObserver is unavailable", async () => {
+    const originalMutationObserver = globalThis.MutationObserver;
+    // Some embedded browsers/opened shells don't expose MutationObserver.
+    Object.defineProperty(globalThis, "MutationObserver", {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      const rendered = renderFlow();
+      expect(getVersionTitleInput(rendered.container).value).toBe("Версия 1");
+      expect(rendered.container.querySelector("form")).toBeTruthy();
+      await act(async () => {
+        await Promise.resolve();
+      });
+    } finally {
+      Object.defineProperty(globalThis, "MutationObserver", {
+        configurable: true,
+        value: originalMutationObserver,
+      });
+    }
   });
 });
