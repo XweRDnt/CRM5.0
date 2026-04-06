@@ -2,7 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { toast } from "@/components/ui/toast";
 import { VersionUploadFlow } from "@/components/versions/VersionUploadFlow";
 
 type VersionUploadDialogProps = {
@@ -14,6 +15,7 @@ type VersionUploadDialogProps = {
   triggerSize?: ButtonProps["size"];
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  unavailableMessage?: string;
 };
 
 export function VersionUploadDialog({
@@ -25,21 +27,37 @@ export function VersionUploadDialog({
   triggerSize = "default",
   open: controlledOpen,
   onOpenChange,
+  unavailableMessage,
 }: VersionUploadDialogProps): JSX.Element {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = controlledOpen ?? uncontrolledOpen;
   const setOpen = onOpenChange ?? setUncontrolledOpen;
 
   const hasTrigger = Boolean(triggerContent ?? triggerText);
+  const uploadsUnavailable = Boolean(unavailableMessage);
+
+  const handleUnavailableClick = (): void => {
+    if (!unavailableMessage) {
+      return;
+    }
+
+    toast.info(unavailableMessage);
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {hasTrigger ? (
-        <DialogTrigger asChild>
-          <Button type="button" className={triggerClassName} variant={triggerVariant} size={triggerSize}>
+        uploadsUnavailable ? (
+          <Button type="button" className={triggerClassName} variant={triggerVariant} size={triggerSize} onClick={handleUnavailableClick}>
             {triggerContent ?? triggerText}
           </Button>
-        </DialogTrigger>
+        ) : (
+          <DialogTrigger asChild>
+            <Button type="button" className={triggerClassName} variant={triggerVariant} size={triggerSize}>
+              {triggerContent ?? triggerText}
+            </Button>
+          </DialogTrigger>
+        )
       ) : null}
 
       <DialogContent className="!w-[min(860px,92vw)] !max-w-[860px] !overflow-hidden !rounded-[28px] !border-white/10 !bg-[linear-gradient(180deg,rgba(16,18,29,0.98),rgba(8,10,18,0.98))] !p-0 !text-neutral-100 !shadow-[0_34px_120px_rgba(0,0,0,0.56)] !backdrop-blur-[32px]">
@@ -54,6 +72,9 @@ export function VersionUploadDialog({
               <DialogTitle className="text-[22px] font-semibold tracking-[-0.04em] text-neutral-100">
                 Загрузить видео
               </DialogTitle>
+              <DialogDescription className="sr-only">
+                Выберите видеофайл и создайте новую версию проекта.
+              </DialogDescription>
             </DialogHeader>
           </div>
 
