@@ -240,7 +240,7 @@ export class FeedbackService {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
 
     return feedbackItems.map((feedback) => this.mapFeedbackResponse(feedback as FeedbackWithAuthor));

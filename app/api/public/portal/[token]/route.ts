@@ -71,7 +71,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     const feedbackItems = activeVersion
       ? await prisma.feedbackItem.findMany({
           where: { assetVersionId: activeVersion.id },
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           take: 50,
           select: {
             id: true,
