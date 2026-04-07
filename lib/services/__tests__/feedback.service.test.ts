@@ -361,7 +361,7 @@ describe("FeedbackService.listFeedbackByProject", () => {
     await cleanup();
   });
 
-  it("should list all feedback for project sorted by createdAt DESC", async () => {
+  it("should list all feedback for project sorted by createdAt ASC", async () => {
     const tenant = await createTestTenant("agency-fb-16");
     const user = await createTestUser(tenant.id, "user16@test.com");
     const client = await createTestClient(tenant.id, "client16@test.com");
@@ -387,8 +387,8 @@ describe("FeedbackService.listFeedbackByProject", () => {
 
     const result = await feedbackService.listFeedbackByProject(project.id, tenant.id);
     expect(result.length).toBe(2);
-    expect(result[0].text).toBe("Newer comment");
-    expect(result[1].text).toBe("Older comment");
+    expect(result[0].text).toBe("Older comment");
+    expect(result[1].text).toBe("Newer comment");
   });
 
   it("should return empty array when project has no feedback", async () => {

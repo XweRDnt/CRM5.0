@@ -1117,9 +1117,15 @@ export default function ClientPortalPage(): JSX.Element {
   const canSubmit = !submitting && !isVersionLocked && trimmedAuthor.length > 0 && (hasComment || hasStrokes);
   const feedbackWithDemoOverlay =
     isDemoReadonly && activeVersion ? mergePortalFeedbackWithDemoOverlay(data.feedback, demoOverlay, activeVersion.id) : data.feedback;
-  const visibleFeedback = feedbackWithDemoOverlay.filter(
-    (item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text),
-  );
+  const visibleFeedback = feedbackWithDemoOverlay
+    .filter((item) => !["Ping from debug", "Ping after queue fix", "Smoke after direct route"].includes(item.text))
+    .sort((a, b) => {
+      const byCreatedAt = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (byCreatedAt !== 0) {
+        return byCreatedAt;
+      }
+      return a.id.localeCompare(b.id);
+    });
   const activeThreadId = openThreadIds[0] ?? null;
   const activeThreadItem = activeThreadId ? visibleFeedback.find((item) => item.id === activeThreadId) ?? null : null;
   const activeThreadMessages =
@@ -2052,5 +2058,4 @@ export default function ClientPortalPage(): JSX.Element {
     </main>
   );
 }
-
 

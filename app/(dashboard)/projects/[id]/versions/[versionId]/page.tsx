@@ -405,12 +405,11 @@ export default function VersionDetailPage(): JSX.Element {
     return mergedFeedbackResponse
       .filter((item) => item.assetVersionId === activeVersion.id && item.authorType === "CLIENT")
       .sort((a, b) => {
-        const aTime = a.timecodeSec ?? Number.MAX_SAFE_INTEGER;
-        const bTime = b.timecodeSec ?? Number.MAX_SAFE_INTEGER;
-        if (aTime !== bTime) {
-          return aTime - bTime;
+        const byCreatedAt = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        if (byCreatedAt !== 0) {
+          return byCreatedAt;
         }
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return a.id.localeCompare(b.id);
       });
   }, [activeVersion, mergedFeedbackResponse]);
 
@@ -2130,7 +2129,6 @@ export default function VersionDetailPage(): JSX.Element {
     </main>
   );
 }
-
 
 
 
